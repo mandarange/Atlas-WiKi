@@ -1,0 +1,3 @@
+SHELL=/bin/sh
+ATLAS_WIKI_ROOT=/data
+17 2 * * * awiki backup create --json && awiki backup verify --json

@@ -1,0 +1,13 @@
+services:
+  atlas-wiki:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      ATLAS_WIKI_ROOT: /data
+    volumes:
+      - atlas-wiki-data:/data
+    command: ["doctor", "--json"]
+
+volumes:
+  atlas-wiki-data: {}

@@ -1,0 +1,11 @@
+{
+  "schema": "atlas.wiki.server-config.v1",
+  "atlasWikiRoot": "/data",
+  "transport": "stdio",
+  "logLevel": "info",
+  "backup": {
+    "enabled": true,
+    "schedule": "17 2 * * *",
+    "verifyAfterCreate": true
+  }
+}

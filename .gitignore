@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+.DS_Store
+.sneakoscope/
+.atlas-wiki/
+tmp/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.env
+.env.*
+!.env.example

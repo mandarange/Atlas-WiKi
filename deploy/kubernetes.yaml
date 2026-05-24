@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: atlas-wiki-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: atlas-wiki-backup
+spec:
+  schedule: "17 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: atlas-wiki
+              image: ghcr.io/mandarange/atlas-wiki:0.1.0
+              args: ["backup", "create", "--json"]
+              env:
+                - name: ATLAS_WIKI_ROOT
+                  value: /data
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: atlas-wiki-data

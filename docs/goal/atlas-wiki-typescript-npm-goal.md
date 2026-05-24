@@ -1,0 +1,5850 @@
+# Atlas WiKi 완전 개발 Goal 지시서
+
+- 생성일: 2026-05-24 23:28:44 UTC+09:00
+- 공식명: `Atlas WiKi`
+- 한국어 표시명: `아틀라스 WiKi`
+- 대상 저장소: `mandarange/Atlas-WiKi`
+- 패키지명: `@mandarange/atlas-wiki`
+- npm 배포명: `@mandarange/atlas-wiki`
+- 소스 언어: TypeScript only (`src/**/*.ts`)
+- 런타임 배포물: compiled ESM + `.d.ts` declarations in `dist/`
+- CLI: `awiki`, `atlas-wiki`
+- MCP namespace: `atlas_wiki.*`
+- Schema namespace: `atlas.wiki.*`
+- 데이터 루트: `.atlas-wiki/`
+- 기본 DB: `.atlas-wiki/atlas-wiki.sqlite`
+- Task prefix: `ATW-`
+- 핵심 원칙: **TypeScript-first, npm-publishable, Agent-neutral, SQLite-first, source-backed, permission-aware, audit-friendly Wiki/ledger**
+
+---
+
+## 0. 이 문서의 목적
+
+이 문서는 Atlas WiKi를 완전하게 개발하기 위한 `/goal` 지시서다. 목표는 특정 Agent, 특정 IDE, 특정 코딩 워크플로, 특정 기업 환경에 묶이지 않는 범용 지식 Wiki/ledger를 만드는 것이다. 구현은 TypeScript-first로 진행하며, npm에 배포 가능한 라이브러리/CLI/MCP 패키지 구조를 기본 전제로 한다.
+
+Atlas WiKi는 다음 환경에서 모두 사용할 수 있어야 한다.
+
+```txt
+개인 지식베이스
+팀 Wiki
+조직/기업 지식 저장소
+정책·절차·회의록·고객지원 지식베이스
+Agent memory substrate
+MCP server resource backend
+RAG context source
+웹앱/데스크톱앱용 embedded knowledge database
+외부 시스템 connector의 안전한 지식 캐시
+```
+
+Core에는 `Hermes`, `Codex`, `SKS`, 특정 LLM provider, 특정 SaaS connector 이름이 박히면 안 된다. 이런 연동은 `integrations/` 또는 별도 adapter 패키지로 분리한다.
+
+## 1. 최종 제품 정의
+
+### 1.1 한 문장 정의
+
+Atlas WiKi는 Agent, 앱, 개인, 팀, 조직이 지식을 안전하게 저장하고, 출처 기반으로 검색·답변하며, 권한·최신성·충돌·감사를 관리하는 범용 SQLite-first 지식 Wiki이자 원장이다.
+
+### 1.2 영어 정의
+
+`Atlas WiKi is a general-purpose SQLite-first knowledge wiki and ledger for agents, applications, teams, and organizations: source-backed, permission-aware, freshness-scored, conflict-detecting, audit-friendly, and adapter-neutral.`
+
+### 1.3 제품이 풀 문제
+
+지식은 문서, 채팅, 이메일, 티켓, 노션, 컨플루언스, 드라이브, 쉐어포인트, CRM, ERP, GitHub Wiki, 회의록, 정책 문서, 운영 문서, 개인 메모에 흩어져 있다. 단순 RAG는 “검색해서 요약”에 집중하지만, 실제 지식 시스템에는 다음 질문이 더 중요하다.
+
+- 이 정보를 사용자가 볼 권한이 있는가?
+- 출처가 무엇인가?
+- 누가 owner인가?
+- 언제 갱신되었고 언제 stale해지는가?
+- 같은 사안에 충돌하는 지식이 있는가?
+- 답변에 쓰인 근거를 감사할 수 있는가?
+- Agent나 앱이 정보를 수정하려 할 때 승인 흐름이 있는가?
+- 로컬 SQLite로 시작해서 조직 배포로 확장할 수 있는가?
+
+Atlas WiKi는 이 질문들을 1급 기능으로 만든다.
+
+## 2. 비목표와 경계
+
+### 2.1 비목표
+
+Atlas WiKi는 다음이 아니다.
+
+```txt
+코딩용 SKS 하위 기능
+Hermes 전용 Agent memory
+Codex route/proof harness
+단순 vector DB wrapper
+권한 없는 문서를 LLM에 넣고 모델에게 숨기라고 맡기는 RAG
+특정 SaaS connector 전용 캐시
+```
+
+### 2.2 Core에 들어가면 안 되는 것
+
+```txt
+.sneakoscope hardcoded path
+.hermes hardcoded path
+Codex route/tmux/completion proof logic
+특정 Agent prompt contract의 hard dependency
+특정 LLM provider SDK의 hard dependency
+특정 connector의 hard dependency
+```
+
+### 2.3 선택적 adapter
+
+다음 adapter는 나중에 만들 수 있지만 core는 이들을 import하지 않는다.
+
+```txt
+@mandarange/atlas-wiki-sks-adapter
+@mandarange/atlas-wiki-hermes-adapter
+@mandarange/atlas-wiki-codex-adapter
+@mandarange/atlas-wiki-slack-connector
+@mandarange/atlas-wiki-google-drive-connector
+@mandarange/atlas-wiki-microsoft365-connector
+```
+
+## 3. 성공 기준
+
+### 3.1 v0.1 MVP 성공 기준
+
+```txt
+awiki init
+  .atlas-wiki/atlas-wiki.sqlite 생성
+  config.json, blobs, cache, exports, reports, tmp 생성
+
+awiki ingest
+  Markdown/Text/JSON/JSONL/CSV를 SourceRecord와 ChunkRecord로 저장
+
+awiki claim
+  수동 또는 반자동 ClaimRecord 생성
+
+awiki search
+  SQLite FTS 기반 lexical search
+  권한 필터 통과 결과만 반환
+
+awiki context-pack
+  citation 가능한 근거만 묶음
+  stale/conflict/redaction marker 포함
+
+awiki validate
+  schema, migration, source ref, ACL, freshness, secret scan, audit chain 검사
+
+awiki mcp start
+  atlas_wiki.search/fetch/context_pack/check_freshness/find_conflicts/propose_update 제공
+
+npm package
+  TypeScript source만 hand-authoring
+  dist/index.js와 dist/index.d.ts 생성
+  package.json exports/types/bin/files 검증
+  npm pack --dry-run 통과
+  packed tarball install smoke test 통과
+```
+
+v0.1에서 가장 중요한 성공 조건은 “권한 없는 record가 model context에 들어가지 않는다”와 “TypeScript-first npm package로 안전하게 설치/실행된다”이다.
+
+### 3.2 v1.0 성공 기준
+
+```txt
+SQLite-first local/embedded deployment 안정화
+synced/federated connector 모델 지원
+hybrid retrieval: lexical + vector + graph
+source ACL snapshot 기반 query-time permission filter
+approval workflow
+append-only audit chain
+tamper detection
+backup/restore/export/import
+MCP stdio/http production mode
+SDK와 HTTP API
+TypeScript public API stability
+npm trusted publishing/provenance release workflow
+보안 regression fixture 100개 이상
+retrieval/freshness/conflict eval harness
+```
+
+## 4. 전체 아키텍처
+
+```txt
+Agent / App / Web UI / Desktop UI / CLI / SDK / MCP Client
+  ↓
+Atlas WiKi API Surface
+  - CLI
+  - SDK
+  - MCP server
+  - optional HTTP API
+  ↓
+Identity + Policy Guard
+  ↓
+Retriever
+  - lexical search
+  - vector search adapter
+  - graph expansion
+  - rerank
+  ↓
+SQLite Knowledge Ledger
+  - canonical records
+  - projections
+  - ACL
+  - audit
+  - migrations
+  ↓
+Indexes and Caches
+  - FTS
+  - embedding cache
+  - graph index
+  - context pack cache
+  ↓
+Connectors and Ingesters
+```
+
+### 4.1 금지 흐름
+
+```txt
+검색 후보 생성
+  → LLM context 투입
+  → LLM이 알아서 권한 없는 정보를 숨김
+```
+
+### 4.2 필수 흐름
+
+```txt
+질문
+  → identity 확인
+  → allowed scope 계산
+  → 검색 후보 생성
+  → 권한 필터
+  → redaction
+  → freshness/conflict annotation
+  → citation assembly
+  → context pack
+  → Agent/App/UI 전달
+  → audit log
+```
+
+## 5. 저장소 구조
+
+```txt
+Atlas-WiKi/
+  package.json
+  tsconfig.json
+  tsconfig.base.json
+  tsconfig.build.json
+  tsconfig.test.json
+  README.md
+  LICENSE
+  SECURITY.md
+  CONTRIBUTING.md
+  CHANGELOG.md
+
+  src/
+    index.ts
+    public-api.ts
+    package-info.ts
+    core/
+      records/
+      ids/
+      hash/
+      time/
+      errors/
+    db/
+      connection.ts
+      migrations.ts
+      transaction.ts
+      schema.sql
+      wal.ts
+      backup.ts
+    store/
+      store-contract.ts
+      sqlite-store.ts
+      memory-store.ts
+      json-export-store.ts
+    ingest/
+      parsers/
+      chunkers/
+      normalizers/
+      claim-extraction/
+    index/
+      fts/
+      vector/
+      graph/
+      rebuild/
+    retrieve/
+      query.ts
+      permission-filter.ts
+      rerank.ts
+      citation.ts
+      context-pack.ts
+    policy/
+      acl.ts
+      redaction.ts
+      sensitivity.ts
+      retention.ts
+      approval.ts
+    validation/
+      schema-validator.ts
+      access-validator.ts
+      freshness-validator.ts
+      conflict-validator.ts
+      secret-scan.ts
+      db-integrity.ts
+    mcp/
+      server.ts
+      tools.ts
+      resources.ts
+      prompts.ts
+    cli/
+      main.ts
+      commands/
+    sdk/
+      client.ts
+      types.ts
+    api/
+      http-server.ts
+      routes/
+    connectors/
+      contract.ts
+      local-file/
+      examples/
+    audit/
+      audit-store.ts
+      hash-chain.ts
+      export.ts
+    eval/
+      retrieval/
+      security/
+      freshness/
+      conflict/
+    integrations/
+      README.md
+
+  schemas/
+    atlas.wiki.base.v1.schema.json
+    atlas.wiki.source.v1.schema.json
+    atlas.wiki.chunk.v1.schema.json
+    atlas.wiki.claim.v1.schema.json
+    atlas.wiki.entity.v1.schema.json
+    atlas.wiki.relation.v1.schema.json
+    atlas.wiki.policy.v1.schema.json
+    atlas.wiki.access-grant.v1.schema.json
+    atlas.wiki.freshness.v1.schema.json
+    atlas.wiki.conflict.v1.schema.json
+    atlas.wiki.proposal.v1.schema.json
+    atlas.wiki.approval.v1.schema.json
+    atlas.wiki.audit.v1.schema.json
+    atlas.wiki.context-pack.v1.schema.json
+    atlas.wiki.connector.v1.schema.json
+
+  migrations/
+    0001_init.sql
+    0002_fts.sql
+    0003_acl_indexes.sql
+    0004_audit_chain.sql
+    0005_embedding_cache.sql
+    0006_graph_projection.sql
+
+  docs/
+    architecture.md
+    typescript-first.md
+    npm-publishing.md
+    package-exports.md
+    sqlite-storage.md
+    schema.md
+    security-model.md
+    acl-model.md
+    ingestion.md
+    retrieval.md
+    mcp.md
+    sdk.md
+    cli.md
+    connector-model.md
+    audit-model.md
+    backup-restore.md
+    deployment.md
+    adapter-boundary.md
+    migration-from-sks.md
+
+  test/
+    fixtures/
+    type-tests/
+    consumer-fixtures/
+    unit/
+    integration/
+    security/
+    eval/
+    golden/
+
+  dist/
+    # generated only, never hand-edit
+    index.js
+    index.d.ts
+    cli/
+
+  examples/
+    personal-wiki/
+    team-handbook/
+    mcp-stdio/
+    mcp-http/
+    json-export-import/
+```
+
+## 6. SQLite-first 저장 모델
+
+Atlas WiKi의 canonical source of truth는 SQLite다. JSON shard는 Git 친화 export/import, backup, migration, interop 용도다.
+
+### 6.1 데이터 루트
+
+```txt
+.atlas-wiki/
+  atlas-wiki.sqlite
+  atlas-wiki.sqlite-wal
+  atlas-wiki.sqlite-shm
+  config.json
+  blobs/
+    sources/
+    attachments/
+    extracted-text/
+    thumbnails/
+  cache/
+    embeddings/
+    retrieval/
+    connector-cursors/
+  exports/
+    json-shards/
+    ndjson/
+    sqlite-backups/
+  reports/
+    validation/
+    security/
+    freshness/
+    conflicts/
+    audit/
+  tmp/
+```
+
+### 6.2 저장 원칙
+
+```txt
+canonical record JSON
+  records.json 컬럼에 보존
+
+projection tables
+  검색, 권한, 정렬, 조인을 위해 canonical JSON에서 생성
+
+FTS index
+  source of truth 아님
+  rebuild 가능
+
+ACL projection
+  query-time permission filter의 1차 입력
+
+audit_events
+  append-only 기본
+  hash chain으로 tamper 감지
+
+tombstone
+  기본 delete는 hard delete가 아니라 deleted_at 기록
+
+export
+  SQLite snapshot을 JSON shard/NDJSON으로 내보냄
+```
+
+### 6.3 최소 SQL 스키마 초안
+
+```sql
+CREATE TABLE records (
+  id TEXT PRIMARY KEY,
+  schema TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  json TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  created_by TEXT,
+  updated_by TEXT,
+  deleted_at TEXT
+);
+
+CREATE TABLE sources (
+  id TEXT PRIMARY KEY REFERENCES records(id),
+  source_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  uri TEXT,
+  owner_id TEXT,
+  content_hash TEXT NOT NULL,
+  extracted_text_ref TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE chunks (
+  id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL REFERENCES sources(id),
+  ordinal INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  text_hash TEXT NOT NULL,
+  locator_json TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE claims (
+  id TEXT PRIMARY KEY REFERENCES records(id),
+  claim_type TEXT NOT NULL,
+  text TEXT NOT NULL,
+  normalized_text TEXT,
+  owner_id TEXT,
+  authority_score REAL NOT NULL DEFAULT 0,
+  confidence_score REAL NOT NULL DEFAULT 0,
+  conflict_score REAL NOT NULL DEFAULT 0,
+  valid_from TEXT,
+  valid_until TEXT,
+  stale_after TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE entities (
+  id TEXT PRIMARY KEY REFERENCES records(id),
+  entity_type TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  aliases_json TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE relations (
+  id TEXT PRIMARY KEY REFERENCES records(id),
+  relation_type TEXT NOT NULL,
+  from_id TEXT NOT NULL,
+  to_id TEXT NOT NULL,
+  confidence REAL NOT NULL DEFAULT 0,
+  valid_from TEXT,
+  valid_until TEXT
+);
+
+CREATE TABLE record_acl (
+  record_id TEXT NOT NULL REFERENCES records(id),
+  principal_type TEXT NOT NULL,
+  principal_id TEXT NOT NULL,
+  effect TEXT NOT NULL CHECK(effect IN ('allow', 'deny')),
+  permission TEXT NOT NULL,
+  PRIMARY KEY (record_id, principal_type, principal_id, permission, effect)
+);
+
+CREATE TABLE audit_events (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  actor_json TEXT NOT NULL,
+  request_id TEXT NOT NULL,
+  record_refs_json TEXT NOT NULL,
+  policy_decisions_json TEXT NOT NULL,
+  outcome TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  hash_prev TEXT,
+  hash_self TEXT NOT NULL
+);
+```
+
+### 6.4 SQLite 운영 규칙
+
+- 모든 write는 transaction 안에서 수행한다.
+- WAL mode를 기본으로 한다.
+- foreign key enforcement를 켠다.
+- migration은 순서가 보장되고 재실행 가능해야 한다.
+- `awiki doctor`는 migration 상태, WAL 상태, FTS rebuild 가능성, audit hash chain을 검사한다.
+- `awiki backup create`는 일관된 DB snapshot을 만든다.
+- `awiki export json-shards`는 deterministic JSON shard를 생성한다.
+- `awiki import json-shards`는 schema/hash 검증 후 transaction으로 반영한다.
+
+## 7. TypeScript-first npm 패키지 설계
+
+Atlas WiKi는 “JavaScript 파일을 직접 작성하는 프로젝트”가 아니라 **TypeScript source-of-truth 프로젝트**다. npm 배포를 위해 런타임 산출물은 컴파일된 ESM JavaScript와 `.d.ts` 선언 파일로 제공하지만, 사람이 작성하고 리뷰하는 public API, schema type, CLI, MCP server, SDK, connector contract는 모두 TypeScript로 작성한다.
+
+### 7.1 핵심 원칙
+
+```txt
+source of truth:
+  src/**/*.ts
+  schemas/**/*.schema.json
+  migrations/**/*.sql
+
+never hand-author:
+  src/**/*.js
+  src/**/*.mjs
+  src/**/*.cjs
+
+allowed generated artifacts:
+  dist/**/*.js
+  dist/**/*.d.ts
+  dist/**/*.d.ts.map
+  dist/**/*.js.map
+```
+
+TypeScript-first는 “npm에 TypeScript 원문만 올린다”는 뜻이 아니다. Node/npm 소비자가 실행할 수 있도록 `dist`에는 컴파일된 런타임 파일을 포함한다. 대신 public API와 타입 선언은 TypeScript compiler가 생성한 `.d.ts`로 관리하고, hand-written JavaScript는 금지한다.
+
+### 7.2 npm 패키지 형태
+
+기본 배포 형태는 scoped public package다.
+
+```txt
+package name: @mandarange/atlas-wiki
+module type: ESM-first
+entry: ./dist/index.js
+main types: ./dist/index.d.ts
+CLI bin: ./dist/cli/main.js
+exports: explicit subpath exports only
+files: dist, schemas, migrations, README, LICENSE, SECURITY
+```
+
+v0.1에서는 ESM-first 단일 패키지를 기본으로 한다. CommonJS dual package는 v1.0 이전에는 비목표로 둔다. dual package는 exports, default import, native SQLite driver, CLI shebang, test matrix를 복잡하게 만들 수 있으므로, 먼저 안정적인 ESM + TypeScript declarations를 완성한다.
+
+### 7.3 package.json 초안
+
+```json
+{
+  "name": "@mandarange/atlas-wiki",
+  "version": "0.1.0",
+  "description": "SQLite-first knowledge wiki and ledger for agents, apps, teams, and organizations.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "awiki": "./dist/cli/main.js",
+    "atlas-wiki": "./dist/cli/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./db": {
+      "types": "./dist/db/index.d.ts",
+      "import": "./dist/db/index.js"
+    },
+    "./store": {
+      "types": "./dist/store/index.d.ts",
+      "import": "./dist/store/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "import": "./dist/mcp/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/sdk/index.d.ts",
+      "import": "./dist/sdk/index.js"
+    },
+    "./connectors": {
+      "types": "./dist/connectors/index.d.ts",
+      "import": "./dist/connectors/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "migrations",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clean": "rimraf dist *.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:types": "tsd",
+    "test:consumer": "node ./test/consumer-fixtures/run-consumer-smoke.mjs",
+    "lint": "eslint .",
+    "schemas:validate": "node ./dist/cli/main.js schemas validate",
+    "package:verify": "node ./scripts/verify-package.mjs",
+    "package:dry-run": "npm pack --dry-run",
+    "prepack": "npm run clean && npm run typecheck && npm run test && npm run test:types && npm run build && npm run package:verify"
+  }
+}
+```
+
+### 7.4 tsconfig 원칙
+
+`tsconfig.json`은 개발 typecheck용, `tsconfig.build.json`은 emit용으로 분리한다.
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "stripInternal": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}
+```
+
+### 7.5 public API 규칙
+
+- `src/index.ts`는 stable public API만 export한다.
+- `src/public-api.ts`는 public surface snapshot의 기준이 된다.
+- internal module은 `@internal` JSDoc을 붙이고 `stripInternal` 대상이 된다.
+- 모든 exported function은 입력/출력 타입이 명시되어야 한다.
+- public API에서 `any` 사용은 금지한다.
+- SQLite driver type은 public API로 새지 않게 한다.
+- connector, MCP, SDK 타입은 package subpath export로 접근 가능해야 한다.
+- 모든 subpath export에는 `.d.ts`가 있어야 한다.
+
+### 7.6 CLI TypeScript 규칙
+
+CLI source는 `src/cli/main.ts`에 둔다. build 후 `dist/cli/main.js`에는 shebang이 보존되어야 한다.
+
+```ts
+#!/usr/bin/env node
+```
+
+CLI는 core API를 import해서 호출하며, core가 CLI를 import하지 않는다. `awiki`와 `atlas-wiki` binary는 같은 entrypoint를 가리킨다.
+
+### 7.7 SQLite driver typing 정책
+
+SQLite 구현은 `src/db` 내부에 숨긴다. public API는 다음처럼 driver-neutral type을 제공한다.
+
+```ts
+export interface AtlasWikiDatabaseOptions {
+  path: string;
+  readonly?: boolean;
+  wal?: boolean;
+  busyTimeoutMs?: number;
+}
+
+export interface AtlasWikiStore {
+  get<T extends AtlasRecord>(id: string): Promise<T | null>;
+  put<T extends AtlasRecord>(record: T, options?: PutOptions): Promise<PutResult>;
+  search(query: AtlasWikiQuery): Promise<SearchResult>;
+}
+```
+
+native SQLite dependency를 쓰더라도 소비자가 그 dependency type을 직접 알 필요가 없게 만든다.
+
+### 7.8 npm 배포 release gate
+
+v0.1 release 전에는 다음이 통과해야 한다.
+
+```bash
+npm run clean
+npm run typecheck
+npm run lint
+npm run test
+npm run test:types
+npm run build
+npm run package:verify
+npm run package:dry-run
+npm pack
+npm install ./mandarange-atlas-wiki-0.1.0.tgz --prefix ./tmp/consumer
+node ./test/consumer-fixtures/import-esm.mjs
+./tmp/consumer/node_modules/.bin/awiki --version
+```
+
+직접 배포는 scoped public package 기준으로 다음 명령을 사용한다.
+
+```bash
+npm publish --access public
+```
+
+CI 배포는 가능하면 GitHub Actions/GitLab CI의 trusted publishing/OIDC를 우선한다. 장기 npm token을 기본 배포 방식으로 쓰지 않는다.
+
+### 7.9 npm package contents 검증
+
+`npm pack --dry-run` 결과에는 다음이 포함되어야 한다.
+
+```txt
+README.md
+LICENSE
+SECURITY.md
+package.json
+dist/**/*.js
+dist/**/*.d.ts
+dist/**/*.d.ts.map
+schemas/**/*.schema.json
+migrations/**/*.sql
+```
+
+다음은 포함되면 안 된다.
+
+```txt
+src/**/*.ts        # 기본값은 제외. 필요 시 source map만 제공.
+test/**
+examples/private/**
+.atlas-wiki/**
+node_modules/**
+*.sqlite
+*.db
+.env
+```
+
+### 7.10 TypeScript consumer smoke test
+
+package consumer fixture는 다음을 검증한다.
+
+```ts
+import { createAtlasWiki, type ClaimRecord } from '@mandarange/atlas-wiki';
+import { SQLiteStore } from '@mandarange/atlas-wiki/store';
+import { createMcpServer } from '@mandarange/atlas-wiki/mcp';
+
+const store = await SQLiteStore.open({ path: './atlas-wiki.sqlite' });
+const wiki = createAtlasWiki({ store });
+const claim: ClaimRecord = await wiki.claims.create({
+  claim_type: 'fact',
+  text: 'Atlas WiKi is TypeScript-first.',
+  source_refs: []
+});
+```
+
+이 fixture는 `tsc --noEmit`과 runtime import smoke test를 모두 통과해야 한다.
+
+
+## 8. 핵심 데이터 모델
+
+### 7.1 BaseRecord
+
+```ts
+export interface BaseRecord {
+  schema: string;
+  id: string;
+  kind: string;
+  status: 'draft' | 'active' | 'pending_approval' | 'deprecated' | 'rejected' | 'deleted';
+  created_at: string;
+  updated_at: string;
+  created_by?: ActorRef;
+  updated_by?: ActorRef;
+  revision: number;
+  content_hash: string;
+  labels?: string[];
+  metadata?: Record<string, unknown>;
+}
+```
+
+### 7.2 SourceRecord
+
+```ts
+export interface SourceRecord extends BaseRecord {
+  schema: 'atlas.wiki.source.v1';
+  source_type: 'file' | 'page' | 'message' | 'email' | 'ticket' | 'meeting' | 'database' | 'manual' | 'web';
+  title: string;
+  uri?: string;
+  connector?: ConnectorRef;
+  owner?: OwnerRef;
+  acl: AccessPolicy;
+  sensitivity: SensitivityLabel;
+  freshness: FreshnessPolicy;
+  content_hash: string;
+  extracted_text_ref?: string;
+  locator?: SourceLocator;
+}
+```
+
+### 7.3 ClaimRecord
+
+```ts
+export interface ClaimRecord extends BaseRecord {
+  schema: 'atlas.wiki.claim.v1';
+  claim_type: 'fact' | 'policy' | 'procedure' | 'decision' | 'definition' | 'faq' | 'status' | 'constraint';
+  text: string;
+  normalized_text?: string;
+  source_refs: SourceRef[];
+  entity_refs: EntityRef[];
+  owner?: OwnerRef;
+  acl: AccessPolicy;
+  sensitivity: SensitivityLabel;
+  freshness: FreshnessPolicy;
+  trust: TrustScore;
+}
+```
+
+### 7.4 EntityRecord
+
+```ts
+export interface EntityRecord extends BaseRecord {
+  schema: 'atlas.wiki.entity.v1';
+  entity_type: 'person' | 'team' | 'customer' | 'product' | 'project' | 'system' | 'policy' | 'contract' | 'vendor' | 'location' | 'topic';
+  display_name: string;
+  aliases: string[];
+  owner?: OwnerRef;
+  acl?: AccessPolicy;
+}
+```
+
+### 7.5 RelationRecord
+
+```ts
+export interface RelationRecord extends BaseRecord {
+  schema: 'atlas.wiki.relation.v1';
+  relation_type: 'supports' | 'contradicts' | 'supersedes' | 'depends_on' | 'owned_by' | 'applies_to' | 'mentions' | 'derived_from';
+  from: RecordRef;
+  to: RecordRef;
+  evidence_refs: SourceRef[];
+  confidence: number;
+  valid_from?: string;
+  valid_until?: string;
+}
+```
+
+### 7.6 PolicyRecord
+
+```ts
+export interface PolicyRecord extends BaseRecord {
+  schema: 'atlas.wiki.policy.v1';
+  policy_type: 'access' | 'redaction' | 'retention' | 'approval' | 'freshness' | 'connector';
+  scope: PolicyScope;
+  rules: PolicyRule[];
+  enforcement: 'advisory' | 'blocking';
+}
+```
+
+### 7.7 ContextPackRecord
+
+```ts
+export interface ContextPackRecord extends BaseRecord {
+  schema: 'atlas.wiki.context-pack.v1';
+  query: string;
+  actor: ActorRef;
+  included_refs: RecordRef[];
+  citations: Citation[];
+  redactions: RedactionEvent[];
+  freshness_markers: FreshnessMarker[];
+  conflict_markers: ConflictMarker[];
+  policy_decisions: PolicyDecision[];
+}
+```
+
+## 9. Knowledge Layers
+
+Atlas WiKi의 scoring layer는 이미지 복셀이 아니라 범용 지식 좌표계다.
+
+```txt
+sem          의미 좌표 / topic / entity cluster
+source       출처 신뢰도 / source-of-truth 여부
+authority    owner와 approver 권위
+fresh        최신성 / stale 가능성
+sensitivity  민감도 / 개인정보 / 영업비밀 / 법무정보
+access       사용자의 접근 가능성
+conflict     충돌 가능성
+usage        최근 사용성과 중요도
+risk         답변에 사용할 때의 위험도
+```
+
+Score는 LLM에 그대로 맡기지 않는다. deterministic policy와 validator가 계산하고, LLM은 claim extraction과 summarization 보조에만 쓴다.
+
+## 10. 검색·답변 계약
+
+### 9.1 ContextPack 원칙
+
+- 사용자가 볼 권한이 있는 record만 포함한다.
+- 각 record는 source citation을 포함한다.
+- stale record는 stale marker를 포함한다.
+- conflict가 있으면 conflict marker를 포함한다.
+- redaction된 내용은 원문을 숨기고 redaction reason만 남긴다.
+- context pack 생성 이벤트는 audit에 남긴다.
+
+### 9.2 Agent/App 답변 규칙
+
+1. 정책, 절차, 고객, 계약, 인사, 재무, 운영, 개인 지식은 Atlas WiKi 근거 없이 단정하지 않는다.
+2. context pack 안의 citation 가능한 근거만 authoritative하게 말한다.
+3. stale한 근거는 최신 정보처럼 표현하지 않는다.
+4. conflict가 있으면 단일 정답으로 합치지 않고 충돌을 보고한다.
+5. 권한 없는 정보의 존재를 암시하지 않는다.
+6. 정보 변경은 proposal로 제안만 한다.
+7. owner가 있는 정보는 owner 확인 경로를 함께 제공한다.
+
+## 11. MCP 설계
+
+### 10.1 Read tools
+
+```txt
+atlas_wiki.search
+atlas_wiki.fetch
+atlas_wiki.context_pack
+atlas_wiki.explain_citation
+atlas_wiki.check_freshness
+atlas_wiki.find_owner
+atlas_wiki.find_conflicts
+atlas_wiki.list_sources
+atlas_wiki.validate_access
+```
+
+### 10.2 Write proposal tools
+
+```txt
+atlas_wiki.propose_claim
+atlas_wiki.propose_update
+atlas_wiki.propose_deprecate
+atlas_wiki.report_conflict
+```
+
+### 10.3 Admin tools
+
+```txt
+atlas_wiki.ingest
+atlas_wiki.rebuild_index
+atlas_wiki.validate
+atlas_wiki.audit_report
+atlas_wiki.backup_create
+atlas_wiki.backup_verify
+atlas_wiki.connector_status
+```
+
+### 10.4 MCP 원칙
+
+- stdio mode는 local/dev/personal sandbox용이다.
+- http mode는 organization deployment용이다.
+- HTTP mode에서는 OAuth/OIDC, identity-aware execution, tool-level RBAC를 전제로 한다.
+- write tool은 기본적으로 committed write가 아니라 proposal을 만든다.
+- 모든 tool call은 audit에 남긴다.
+
+## 12. CLI 설계
+
+```bash
+awiki init
+awiki doctor
+awiki ingest ./handbook.md --owner peopleops --visibility internal
+awiki claim create --source source_123 --text "..." --owner team:ops
+awiki search "원격근무 정책" --as user:alice@example.com --json
+awiki fetch claim_hr_remote_work_policy_2026_001 --as user:alice@example.com --json
+awiki context-pack "신입 온보딩 정책" --as user:alice@example.com --json
+awiki validate --json
+awiki rebuild-index --json
+awiki freshness report --json
+awiki conflicts scan --json
+awiki export json-shards --out .atlas-wiki/exports/json-shards
+awiki import json-shards .atlas-wiki/exports/json-shards --dry-run
+awiki backup create
+awiki backup verify
+awiki mcp start --stdio
+awiki mcp start --http --port 7341
+```
+
+## 13. 보안 모델
+
+### 12.1 기본 원칙
+
+```txt
+deny by default
+least privilege
+source ACL inheritance
+query-time permission filter
+pre-context redaction
+no hidden cross-permission summarization
+audit every retrieval
+proposal before write
+external content is untrusted data
+```
+
+### 12.2 공격 대응
+
+```txt
+Prompt injection
+  source content를 instruction으로 취급하지 않는다.
+
+Sensitive information disclosure
+  권한 필터와 redaction을 LLM 호출 전에 수행한다.
+
+Data poisoning
+  source trust, owner, approval, conflict scanner를 사용한다.
+
+Excessive agency
+  write tool은 proposal만 만들고 approval 전 commit하지 않는다.
+
+Supply chain
+  connector와 parser dependency를 최소화하고 security gate를 둔다.
+
+Vector/embedding leakage
+  embedding cache도 ACL scope와 삭제 정책을 따른다.
+```
+
+## 14. Connector 전략
+
+### 13.1 두 종류
+
+```txt
+synced connector
+  - 외부 데이터를 SQLite DB와 rebuildable index로 저장
+  - ACL snapshot 포함
+  - 반복 검색 성능 좋음
+  - retention/deletion sync 필요
+
+federated connector
+  - 외부 시스템에서 실시간 검색
+  - Atlas WiKi에는 metadata/cache/audit만 저장
+  - 최신성 좋음
+  - latency와 권한 위임이 중요
+```
+
+### 13.2 우선순위
+
+```txt
+v0.1: local file, markdown, text, json/jsonl, csv
+v0.2: Google Drive, Slack, Notion
+v0.3: Microsoft 365/SharePoint, Confluence, Jira, Zendesk
+v1.0: connector SDK와 plugin registry
+```
+
+## 15. 릴리즈 계획
+
+```txt
+0.1.0  SQLite-first local knowledge ledger MVP
+0.2.0  hybrid retrieval + proposal workflow + first connectors
+0.3.0  organization connectors + vector/graph indexes + audit export
+0.4.0  admin UI + advanced policy + tamper-evident audit
+1.0.0  production MCP + ACL + connector + eval gates complete
+```
+
+### 14.1 Release gates
+
+```txt
+npm run typecheck
+npm run build
+npm run lint
+npm run test
+npm run test:security
+npm run test:integration
+npm run eval:retrieval
+npm run eval:redaction
+npm run schemas:validate
+awiki validate --fixture test/fixtures/company --json
+awiki mcp smoke --stdio --json
+awiki doctor --root test/fixtures/sqlite-project --json
+```
+
+## 16. `/goal` 최상위 지시
+
+```txt
+/goal atlas-wiki-typescript-first-npm-knowledge-ledger
+
+Objective:
+  Build Atlas WiKi as a standalone, TypeScript-first, npm-publishable, SQLite-first, general-purpose knowledge wiki and ledger for agents, apps, teams, and organizations.
+
+Must:
+  - Use .atlas-wiki as data root.
+  - Use SQLite as the default source of truth.
+  - Use TypeScript as the source-of-truth language for core, CLI, SDK, MCP, connectors, and tests.
+  - Publish `@mandarange/atlas-wiki` to npm with ESM runtime output and generated `.d.ts` declarations.
+  - Expose only explicit package subpaths through package.json `exports`.
+  - Implement source-backed, permission-aware, freshness-scored, conflict-detecting knowledge records.
+  - Provide CLI, SDK, MCP server, validation, audit, backup, export/import, and connector foundations.
+  - Enforce ACL before any model context is assembled.
+  - Treat all external content as untrusted data.
+  - Store writes as proposals until approved.
+
+Must not:
+  - Depend on SKS core.
+  - Use .sneakoscope or .hermes hardcoded paths.
+  - Import Codex/tmux/completion-proof route logic.
+  - Expose unauthorized data to LLM context.
+  - Let MCP tools commit knowledge facts without approval.
+  - Hand-author runtime JavaScript inside src/.
+  - Publish a package without generated declaration files and package export smoke tests.
+```
+
+## 17. 상세 개발 태스크
+
+태스크 형식:
+
+```txt
+[ ] ATW-0001 | P0 | area/module | 작업 내용 | 완료 기준
+```
+
+- [x] ATW-0001 | P0 | charter/NameAndScope | 프로젝트 이름을 Atlas WiKi로 확정하고 README/package metadata에 반영한다 | 완료 기준: README와 package.json 이름이 일치한다
+
+- [x] ATW-0002 | P0 | charter/AgentNeutralBoundary | core가 특정 Agent에 의존하지 않는다는 non-goal 문서를 작성한다 | 완료 기준: docs/adapter-boundary.md가 존재한다
+
+- [x] ATW-0003 | P0 | charter/SQLiteFirstPolicy | SQLite-first storage policy를 문서화한다 | 완료 기준: docs/sqlite-storage.md에 source-of-truth 정책이 있다
+
+- [x] ATW-0004 | P0 | charter/SecurityPrinciples | deny-by-default/audit-by-default 원칙을 문서화한다 | 완료 기준: SECURITY.md와 docs/security-model.md에 명시된다
+
+- [x] ATW-0005 | P0 | repo/PackageJson | package.json name/type/bin/exports/types/files/publishConfig/scripts를 구성한다 | 완료 기준: npm pack smoke test와 ESM import smoke test가 통과한다
+
+- [x] ATW-0006 | P0 | repo/TypeScriptConfig | strict TypeScript NodeNext/ESM 설정과 declaration emit을 구성한다 | 완료 기준: npm run typecheck와 npm run build가 통과하고 dist/*.d.ts가 생성된다
+
+- [x] ATW-0007 | P0 | repo/LintFormat | lint/format/test script를 구성한다 | 완료 기준: CI에서 lint/test가 실행된다
+
+- [x] ATW-0008 | P0 | repo/GitIgnore | DB/cache/tmp/export ignore 정책을 작성한다 | 완료 기준: .gitignore가 운영 파일을 올바르게 분리한다
+
+- [x] ATW-0009 | P0 | repo/SecurityMd | 보안 신고와 취약점 처리 범위를 작성한다 | 완료 기준: SECURITY.md가 존재한다
+
+- [x] ATW-0010 | P0 | repo/Contributing | 기여 가이드와 release gate를 작성한다 | 완료 기준: CONTRIBUTING.md가 존재한다
+
+- [x] ATW-0011 | P0 | repo/Roadmap | v0.1/v0.2/v1.0 범위를 문서화한다 | 완료 기준: docs/roadmap.md가 존재한다
+
+- [x] ATW-0012 | P0 | repo/Glossary | Source/Claim/Entity/ACL/Freshness/ContextPack 용어집을 만든다 | 완료 기준: docs/glossary.md가 존재한다
+
+- [x] ATW-0013 | P0 | schema/BaseRecord | BaseRecord TypeScript interface를 작성한다 | 완료 기준: BaseRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0014 | P0 | schema/BaseRecord | BaseRecord JSON Schema를 작성한다 | 완료 기준: BaseRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0015 | P0 | schema/BaseRecord | BaseRecord runtime validator를 작성한다 | 완료 기준: BaseRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0016 | P0 | schema/BaseRecord | BaseRecord stable id 규칙을 정의한다 | 완료 기준: BaseRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0017 | P0 | schema/BaseRecord | BaseRecord canonical serialization을 구현한다 | 완료 기준: BaseRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0018 | P1 | schema/BaseRecord | BaseRecord SQLite projection mapping을 정의한다 | 완료 기준: BaseRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0019 | P1 | schema/BaseRecord | BaseRecord redaction field policy를 정의한다 | 완료 기준: BaseRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0020 | P1 | schema/BaseRecord | BaseRecord ACL inheritance 규칙을 연결한다 | 완료 기준: BaseRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0021 | P1 | schema/BaseRecord | BaseRecord valid fixture를 추가한다 | 완료 기준: BaseRecord: fixture validation이 통과한다
+
+- [x] ATW-0022 | P1 | schema/BaseRecord | BaseRecord invalid fixture를 추가한다 | 완료 기준: BaseRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0023 | P1 | schema/BaseRecord | BaseRecord migration placeholder를 만든다 | 완료 기준: BaseRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0024 | P2 | schema/BaseRecord | BaseRecord 문서 예제를 작성한다 | 완료 기준: BaseRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0025 | P0 | schema/SourceRecord | SourceRecord TypeScript interface를 작성한다 | 완료 기준: SourceRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0026 | P0 | schema/SourceRecord | SourceRecord JSON Schema를 작성한다 | 완료 기준: SourceRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0027 | P0 | schema/SourceRecord | SourceRecord runtime validator를 작성한다 | 완료 기준: SourceRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0028 | P0 | schema/SourceRecord | SourceRecord stable id 규칙을 정의한다 | 완료 기준: SourceRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0029 | P0 | schema/SourceRecord | SourceRecord canonical serialization을 구현한다 | 완료 기준: SourceRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0030 | P1 | schema/SourceRecord | SourceRecord SQLite projection mapping을 정의한다 | 완료 기준: SourceRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0031 | P1 | schema/SourceRecord | SourceRecord redaction field policy를 정의한다 | 완료 기준: SourceRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0032 | P1 | schema/SourceRecord | SourceRecord ACL inheritance 규칙을 연결한다 | 완료 기준: SourceRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0033 | P1 | schema/SourceRecord | SourceRecord valid fixture를 추가한다 | 완료 기준: SourceRecord: fixture validation이 통과한다
+
+- [x] ATW-0034 | P1 | schema/SourceRecord | SourceRecord invalid fixture를 추가한다 | 완료 기준: SourceRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0035 | P1 | schema/SourceRecord | SourceRecord migration placeholder를 만든다 | 완료 기준: SourceRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0036 | P2 | schema/SourceRecord | SourceRecord 문서 예제를 작성한다 | 완료 기준: SourceRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0037 | P0 | schema/ChunkRecord | ChunkRecord TypeScript interface를 작성한다 | 완료 기준: ChunkRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0038 | P0 | schema/ChunkRecord | ChunkRecord JSON Schema를 작성한다 | 완료 기준: ChunkRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0039 | P0 | schema/ChunkRecord | ChunkRecord runtime validator를 작성한다 | 완료 기준: ChunkRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0040 | P0 | schema/ChunkRecord | ChunkRecord stable id 규칙을 정의한다 | 완료 기준: ChunkRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0041 | P0 | schema/ChunkRecord | ChunkRecord canonical serialization을 구현한다 | 완료 기준: ChunkRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0042 | P1 | schema/ChunkRecord | ChunkRecord SQLite projection mapping을 정의한다 | 완료 기준: ChunkRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0043 | P1 | schema/ChunkRecord | ChunkRecord redaction field policy를 정의한다 | 완료 기준: ChunkRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0044 | P1 | schema/ChunkRecord | ChunkRecord ACL inheritance 규칙을 연결한다 | 완료 기준: ChunkRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0045 | P1 | schema/ChunkRecord | ChunkRecord valid fixture를 추가한다 | 완료 기준: ChunkRecord: fixture validation이 통과한다
+
+- [x] ATW-0046 | P1 | schema/ChunkRecord | ChunkRecord invalid fixture를 추가한다 | 완료 기준: ChunkRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0047 | P1 | schema/ChunkRecord | ChunkRecord migration placeholder를 만든다 | 완료 기준: ChunkRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0048 | P2 | schema/ChunkRecord | ChunkRecord 문서 예제를 작성한다 | 완료 기준: ChunkRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0049 | P0 | schema/ClaimRecord | ClaimRecord TypeScript interface를 작성한다 | 완료 기준: ClaimRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0050 | P0 | schema/ClaimRecord | ClaimRecord JSON Schema를 작성한다 | 완료 기준: ClaimRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0051 | P0 | schema/ClaimRecord | ClaimRecord runtime validator를 작성한다 | 완료 기준: ClaimRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0052 | P0 | schema/ClaimRecord | ClaimRecord stable id 규칙을 정의한다 | 완료 기준: ClaimRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0053 | P0 | schema/ClaimRecord | ClaimRecord canonical serialization을 구현한다 | 완료 기준: ClaimRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0054 | P1 | schema/ClaimRecord | ClaimRecord SQLite projection mapping을 정의한다 | 완료 기준: ClaimRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0055 | P1 | schema/ClaimRecord | ClaimRecord redaction field policy를 정의한다 | 완료 기준: ClaimRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0056 | P1 | schema/ClaimRecord | ClaimRecord ACL inheritance 규칙을 연결한다 | 완료 기준: ClaimRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0057 | P1 | schema/ClaimRecord | ClaimRecord valid fixture를 추가한다 | 완료 기준: ClaimRecord: fixture validation이 통과한다
+
+- [x] ATW-0058 | P1 | schema/ClaimRecord | ClaimRecord invalid fixture를 추가한다 | 완료 기준: ClaimRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0059 | P1 | schema/ClaimRecord | ClaimRecord migration placeholder를 만든다 | 완료 기준: ClaimRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0060 | P2 | schema/ClaimRecord | ClaimRecord 문서 예제를 작성한다 | 완료 기준: ClaimRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0061 | P0 | schema/EntityRecord | EntityRecord TypeScript interface를 작성한다 | 완료 기준: EntityRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0062 | P0 | schema/EntityRecord | EntityRecord JSON Schema를 작성한다 | 완료 기준: EntityRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0063 | P0 | schema/EntityRecord | EntityRecord runtime validator를 작성한다 | 완료 기준: EntityRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0064 | P0 | schema/EntityRecord | EntityRecord stable id 규칙을 정의한다 | 완료 기준: EntityRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0065 | P0 | schema/EntityRecord | EntityRecord canonical serialization을 구현한다 | 완료 기준: EntityRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0066 | P1 | schema/EntityRecord | EntityRecord SQLite projection mapping을 정의한다 | 완료 기준: EntityRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0067 | P1 | schema/EntityRecord | EntityRecord redaction field policy를 정의한다 | 완료 기준: EntityRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0068 | P1 | schema/EntityRecord | EntityRecord ACL inheritance 규칙을 연결한다 | 완료 기준: EntityRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0069 | P1 | schema/EntityRecord | EntityRecord valid fixture를 추가한다 | 완료 기준: EntityRecord: fixture validation이 통과한다
+
+- [x] ATW-0070 | P1 | schema/EntityRecord | EntityRecord invalid fixture를 추가한다 | 완료 기준: EntityRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0071 | P1 | schema/EntityRecord | EntityRecord migration placeholder를 만든다 | 완료 기준: EntityRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0072 | P2 | schema/EntityRecord | EntityRecord 문서 예제를 작성한다 | 완료 기준: EntityRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0073 | P0 | schema/RelationRecord | RelationRecord TypeScript interface를 작성한다 | 완료 기준: RelationRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0074 | P0 | schema/RelationRecord | RelationRecord JSON Schema를 작성한다 | 완료 기준: RelationRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0075 | P0 | schema/RelationRecord | RelationRecord runtime validator를 작성한다 | 완료 기준: RelationRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0076 | P0 | schema/RelationRecord | RelationRecord stable id 규칙을 정의한다 | 완료 기준: RelationRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0077 | P0 | schema/RelationRecord | RelationRecord canonical serialization을 구현한다 | 완료 기준: RelationRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0078 | P1 | schema/RelationRecord | RelationRecord SQLite projection mapping을 정의한다 | 완료 기준: RelationRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0079 | P1 | schema/RelationRecord | RelationRecord redaction field policy를 정의한다 | 완료 기준: RelationRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0080 | P1 | schema/RelationRecord | RelationRecord ACL inheritance 규칙을 연결한다 | 완료 기준: RelationRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0081 | P1 | schema/RelationRecord | RelationRecord valid fixture를 추가한다 | 완료 기준: RelationRecord: fixture validation이 통과한다
+
+- [x] ATW-0082 | P1 | schema/RelationRecord | RelationRecord invalid fixture를 추가한다 | 완료 기준: RelationRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0083 | P1 | schema/RelationRecord | RelationRecord migration placeholder를 만든다 | 완료 기준: RelationRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0084 | P2 | schema/RelationRecord | RelationRecord 문서 예제를 작성한다 | 완료 기준: RelationRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0085 | P0 | schema/PolicyRecord | PolicyRecord TypeScript interface를 작성한다 | 완료 기준: PolicyRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0086 | P0 | schema/PolicyRecord | PolicyRecord JSON Schema를 작성한다 | 완료 기준: PolicyRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0087 | P0 | schema/PolicyRecord | PolicyRecord runtime validator를 작성한다 | 완료 기준: PolicyRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0088 | P0 | schema/PolicyRecord | PolicyRecord stable id 규칙을 정의한다 | 완료 기준: PolicyRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0089 | P0 | schema/PolicyRecord | PolicyRecord canonical serialization을 구현한다 | 완료 기준: PolicyRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0090 | P1 | schema/PolicyRecord | PolicyRecord SQLite projection mapping을 정의한다 | 완료 기준: PolicyRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0091 | P1 | schema/PolicyRecord | PolicyRecord redaction field policy를 정의한다 | 완료 기준: PolicyRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0092 | P1 | schema/PolicyRecord | PolicyRecord ACL inheritance 규칙을 연결한다 | 완료 기준: PolicyRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0093 | P1 | schema/PolicyRecord | PolicyRecord valid fixture를 추가한다 | 완료 기준: PolicyRecord: fixture validation이 통과한다
+
+- [x] ATW-0094 | P1 | schema/PolicyRecord | PolicyRecord invalid fixture를 추가한다 | 완료 기준: PolicyRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0095 | P1 | schema/PolicyRecord | PolicyRecord migration placeholder를 만든다 | 완료 기준: PolicyRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0096 | P2 | schema/PolicyRecord | PolicyRecord 문서 예제를 작성한다 | 완료 기준: PolicyRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0097 | P0 | schema/AccessGrantRecord | AccessGrantRecord TypeScript interface를 작성한다 | 완료 기준: AccessGrantRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0098 | P0 | schema/AccessGrantRecord | AccessGrantRecord JSON Schema를 작성한다 | 완료 기준: AccessGrantRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0099 | P0 | schema/AccessGrantRecord | AccessGrantRecord runtime validator를 작성한다 | 완료 기준: AccessGrantRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0100 | P0 | schema/AccessGrantRecord | AccessGrantRecord stable id 규칙을 정의한다 | 완료 기준: AccessGrantRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0101 | P0 | schema/AccessGrantRecord | AccessGrantRecord canonical serialization을 구현한다 | 완료 기준: AccessGrantRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0102 | P1 | schema/AccessGrantRecord | AccessGrantRecord SQLite projection mapping을 정의한다 | 완료 기준: AccessGrantRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0103 | P1 | schema/AccessGrantRecord | AccessGrantRecord redaction field policy를 정의한다 | 완료 기준: AccessGrantRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0104 | P1 | schema/AccessGrantRecord | AccessGrantRecord ACL inheritance 규칙을 연결한다 | 완료 기준: AccessGrantRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0105 | P1 | schema/AccessGrantRecord | AccessGrantRecord valid fixture를 추가한다 | 완료 기준: AccessGrantRecord: fixture validation이 통과한다
+
+- [x] ATW-0106 | P1 | schema/AccessGrantRecord | AccessGrantRecord invalid fixture를 추가한다 | 완료 기준: AccessGrantRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0107 | P1 | schema/AccessGrantRecord | AccessGrantRecord migration placeholder를 만든다 | 완료 기준: AccessGrantRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0108 | P2 | schema/AccessGrantRecord | AccessGrantRecord 문서 예제를 작성한다 | 완료 기준: AccessGrantRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0109 | P0 | schema/FreshnessRecord | FreshnessRecord TypeScript interface를 작성한다 | 완료 기준: FreshnessRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0110 | P0 | schema/FreshnessRecord | FreshnessRecord JSON Schema를 작성한다 | 완료 기준: FreshnessRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0111 | P0 | schema/FreshnessRecord | FreshnessRecord runtime validator를 작성한다 | 완료 기준: FreshnessRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0112 | P0 | schema/FreshnessRecord | FreshnessRecord stable id 규칙을 정의한다 | 완료 기준: FreshnessRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0113 | P0 | schema/FreshnessRecord | FreshnessRecord canonical serialization을 구현한다 | 완료 기준: FreshnessRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0114 | P1 | schema/FreshnessRecord | FreshnessRecord SQLite projection mapping을 정의한다 | 완료 기준: FreshnessRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0115 | P1 | schema/FreshnessRecord | FreshnessRecord redaction field policy를 정의한다 | 완료 기준: FreshnessRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0116 | P1 | schema/FreshnessRecord | FreshnessRecord ACL inheritance 규칙을 연결한다 | 완료 기준: FreshnessRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0117 | P1 | schema/FreshnessRecord | FreshnessRecord valid fixture를 추가한다 | 완료 기준: FreshnessRecord: fixture validation이 통과한다
+
+- [x] ATW-0118 | P1 | schema/FreshnessRecord | FreshnessRecord invalid fixture를 추가한다 | 완료 기준: FreshnessRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0119 | P1 | schema/FreshnessRecord | FreshnessRecord migration placeholder를 만든다 | 완료 기준: FreshnessRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0120 | P2 | schema/FreshnessRecord | FreshnessRecord 문서 예제를 작성한다 | 완료 기준: FreshnessRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0121 | P0 | schema/ConflictRecord | ConflictRecord TypeScript interface를 작성한다 | 완료 기준: ConflictRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0122 | P0 | schema/ConflictRecord | ConflictRecord JSON Schema를 작성한다 | 완료 기준: ConflictRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0123 | P0 | schema/ConflictRecord | ConflictRecord runtime validator를 작성한다 | 완료 기준: ConflictRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0124 | P0 | schema/ConflictRecord | ConflictRecord stable id 규칙을 정의한다 | 완료 기준: ConflictRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0125 | P0 | schema/ConflictRecord | ConflictRecord canonical serialization을 구현한다 | 완료 기준: ConflictRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0126 | P1 | schema/ConflictRecord | ConflictRecord SQLite projection mapping을 정의한다 | 완료 기준: ConflictRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0127 | P1 | schema/ConflictRecord | ConflictRecord redaction field policy를 정의한다 | 완료 기준: ConflictRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0128 | P1 | schema/ConflictRecord | ConflictRecord ACL inheritance 규칙을 연결한다 | 완료 기준: ConflictRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0129 | P1 | schema/ConflictRecord | ConflictRecord valid fixture를 추가한다 | 완료 기준: ConflictRecord: fixture validation이 통과한다
+
+- [x] ATW-0130 | P1 | schema/ConflictRecord | ConflictRecord invalid fixture를 추가한다 | 완료 기준: ConflictRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0131 | P1 | schema/ConflictRecord | ConflictRecord migration placeholder를 만든다 | 완료 기준: ConflictRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0132 | P2 | schema/ConflictRecord | ConflictRecord 문서 예제를 작성한다 | 완료 기준: ConflictRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0133 | P0 | schema/ProposalRecord | ProposalRecord TypeScript interface를 작성한다 | 완료 기준: ProposalRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0134 | P0 | schema/ProposalRecord | ProposalRecord JSON Schema를 작성한다 | 완료 기준: ProposalRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0135 | P0 | schema/ProposalRecord | ProposalRecord runtime validator를 작성한다 | 완료 기준: ProposalRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0136 | P0 | schema/ProposalRecord | ProposalRecord stable id 규칙을 정의한다 | 완료 기준: ProposalRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0137 | P0 | schema/ProposalRecord | ProposalRecord canonical serialization을 구현한다 | 완료 기준: ProposalRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0138 | P1 | schema/ProposalRecord | ProposalRecord SQLite projection mapping을 정의한다 | 완료 기준: ProposalRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0139 | P1 | schema/ProposalRecord | ProposalRecord redaction field policy를 정의한다 | 완료 기준: ProposalRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0140 | P1 | schema/ProposalRecord | ProposalRecord ACL inheritance 규칙을 연결한다 | 완료 기준: ProposalRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0141 | P1 | schema/ProposalRecord | ProposalRecord valid fixture를 추가한다 | 완료 기준: ProposalRecord: fixture validation이 통과한다
+
+- [x] ATW-0142 | P1 | schema/ProposalRecord | ProposalRecord invalid fixture를 추가한다 | 완료 기준: ProposalRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0143 | P1 | schema/ProposalRecord | ProposalRecord migration placeholder를 만든다 | 완료 기준: ProposalRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0144 | P2 | schema/ProposalRecord | ProposalRecord 문서 예제를 작성한다 | 완료 기준: ProposalRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0145 | P0 | schema/ApprovalRecord | ApprovalRecord TypeScript interface를 작성한다 | 완료 기준: ApprovalRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0146 | P0 | schema/ApprovalRecord | ApprovalRecord JSON Schema를 작성한다 | 완료 기준: ApprovalRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0147 | P0 | schema/ApprovalRecord | ApprovalRecord runtime validator를 작성한다 | 완료 기준: ApprovalRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0148 | P0 | schema/ApprovalRecord | ApprovalRecord stable id 규칙을 정의한다 | 완료 기준: ApprovalRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0149 | P0 | schema/ApprovalRecord | ApprovalRecord canonical serialization을 구현한다 | 완료 기준: ApprovalRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0150 | P1 | schema/ApprovalRecord | ApprovalRecord SQLite projection mapping을 정의한다 | 완료 기준: ApprovalRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0151 | P1 | schema/ApprovalRecord | ApprovalRecord redaction field policy를 정의한다 | 완료 기준: ApprovalRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0152 | P1 | schema/ApprovalRecord | ApprovalRecord ACL inheritance 규칙을 연결한다 | 완료 기준: ApprovalRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0153 | P1 | schema/ApprovalRecord | ApprovalRecord valid fixture를 추가한다 | 완료 기준: ApprovalRecord: fixture validation이 통과한다
+
+- [x] ATW-0154 | P1 | schema/ApprovalRecord | ApprovalRecord invalid fixture를 추가한다 | 완료 기준: ApprovalRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0155 | P1 | schema/ApprovalRecord | ApprovalRecord migration placeholder를 만든다 | 완료 기준: ApprovalRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0156 | P2 | schema/ApprovalRecord | ApprovalRecord 문서 예제를 작성한다 | 완료 기준: ApprovalRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0157 | P0 | schema/AuditRecord | AuditRecord TypeScript interface를 작성한다 | 완료 기준: AuditRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0158 | P0 | schema/AuditRecord | AuditRecord JSON Schema를 작성한다 | 완료 기준: AuditRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0159 | P0 | schema/AuditRecord | AuditRecord runtime validator를 작성한다 | 완료 기준: AuditRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0160 | P0 | schema/AuditRecord | AuditRecord stable id 규칙을 정의한다 | 완료 기준: AuditRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0161 | P0 | schema/AuditRecord | AuditRecord canonical serialization을 구현한다 | 완료 기준: AuditRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0162 | P1 | schema/AuditRecord | AuditRecord SQLite projection mapping을 정의한다 | 완료 기준: AuditRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0163 | P1 | schema/AuditRecord | AuditRecord redaction field policy를 정의한다 | 완료 기준: AuditRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0164 | P1 | schema/AuditRecord | AuditRecord ACL inheritance 규칙을 연결한다 | 완료 기준: AuditRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0165 | P1 | schema/AuditRecord | AuditRecord valid fixture를 추가한다 | 완료 기준: AuditRecord: fixture validation이 통과한다
+
+- [x] ATW-0166 | P1 | schema/AuditRecord | AuditRecord invalid fixture를 추가한다 | 완료 기준: AuditRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0167 | P1 | schema/AuditRecord | AuditRecord migration placeholder를 만든다 | 완료 기준: AuditRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0168 | P2 | schema/AuditRecord | AuditRecord 문서 예제를 작성한다 | 완료 기준: AuditRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0169 | P0 | schema/ContextPackRecord | ContextPackRecord TypeScript interface를 작성한다 | 완료 기준: ContextPackRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0170 | P0 | schema/ContextPackRecord | ContextPackRecord JSON Schema를 작성한다 | 완료 기준: ContextPackRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0171 | P0 | schema/ContextPackRecord | ContextPackRecord runtime validator를 작성한다 | 완료 기준: ContextPackRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0172 | P0 | schema/ContextPackRecord | ContextPackRecord stable id 규칙을 정의한다 | 완료 기준: ContextPackRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0173 | P0 | schema/ContextPackRecord | ContextPackRecord canonical serialization을 구현한다 | 완료 기준: ContextPackRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0174 | P1 | schema/ContextPackRecord | ContextPackRecord SQLite projection mapping을 정의한다 | 완료 기준: ContextPackRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0175 | P1 | schema/ContextPackRecord | ContextPackRecord redaction field policy를 정의한다 | 완료 기준: ContextPackRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0176 | P1 | schema/ContextPackRecord | ContextPackRecord ACL inheritance 규칙을 연결한다 | 완료 기준: ContextPackRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0177 | P1 | schema/ContextPackRecord | ContextPackRecord valid fixture를 추가한다 | 완료 기준: ContextPackRecord: fixture validation이 통과한다
+
+- [x] ATW-0178 | P1 | schema/ContextPackRecord | ContextPackRecord invalid fixture를 추가한다 | 완료 기준: ContextPackRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0179 | P1 | schema/ContextPackRecord | ContextPackRecord migration placeholder를 만든다 | 완료 기준: ContextPackRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0180 | P2 | schema/ContextPackRecord | ContextPackRecord 문서 예제를 작성한다 | 완료 기준: ContextPackRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0181 | P0 | schema/ConnectorRecord | ConnectorRecord TypeScript interface를 작성한다 | 완료 기준: ConnectorRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0182 | P0 | schema/ConnectorRecord | ConnectorRecord JSON Schema를 작성한다 | 완료 기준: ConnectorRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0183 | P0 | schema/ConnectorRecord | ConnectorRecord runtime validator를 작성한다 | 완료 기준: ConnectorRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0184 | P0 | schema/ConnectorRecord | ConnectorRecord stable id 규칙을 정의한다 | 완료 기준: ConnectorRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0185 | P0 | schema/ConnectorRecord | ConnectorRecord canonical serialization을 구현한다 | 완료 기준: ConnectorRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0186 | P1 | schema/ConnectorRecord | ConnectorRecord SQLite projection mapping을 정의한다 | 완료 기준: ConnectorRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0187 | P1 | schema/ConnectorRecord | ConnectorRecord redaction field policy를 정의한다 | 완료 기준: ConnectorRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0188 | P1 | schema/ConnectorRecord | ConnectorRecord ACL inheritance 규칙을 연결한다 | 완료 기준: ConnectorRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0189 | P1 | schema/ConnectorRecord | ConnectorRecord valid fixture를 추가한다 | 완료 기준: ConnectorRecord: fixture validation이 통과한다
+
+- [x] ATW-0190 | P1 | schema/ConnectorRecord | ConnectorRecord invalid fixture를 추가한다 | 완료 기준: ConnectorRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0191 | P1 | schema/ConnectorRecord | ConnectorRecord migration placeholder를 만든다 | 완료 기준: ConnectorRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0192 | P2 | schema/ConnectorRecord | ConnectorRecord 문서 예제를 작성한다 | 완료 기준: ConnectorRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0193 | P0 | schema/OwnerRecord | OwnerRecord TypeScript interface를 작성한다 | 완료 기준: OwnerRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0194 | P0 | schema/OwnerRecord | OwnerRecord JSON Schema를 작성한다 | 완료 기준: OwnerRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0195 | P0 | schema/OwnerRecord | OwnerRecord runtime validator를 작성한다 | 완료 기준: OwnerRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0196 | P0 | schema/OwnerRecord | OwnerRecord stable id 규칙을 정의한다 | 완료 기준: OwnerRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0197 | P0 | schema/OwnerRecord | OwnerRecord canonical serialization을 구현한다 | 완료 기준: OwnerRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0198 | P1 | schema/OwnerRecord | OwnerRecord SQLite projection mapping을 정의한다 | 완료 기준: OwnerRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0199 | P1 | schema/OwnerRecord | OwnerRecord redaction field policy를 정의한다 | 완료 기준: OwnerRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0200 | P1 | schema/OwnerRecord | OwnerRecord ACL inheritance 규칙을 연결한다 | 완료 기준: OwnerRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0201 | P1 | schema/OwnerRecord | OwnerRecord valid fixture를 추가한다 | 완료 기준: OwnerRecord: fixture validation이 통과한다
+
+- [x] ATW-0202 | P1 | schema/OwnerRecord | OwnerRecord invalid fixture를 추가한다 | 완료 기준: OwnerRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0203 | P1 | schema/OwnerRecord | OwnerRecord migration placeholder를 만든다 | 완료 기준: OwnerRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0204 | P2 | schema/OwnerRecord | OwnerRecord 문서 예제를 작성한다 | 완료 기준: OwnerRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0205 | P0 | schema/RetentionRecord | RetentionRecord TypeScript interface를 작성한다 | 완료 기준: RetentionRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0206 | P0 | schema/RetentionRecord | RetentionRecord JSON Schema를 작성한다 | 완료 기준: RetentionRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0207 | P0 | schema/RetentionRecord | RetentionRecord runtime validator를 작성한다 | 완료 기준: RetentionRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0208 | P0 | schema/RetentionRecord | RetentionRecord stable id 규칙을 정의한다 | 완료 기준: RetentionRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0209 | P0 | schema/RetentionRecord | RetentionRecord canonical serialization을 구현한다 | 완료 기준: RetentionRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0210 | P1 | schema/RetentionRecord | RetentionRecord SQLite projection mapping을 정의한다 | 완료 기준: RetentionRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0211 | P1 | schema/RetentionRecord | RetentionRecord redaction field policy를 정의한다 | 완료 기준: RetentionRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0212 | P1 | schema/RetentionRecord | RetentionRecord ACL inheritance 규칙을 연결한다 | 완료 기준: RetentionRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0213 | P1 | schema/RetentionRecord | RetentionRecord valid fixture를 추가한다 | 완료 기준: RetentionRecord: fixture validation이 통과한다
+
+- [x] ATW-0214 | P1 | schema/RetentionRecord | RetentionRecord invalid fixture를 추가한다 | 완료 기준: RetentionRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0215 | P1 | schema/RetentionRecord | RetentionRecord migration placeholder를 만든다 | 완료 기준: RetentionRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0216 | P2 | schema/RetentionRecord | RetentionRecord 문서 예제를 작성한다 | 완료 기준: RetentionRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0217 | P0 | schema/RedactionRecord | RedactionRecord TypeScript interface를 작성한다 | 완료 기준: RedactionRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0218 | P0 | schema/RedactionRecord | RedactionRecord JSON Schema를 작성한다 | 완료 기준: RedactionRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0219 | P0 | schema/RedactionRecord | RedactionRecord runtime validator를 작성한다 | 완료 기준: RedactionRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0220 | P0 | schema/RedactionRecord | RedactionRecord stable id 규칙을 정의한다 | 완료 기준: RedactionRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0221 | P0 | schema/RedactionRecord | RedactionRecord canonical serialization을 구현한다 | 완료 기준: RedactionRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0222 | P1 | schema/RedactionRecord | RedactionRecord SQLite projection mapping을 정의한다 | 완료 기준: RedactionRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0223 | P1 | schema/RedactionRecord | RedactionRecord redaction field policy를 정의한다 | 완료 기준: RedactionRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0224 | P1 | schema/RedactionRecord | RedactionRecord ACL inheritance 규칙을 연결한다 | 완료 기준: RedactionRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0225 | P1 | schema/RedactionRecord | RedactionRecord valid fixture를 추가한다 | 완료 기준: RedactionRecord: fixture validation이 통과한다
+
+- [x] ATW-0226 | P1 | schema/RedactionRecord | RedactionRecord invalid fixture를 추가한다 | 완료 기준: RedactionRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0227 | P1 | schema/RedactionRecord | RedactionRecord migration placeholder를 만든다 | 완료 기준: RedactionRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0228 | P2 | schema/RedactionRecord | RedactionRecord 문서 예제를 작성한다 | 완료 기준: RedactionRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0229 | P0 | schema/EmbeddingRecord | EmbeddingRecord TypeScript interface를 작성한다 | 완료 기준: EmbeddingRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0230 | P0 | schema/EmbeddingRecord | EmbeddingRecord JSON Schema를 작성한다 | 완료 기준: EmbeddingRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0231 | P0 | schema/EmbeddingRecord | EmbeddingRecord runtime validator를 작성한다 | 완료 기준: EmbeddingRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0232 | P0 | schema/EmbeddingRecord | EmbeddingRecord stable id 규칙을 정의한다 | 완료 기준: EmbeddingRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0233 | P0 | schema/EmbeddingRecord | EmbeddingRecord canonical serialization을 구현한다 | 완료 기준: EmbeddingRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0234 | P1 | schema/EmbeddingRecord | EmbeddingRecord SQLite projection mapping을 정의한다 | 완료 기준: EmbeddingRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0235 | P1 | schema/EmbeddingRecord | EmbeddingRecord redaction field policy를 정의한다 | 완료 기준: EmbeddingRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0236 | P1 | schema/EmbeddingRecord | EmbeddingRecord ACL inheritance 규칙을 연결한다 | 완료 기준: EmbeddingRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0237 | P1 | schema/EmbeddingRecord | EmbeddingRecord valid fixture를 추가한다 | 완료 기준: EmbeddingRecord: fixture validation이 통과한다
+
+- [x] ATW-0238 | P1 | schema/EmbeddingRecord | EmbeddingRecord invalid fixture를 추가한다 | 완료 기준: EmbeddingRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0239 | P1 | schema/EmbeddingRecord | EmbeddingRecord migration placeholder를 만든다 | 완료 기준: EmbeddingRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0240 | P2 | schema/EmbeddingRecord | EmbeddingRecord 문서 예제를 작성한다 | 완료 기준: EmbeddingRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0241 | P0 | schema/IndexManifestRecord | IndexManifestRecord TypeScript interface를 작성한다 | 완료 기준: IndexManifestRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0242 | P0 | schema/IndexManifestRecord | IndexManifestRecord JSON Schema를 작성한다 | 완료 기준: IndexManifestRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0243 | P0 | schema/IndexManifestRecord | IndexManifestRecord runtime validator를 작성한다 | 완료 기준: IndexManifestRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0244 | P0 | schema/IndexManifestRecord | IndexManifestRecord stable id 규칙을 정의한다 | 완료 기준: IndexManifestRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0245 | P0 | schema/IndexManifestRecord | IndexManifestRecord canonical serialization을 구현한다 | 완료 기준: IndexManifestRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0246 | P1 | schema/IndexManifestRecord | IndexManifestRecord SQLite projection mapping을 정의한다 | 완료 기준: IndexManifestRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0247 | P1 | schema/IndexManifestRecord | IndexManifestRecord redaction field policy를 정의한다 | 완료 기준: IndexManifestRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0248 | P1 | schema/IndexManifestRecord | IndexManifestRecord ACL inheritance 규칙을 연결한다 | 완료 기준: IndexManifestRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0249 | P1 | schema/IndexManifestRecord | IndexManifestRecord valid fixture를 추가한다 | 완료 기준: IndexManifestRecord: fixture validation이 통과한다
+
+- [x] ATW-0250 | P1 | schema/IndexManifestRecord | IndexManifestRecord invalid fixture를 추가한다 | 완료 기준: IndexManifestRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0251 | P1 | schema/IndexManifestRecord | IndexManifestRecord migration placeholder를 만든다 | 완료 기준: IndexManifestRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0252 | P2 | schema/IndexManifestRecord | IndexManifestRecord 문서 예제를 작성한다 | 완료 기준: IndexManifestRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0253 | P0 | schema/BackupRecord | BackupRecord TypeScript interface를 작성한다 | 완료 기준: BackupRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0254 | P0 | schema/BackupRecord | BackupRecord JSON Schema를 작성한다 | 완료 기준: BackupRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0255 | P0 | schema/BackupRecord | BackupRecord runtime validator를 작성한다 | 완료 기준: BackupRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0256 | P0 | schema/BackupRecord | BackupRecord stable id 규칙을 정의한다 | 완료 기준: BackupRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0257 | P0 | schema/BackupRecord | BackupRecord canonical serialization을 구현한다 | 완료 기준: BackupRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0258 | P1 | schema/BackupRecord | BackupRecord SQLite projection mapping을 정의한다 | 완료 기준: BackupRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0259 | P1 | schema/BackupRecord | BackupRecord redaction field policy를 정의한다 | 완료 기준: BackupRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0260 | P1 | schema/BackupRecord | BackupRecord ACL inheritance 규칙을 연결한다 | 완료 기준: BackupRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0261 | P1 | schema/BackupRecord | BackupRecord valid fixture를 추가한다 | 완료 기준: BackupRecord: fixture validation이 통과한다
+
+- [x] ATW-0262 | P1 | schema/BackupRecord | BackupRecord invalid fixture를 추가한다 | 완료 기준: BackupRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0263 | P1 | schema/BackupRecord | BackupRecord migration placeholder를 만든다 | 완료 기준: BackupRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0264 | P2 | schema/BackupRecord | BackupRecord 문서 예제를 작성한다 | 완료 기준: BackupRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0265 | P0 | schema/MigrationRecord | MigrationRecord TypeScript interface를 작성한다 | 완료 기준: MigrationRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0266 | P0 | schema/MigrationRecord | MigrationRecord JSON Schema를 작성한다 | 완료 기준: MigrationRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0267 | P0 | schema/MigrationRecord | MigrationRecord runtime validator를 작성한다 | 완료 기준: MigrationRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0268 | P0 | schema/MigrationRecord | MigrationRecord stable id 규칙을 정의한다 | 완료 기준: MigrationRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0269 | P0 | schema/MigrationRecord | MigrationRecord canonical serialization을 구현한다 | 완료 기준: MigrationRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0270 | P1 | schema/MigrationRecord | MigrationRecord SQLite projection mapping을 정의한다 | 완료 기준: MigrationRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0271 | P1 | schema/MigrationRecord | MigrationRecord redaction field policy를 정의한다 | 완료 기준: MigrationRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0272 | P1 | schema/MigrationRecord | MigrationRecord ACL inheritance 규칙을 연결한다 | 완료 기준: MigrationRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0273 | P1 | schema/MigrationRecord | MigrationRecord valid fixture를 추가한다 | 완료 기준: MigrationRecord: fixture validation이 통과한다
+
+- [x] ATW-0274 | P1 | schema/MigrationRecord | MigrationRecord invalid fixture를 추가한다 | 완료 기준: MigrationRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0275 | P1 | schema/MigrationRecord | MigrationRecord migration placeholder를 만든다 | 완료 기준: MigrationRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0276 | P2 | schema/MigrationRecord | MigrationRecord 문서 예제를 작성한다 | 완료 기준: MigrationRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0277 | P0 | schema/BlobRecord | BlobRecord TypeScript interface를 작성한다 | 완료 기준: BlobRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0278 | P0 | schema/BlobRecord | BlobRecord JSON Schema를 작성한다 | 완료 기준: BlobRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0279 | P0 | schema/BlobRecord | BlobRecord runtime validator를 작성한다 | 완료 기준: BlobRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0280 | P0 | schema/BlobRecord | BlobRecord stable id 규칙을 정의한다 | 완료 기준: BlobRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0281 | P0 | schema/BlobRecord | BlobRecord canonical serialization을 구현한다 | 완료 기준: BlobRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0282 | P1 | schema/BlobRecord | BlobRecord SQLite projection mapping을 정의한다 | 완료 기준: BlobRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0283 | P1 | schema/BlobRecord | BlobRecord redaction field policy를 정의한다 | 완료 기준: BlobRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0284 | P1 | schema/BlobRecord | BlobRecord ACL inheritance 규칙을 연결한다 | 완료 기준: BlobRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0285 | P1 | schema/BlobRecord | BlobRecord valid fixture를 추가한다 | 완료 기준: BlobRecord: fixture validation이 통과한다
+
+- [x] ATW-0286 | P1 | schema/BlobRecord | BlobRecord invalid fixture를 추가한다 | 완료 기준: BlobRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0287 | P1 | schema/BlobRecord | BlobRecord migration placeholder를 만든다 | 완료 기준: BlobRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0288 | P2 | schema/BlobRecord | BlobRecord 문서 예제를 작성한다 | 완료 기준: BlobRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0289 | P0 | schema/EvaluationRecord | EvaluationRecord TypeScript interface를 작성한다 | 완료 기준: EvaluationRecord: interface가 src/core/records에 존재한다
+
+- [x] ATW-0290 | P0 | schema/EvaluationRecord | EvaluationRecord JSON Schema를 작성한다 | 완료 기준: EvaluationRecord: schemas 폴더에 v1 schema가 있다
+
+- [x] ATW-0291 | P0 | schema/EvaluationRecord | EvaluationRecord runtime validator를 작성한다 | 완료 기준: EvaluationRecord: valid/invalid fixture 테스트가 통과한다
+
+- [x] ATW-0292 | P0 | schema/EvaluationRecord | EvaluationRecord stable id 규칙을 정의한다 | 완료 기준: EvaluationRecord: id 생성 테스트가 deterministic하다
+
+- [x] ATW-0293 | P0 | schema/EvaluationRecord | EvaluationRecord canonical serialization을 구현한다 | 완료 기준: EvaluationRecord: snapshot hash가 deterministic하다
+
+- [x] ATW-0294 | P1 | schema/EvaluationRecord | EvaluationRecord SQLite projection mapping을 정의한다 | 완료 기준: EvaluationRecord: projection table mapping 문서와 테스트가 있다
+
+- [x] ATW-0295 | P1 | schema/EvaluationRecord | EvaluationRecord redaction field policy를 정의한다 | 완료 기준: EvaluationRecord: 민감 필드가 redaction 대상에 포함된다
+
+- [x] ATW-0296 | P1 | schema/EvaluationRecord | EvaluationRecord ACL inheritance 규칙을 연결한다 | 완료 기준: EvaluationRecord: record별 ACL 결정 테스트가 있다
+
+- [x] ATW-0297 | P1 | schema/EvaluationRecord | EvaluationRecord valid fixture를 추가한다 | 완료 기준: EvaluationRecord: fixture validation이 통과한다
+
+- [x] ATW-0298 | P1 | schema/EvaluationRecord | EvaluationRecord invalid fixture를 추가한다 | 완료 기준: EvaluationRecord: invalid fixture가 예상 에러를 낸다
+
+- [x] ATW-0299 | P1 | schema/EvaluationRecord | EvaluationRecord migration placeholder를 만든다 | 완료 기준: EvaluationRecord: v1 migration registry가 존재한다
+
+- [x] ATW-0300 | P2 | schema/EvaluationRecord | EvaluationRecord 문서 예제를 작성한다 | 완료 기준: EvaluationRecord: docs/schema.md에 예제가 있다
+
+- [x] ATW-0301 | P0 | db/ConnectionManager | ConnectionManager typed public contract를 정의한다 | 완료 기준: ConnectionManager: public API가 타입으로 고정된다
+
+- [x] ATW-0302 | P0 | db/ConnectionManager | ConnectionManager happy path unit test를 작성한다 | 완료 기준: ConnectionManager: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0303 | P0 | db/ConnectionManager | ConnectionManager transaction 경계를 구현한다 | 완료 기준: ConnectionManager: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0304 | P0 | db/ConnectionManager | ConnectionManager error taxonomy를 연결한다 | 완료 기준: ConnectionManager: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0305 | P0 | db/ConnectionManager | ConnectionManager concurrency 테스트를 작성한다 | 완료 기준: ConnectionManager: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0306 | P0 | db/ConnectionManager | ConnectionManager audit hook을 연결한다 | 완료 기준: ConnectionManager: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0307 | P1 | db/ConnectionManager | ConnectionManager performance budget을 측정한다 | 완료 기준: ConnectionManager: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0308 | P1 | db/ConnectionManager | ConnectionManager database integrity fixture를 추가한다 | 완료 기준: ConnectionManager: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0309 | P1 | db/ConnectionManager | ConnectionManager CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: ConnectionManager: integration smoke test가 통과한다
+
+- [x] ATW-0310 | P2 | db/ConnectionManager | ConnectionManager 문서 예제를 작성한다 | 완료 기준: ConnectionManager: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0311 | P0 | db/MigrationRunner | MigrationRunner typed public contract를 정의한다 | 완료 기준: MigrationRunner: public API가 타입으로 고정된다
+
+- [x] ATW-0312 | P0 | db/MigrationRunner | MigrationRunner happy path unit test를 작성한다 | 완료 기준: MigrationRunner: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0313 | P0 | db/MigrationRunner | MigrationRunner transaction 경계를 구현한다 | 완료 기준: MigrationRunner: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0314 | P0 | db/MigrationRunner | MigrationRunner error taxonomy를 연결한다 | 완료 기준: MigrationRunner: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0315 | P0 | db/MigrationRunner | MigrationRunner concurrency 테스트를 작성한다 | 완료 기준: MigrationRunner: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0316 | P0 | db/MigrationRunner | MigrationRunner audit hook을 연결한다 | 완료 기준: MigrationRunner: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0317 | P1 | db/MigrationRunner | MigrationRunner performance budget을 측정한다 | 완료 기준: MigrationRunner: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0318 | P1 | db/MigrationRunner | MigrationRunner database integrity fixture를 추가한다 | 완료 기준: MigrationRunner: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0319 | P1 | db/MigrationRunner | MigrationRunner CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: MigrationRunner: integration smoke test가 통과한다
+
+- [x] ATW-0320 | P2 | db/MigrationRunner | MigrationRunner 문서 예제를 작성한다 | 완료 기준: MigrationRunner: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0321 | P0 | db/TransactionManager | TransactionManager typed public contract를 정의한다 | 완료 기준: TransactionManager: public API가 타입으로 고정된다
+
+- [x] ATW-0322 | P0 | db/TransactionManager | TransactionManager happy path unit test를 작성한다 | 완료 기준: TransactionManager: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0323 | P0 | db/TransactionManager | TransactionManager transaction 경계를 구현한다 | 완료 기준: TransactionManager: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0324 | P0 | db/TransactionManager | TransactionManager error taxonomy를 연결한다 | 완료 기준: TransactionManager: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0325 | P0 | db/TransactionManager | TransactionManager concurrency 테스트를 작성한다 | 완료 기준: TransactionManager: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0326 | P0 | db/TransactionManager | TransactionManager audit hook을 연결한다 | 완료 기준: TransactionManager: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0327 | P1 | db/TransactionManager | TransactionManager performance budget을 측정한다 | 완료 기준: TransactionManager: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0328 | P1 | db/TransactionManager | TransactionManager database integrity fixture를 추가한다 | 완료 기준: TransactionManager: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0329 | P1 | db/TransactionManager | TransactionManager CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: TransactionManager: integration smoke test가 통과한다
+
+- [x] ATW-0330 | P2 | db/TransactionManager | TransactionManager 문서 예제를 작성한다 | 완료 기준: TransactionManager: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0331 | P0 | db/RecordRepository | RecordRepository typed public contract를 정의한다 | 완료 기준: RecordRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0332 | P0 | db/RecordRepository | RecordRepository happy path unit test를 작성한다 | 완료 기준: RecordRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0333 | P0 | db/RecordRepository | RecordRepository transaction 경계를 구현한다 | 완료 기준: RecordRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0334 | P0 | db/RecordRepository | RecordRepository error taxonomy를 연결한다 | 완료 기준: RecordRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0335 | P0 | db/RecordRepository | RecordRepository concurrency 테스트를 작성한다 | 완료 기준: RecordRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0336 | P0 | db/RecordRepository | RecordRepository audit hook을 연결한다 | 완료 기준: RecordRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0337 | P1 | db/RecordRepository | RecordRepository performance budget을 측정한다 | 완료 기준: RecordRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0338 | P1 | db/RecordRepository | RecordRepository database integrity fixture를 추가한다 | 완료 기준: RecordRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0339 | P1 | db/RecordRepository | RecordRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: RecordRepository: integration smoke test가 통과한다
+
+- [x] ATW-0340 | P2 | db/RecordRepository | RecordRepository 문서 예제를 작성한다 | 완료 기준: RecordRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0341 | P0 | db/SourceRepository | SourceRepository typed public contract를 정의한다 | 완료 기준: SourceRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0342 | P0 | db/SourceRepository | SourceRepository happy path unit test를 작성한다 | 완료 기준: SourceRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0343 | P0 | db/SourceRepository | SourceRepository transaction 경계를 구현한다 | 완료 기준: SourceRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0344 | P0 | db/SourceRepository | SourceRepository error taxonomy를 연결한다 | 완료 기준: SourceRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0345 | P0 | db/SourceRepository | SourceRepository concurrency 테스트를 작성한다 | 완료 기준: SourceRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0346 | P0 | db/SourceRepository | SourceRepository audit hook을 연결한다 | 완료 기준: SourceRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0347 | P1 | db/SourceRepository | SourceRepository performance budget을 측정한다 | 완료 기준: SourceRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0348 | P1 | db/SourceRepository | SourceRepository database integrity fixture를 추가한다 | 완료 기준: SourceRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0349 | P1 | db/SourceRepository | SourceRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: SourceRepository: integration smoke test가 통과한다
+
+- [x] ATW-0350 | P2 | db/SourceRepository | SourceRepository 문서 예제를 작성한다 | 완료 기준: SourceRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0351 | P0 | db/ChunkRepository | ChunkRepository typed public contract를 정의한다 | 완료 기준: ChunkRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0352 | P0 | db/ChunkRepository | ChunkRepository happy path unit test를 작성한다 | 완료 기준: ChunkRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0353 | P0 | db/ChunkRepository | ChunkRepository transaction 경계를 구현한다 | 완료 기준: ChunkRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0354 | P0 | db/ChunkRepository | ChunkRepository error taxonomy를 연결한다 | 완료 기준: ChunkRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0355 | P0 | db/ChunkRepository | ChunkRepository concurrency 테스트를 작성한다 | 완료 기준: ChunkRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0356 | P0 | db/ChunkRepository | ChunkRepository audit hook을 연결한다 | 완료 기준: ChunkRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0357 | P1 | db/ChunkRepository | ChunkRepository performance budget을 측정한다 | 완료 기준: ChunkRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0358 | P1 | db/ChunkRepository | ChunkRepository database integrity fixture를 추가한다 | 완료 기준: ChunkRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0359 | P1 | db/ChunkRepository | ChunkRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: ChunkRepository: integration smoke test가 통과한다
+
+- [x] ATW-0360 | P2 | db/ChunkRepository | ChunkRepository 문서 예제를 작성한다 | 완료 기준: ChunkRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0361 | P0 | db/ClaimRepository | ClaimRepository typed public contract를 정의한다 | 완료 기준: ClaimRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0362 | P0 | db/ClaimRepository | ClaimRepository happy path unit test를 작성한다 | 완료 기준: ClaimRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0363 | P0 | db/ClaimRepository | ClaimRepository transaction 경계를 구현한다 | 완료 기준: ClaimRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0364 | P0 | db/ClaimRepository | ClaimRepository error taxonomy를 연결한다 | 완료 기준: ClaimRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0365 | P0 | db/ClaimRepository | ClaimRepository concurrency 테스트를 작성한다 | 완료 기준: ClaimRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0366 | P0 | db/ClaimRepository | ClaimRepository audit hook을 연결한다 | 완료 기준: ClaimRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0367 | P1 | db/ClaimRepository | ClaimRepository performance budget을 측정한다 | 완료 기준: ClaimRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0368 | P1 | db/ClaimRepository | ClaimRepository database integrity fixture를 추가한다 | 완료 기준: ClaimRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0369 | P1 | db/ClaimRepository | ClaimRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: ClaimRepository: integration smoke test가 통과한다
+
+- [x] ATW-0370 | P2 | db/ClaimRepository | ClaimRepository 문서 예제를 작성한다 | 완료 기준: ClaimRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0371 | P0 | db/EntityRepository | EntityRepository typed public contract를 정의한다 | 완료 기준: EntityRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0372 | P0 | db/EntityRepository | EntityRepository happy path unit test를 작성한다 | 완료 기준: EntityRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0373 | P0 | db/EntityRepository | EntityRepository transaction 경계를 구현한다 | 완료 기준: EntityRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0374 | P0 | db/EntityRepository | EntityRepository error taxonomy를 연결한다 | 완료 기준: EntityRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0375 | P0 | db/EntityRepository | EntityRepository concurrency 테스트를 작성한다 | 완료 기준: EntityRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0376 | P0 | db/EntityRepository | EntityRepository audit hook을 연결한다 | 완료 기준: EntityRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0377 | P1 | db/EntityRepository | EntityRepository performance budget을 측정한다 | 완료 기준: EntityRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0378 | P1 | db/EntityRepository | EntityRepository database integrity fixture를 추가한다 | 완료 기준: EntityRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0379 | P1 | db/EntityRepository | EntityRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: EntityRepository: integration smoke test가 통과한다
+
+- [x] ATW-0380 | P2 | db/EntityRepository | EntityRepository 문서 예제를 작성한다 | 완료 기준: EntityRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0381 | P0 | db/RelationRepository | RelationRepository typed public contract를 정의한다 | 완료 기준: RelationRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0382 | P0 | db/RelationRepository | RelationRepository happy path unit test를 작성한다 | 완료 기준: RelationRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0383 | P0 | db/RelationRepository | RelationRepository transaction 경계를 구현한다 | 완료 기준: RelationRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0384 | P0 | db/RelationRepository | RelationRepository error taxonomy를 연결한다 | 완료 기준: RelationRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0385 | P0 | db/RelationRepository | RelationRepository concurrency 테스트를 작성한다 | 완료 기준: RelationRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0386 | P0 | db/RelationRepository | RelationRepository audit hook을 연결한다 | 완료 기준: RelationRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0387 | P1 | db/RelationRepository | RelationRepository performance budget을 측정한다 | 완료 기준: RelationRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0388 | P1 | db/RelationRepository | RelationRepository database integrity fixture를 추가한다 | 완료 기준: RelationRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0389 | P1 | db/RelationRepository | RelationRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: RelationRepository: integration smoke test가 통과한다
+
+- [x] ATW-0390 | P2 | db/RelationRepository | RelationRepository 문서 예제를 작성한다 | 완료 기준: RelationRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0391 | P0 | db/PolicyRepository | PolicyRepository typed public contract를 정의한다 | 완료 기준: PolicyRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0392 | P0 | db/PolicyRepository | PolicyRepository happy path unit test를 작성한다 | 완료 기준: PolicyRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0393 | P0 | db/PolicyRepository | PolicyRepository transaction 경계를 구현한다 | 완료 기준: PolicyRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0394 | P0 | db/PolicyRepository | PolicyRepository error taxonomy를 연결한다 | 완료 기준: PolicyRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0395 | P0 | db/PolicyRepository | PolicyRepository concurrency 테스트를 작성한다 | 완료 기준: PolicyRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0396 | P0 | db/PolicyRepository | PolicyRepository audit hook을 연결한다 | 완료 기준: PolicyRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0397 | P1 | db/PolicyRepository | PolicyRepository performance budget을 측정한다 | 완료 기준: PolicyRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0398 | P1 | db/PolicyRepository | PolicyRepository database integrity fixture를 추가한다 | 완료 기준: PolicyRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0399 | P1 | db/PolicyRepository | PolicyRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: PolicyRepository: integration smoke test가 통과한다
+
+- [x] ATW-0400 | P2 | db/PolicyRepository | PolicyRepository 문서 예제를 작성한다 | 완료 기준: PolicyRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0401 | P0 | db/AclRepository | AclRepository typed public contract를 정의한다 | 완료 기준: AclRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0402 | P0 | db/AclRepository | AclRepository happy path unit test를 작성한다 | 완료 기준: AclRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0403 | P0 | db/AclRepository | AclRepository transaction 경계를 구현한다 | 완료 기준: AclRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0404 | P0 | db/AclRepository | AclRepository error taxonomy를 연결한다 | 완료 기준: AclRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0405 | P0 | db/AclRepository | AclRepository concurrency 테스트를 작성한다 | 완료 기준: AclRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0406 | P0 | db/AclRepository | AclRepository audit hook을 연결한다 | 완료 기준: AclRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0407 | P1 | db/AclRepository | AclRepository performance budget을 측정한다 | 완료 기준: AclRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0408 | P1 | db/AclRepository | AclRepository database integrity fixture를 추가한다 | 완료 기준: AclRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0409 | P1 | db/AclRepository | AclRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: AclRepository: integration smoke test가 통과한다
+
+- [x] ATW-0410 | P2 | db/AclRepository | AclRepository 문서 예제를 작성한다 | 완료 기준: AclRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0411 | P0 | db/AuditRepository | AuditRepository typed public contract를 정의한다 | 완료 기준: AuditRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0412 | P0 | db/AuditRepository | AuditRepository happy path unit test를 작성한다 | 완료 기준: AuditRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0413 | P0 | db/AuditRepository | AuditRepository transaction 경계를 구현한다 | 완료 기준: AuditRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0414 | P0 | db/AuditRepository | AuditRepository error taxonomy를 연결한다 | 완료 기준: AuditRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0415 | P0 | db/AuditRepository | AuditRepository concurrency 테스트를 작성한다 | 완료 기준: AuditRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0416 | P0 | db/AuditRepository | AuditRepository audit hook을 연결한다 | 완료 기준: AuditRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0417 | P1 | db/AuditRepository | AuditRepository performance budget을 측정한다 | 완료 기준: AuditRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0418 | P1 | db/AuditRepository | AuditRepository database integrity fixture를 추가한다 | 완료 기준: AuditRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0419 | P1 | db/AuditRepository | AuditRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: AuditRepository: integration smoke test가 통과한다
+
+- [x] ATW-0420 | P2 | db/AuditRepository | AuditRepository 문서 예제를 작성한다 | 완료 기준: AuditRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0421 | P0 | db/ProposalRepository | ProposalRepository typed public contract를 정의한다 | 완료 기준: ProposalRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0422 | P0 | db/ProposalRepository | ProposalRepository happy path unit test를 작성한다 | 완료 기준: ProposalRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0423 | P0 | db/ProposalRepository | ProposalRepository transaction 경계를 구현한다 | 완료 기준: ProposalRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0424 | P0 | db/ProposalRepository | ProposalRepository error taxonomy를 연결한다 | 완료 기준: ProposalRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0425 | P0 | db/ProposalRepository | ProposalRepository concurrency 테스트를 작성한다 | 완료 기준: ProposalRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0426 | P0 | db/ProposalRepository | ProposalRepository audit hook을 연결한다 | 완료 기준: ProposalRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0427 | P1 | db/ProposalRepository | ProposalRepository performance budget을 측정한다 | 완료 기준: ProposalRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0428 | P1 | db/ProposalRepository | ProposalRepository database integrity fixture를 추가한다 | 완료 기준: ProposalRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0429 | P1 | db/ProposalRepository | ProposalRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: ProposalRepository: integration smoke test가 통과한다
+
+- [x] ATW-0430 | P2 | db/ProposalRepository | ProposalRepository 문서 예제를 작성한다 | 완료 기준: ProposalRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0431 | P0 | db/ConflictRepository | ConflictRepository typed public contract를 정의한다 | 완료 기준: ConflictRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0432 | P0 | db/ConflictRepository | ConflictRepository happy path unit test를 작성한다 | 완료 기준: ConflictRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0433 | P0 | db/ConflictRepository | ConflictRepository transaction 경계를 구현한다 | 완료 기준: ConflictRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0434 | P0 | db/ConflictRepository | ConflictRepository error taxonomy를 연결한다 | 완료 기준: ConflictRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0435 | P0 | db/ConflictRepository | ConflictRepository concurrency 테스트를 작성한다 | 완료 기준: ConflictRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0436 | P0 | db/ConflictRepository | ConflictRepository audit hook을 연결한다 | 완료 기준: ConflictRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0437 | P1 | db/ConflictRepository | ConflictRepository performance budget을 측정한다 | 완료 기준: ConflictRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0438 | P1 | db/ConflictRepository | ConflictRepository database integrity fixture를 추가한다 | 완료 기준: ConflictRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0439 | P1 | db/ConflictRepository | ConflictRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: ConflictRepository: integration smoke test가 통과한다
+
+- [x] ATW-0440 | P2 | db/ConflictRepository | ConflictRepository 문서 예제를 작성한다 | 완료 기준: ConflictRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0441 | P0 | db/BackupManager | BackupManager typed public contract를 정의한다 | 완료 기준: BackupManager: public API가 타입으로 고정된다
+
+- [x] ATW-0442 | P0 | db/BackupManager | BackupManager happy path unit test를 작성한다 | 완료 기준: BackupManager: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0443 | P0 | db/BackupManager | BackupManager transaction 경계를 구현한다 | 완료 기준: BackupManager: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0444 | P0 | db/BackupManager | BackupManager error taxonomy를 연결한다 | 완료 기준: BackupManager: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0445 | P0 | db/BackupManager | BackupManager concurrency 테스트를 작성한다 | 완료 기준: BackupManager: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0446 | P0 | db/BackupManager | BackupManager audit hook을 연결한다 | 완료 기준: BackupManager: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0447 | P1 | db/BackupManager | BackupManager performance budget을 측정한다 | 완료 기준: BackupManager: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0448 | P1 | db/BackupManager | BackupManager database integrity fixture를 추가한다 | 완료 기준: BackupManager: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0449 | P1 | db/BackupManager | BackupManager CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: BackupManager: integration smoke test가 통과한다
+
+- [x] ATW-0450 | P2 | db/BackupManager | BackupManager 문서 예제를 작성한다 | 완료 기준: BackupManager: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0451 | P0 | db/RestoreManager | RestoreManager typed public contract를 정의한다 | 완료 기준: RestoreManager: public API가 타입으로 고정된다
+
+- [x] ATW-0452 | P0 | db/RestoreManager | RestoreManager happy path unit test를 작성한다 | 완료 기준: RestoreManager: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0453 | P0 | db/RestoreManager | RestoreManager transaction 경계를 구현한다 | 완료 기준: RestoreManager: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0454 | P0 | db/RestoreManager | RestoreManager error taxonomy를 연결한다 | 완료 기준: RestoreManager: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0455 | P0 | db/RestoreManager | RestoreManager concurrency 테스트를 작성한다 | 완료 기준: RestoreManager: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0456 | P0 | db/RestoreManager | RestoreManager audit hook을 연결한다 | 완료 기준: RestoreManager: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0457 | P1 | db/RestoreManager | RestoreManager performance budget을 측정한다 | 완료 기준: RestoreManager: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0458 | P1 | db/RestoreManager | RestoreManager database integrity fixture를 추가한다 | 완료 기준: RestoreManager: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0459 | P1 | db/RestoreManager | RestoreManager CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: RestoreManager: integration smoke test가 통과한다
+
+- [x] ATW-0460 | P2 | db/RestoreManager | RestoreManager 문서 예제를 작성한다 | 완료 기준: RestoreManager: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0461 | P0 | db/FtsIndexRepository | FtsIndexRepository typed public contract를 정의한다 | 완료 기준: FtsIndexRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0462 | P0 | db/FtsIndexRepository | FtsIndexRepository happy path unit test를 작성한다 | 완료 기준: FtsIndexRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0463 | P0 | db/FtsIndexRepository | FtsIndexRepository transaction 경계를 구현한다 | 완료 기준: FtsIndexRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0464 | P0 | db/FtsIndexRepository | FtsIndexRepository error taxonomy를 연결한다 | 완료 기준: FtsIndexRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0465 | P0 | db/FtsIndexRepository | FtsIndexRepository concurrency 테스트를 작성한다 | 완료 기준: FtsIndexRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0466 | P0 | db/FtsIndexRepository | FtsIndexRepository audit hook을 연결한다 | 완료 기준: FtsIndexRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0467 | P1 | db/FtsIndexRepository | FtsIndexRepository performance budget을 측정한다 | 완료 기준: FtsIndexRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0468 | P1 | db/FtsIndexRepository | FtsIndexRepository database integrity fixture를 추가한다 | 완료 기준: FtsIndexRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0469 | P1 | db/FtsIndexRepository | FtsIndexRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: FtsIndexRepository: integration smoke test가 통과한다
+
+- [x] ATW-0470 | P2 | db/FtsIndexRepository | FtsIndexRepository 문서 예제를 작성한다 | 완료 기준: FtsIndexRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0471 | P0 | db/GraphProjectionRepository | GraphProjectionRepository typed public contract를 정의한다 | 완료 기준: GraphProjectionRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0472 | P0 | db/GraphProjectionRepository | GraphProjectionRepository happy path unit test를 작성한다 | 완료 기준: GraphProjectionRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0473 | P0 | db/GraphProjectionRepository | GraphProjectionRepository transaction 경계를 구현한다 | 완료 기준: GraphProjectionRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0474 | P0 | db/GraphProjectionRepository | GraphProjectionRepository error taxonomy를 연결한다 | 완료 기준: GraphProjectionRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0475 | P0 | db/GraphProjectionRepository | GraphProjectionRepository concurrency 테스트를 작성한다 | 완료 기준: GraphProjectionRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0476 | P0 | db/GraphProjectionRepository | GraphProjectionRepository audit hook을 연결한다 | 완료 기준: GraphProjectionRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0477 | P1 | db/GraphProjectionRepository | GraphProjectionRepository performance budget을 측정한다 | 완료 기준: GraphProjectionRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0478 | P1 | db/GraphProjectionRepository | GraphProjectionRepository database integrity fixture를 추가한다 | 완료 기준: GraphProjectionRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0479 | P1 | db/GraphProjectionRepository | GraphProjectionRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: GraphProjectionRepository: integration smoke test가 통과한다
+
+- [x] ATW-0480 | P2 | db/GraphProjectionRepository | GraphProjectionRepository 문서 예제를 작성한다 | 완료 기준: GraphProjectionRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0481 | P0 | db/EmbeddingCacheRepository | EmbeddingCacheRepository typed public contract를 정의한다 | 완료 기준: EmbeddingCacheRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0482 | P0 | db/EmbeddingCacheRepository | EmbeddingCacheRepository happy path unit test를 작성한다 | 완료 기준: EmbeddingCacheRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0483 | P0 | db/EmbeddingCacheRepository | EmbeddingCacheRepository transaction 경계를 구현한다 | 완료 기준: EmbeddingCacheRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0484 | P0 | db/EmbeddingCacheRepository | EmbeddingCacheRepository error taxonomy를 연결한다 | 완료 기준: EmbeddingCacheRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0485 | P0 | db/EmbeddingCacheRepository | EmbeddingCacheRepository concurrency 테스트를 작성한다 | 완료 기준: EmbeddingCacheRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0486 | P0 | db/EmbeddingCacheRepository | EmbeddingCacheRepository audit hook을 연결한다 | 완료 기준: EmbeddingCacheRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0487 | P1 | db/EmbeddingCacheRepository | EmbeddingCacheRepository performance budget을 측정한다 | 완료 기준: EmbeddingCacheRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0488 | P1 | db/EmbeddingCacheRepository | EmbeddingCacheRepository database integrity fixture를 추가한다 | 완료 기준: EmbeddingCacheRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0489 | P1 | db/EmbeddingCacheRepository | EmbeddingCacheRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: EmbeddingCacheRepository: integration smoke test가 통과한다
+
+- [x] ATW-0490 | P2 | db/EmbeddingCacheRepository | EmbeddingCacheRepository 문서 예제를 작성한다 | 완료 기준: EmbeddingCacheRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0491 | P0 | db/BlobRepository | BlobRepository typed public contract를 정의한다 | 완료 기준: BlobRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0492 | P0 | db/BlobRepository | BlobRepository happy path unit test를 작성한다 | 완료 기준: BlobRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0493 | P0 | db/BlobRepository | BlobRepository transaction 경계를 구현한다 | 완료 기준: BlobRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0494 | P0 | db/BlobRepository | BlobRepository error taxonomy를 연결한다 | 완료 기준: BlobRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0495 | P0 | db/BlobRepository | BlobRepository concurrency 테스트를 작성한다 | 완료 기준: BlobRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0496 | P0 | db/BlobRepository | BlobRepository audit hook을 연결한다 | 완료 기준: BlobRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0497 | P1 | db/BlobRepository | BlobRepository performance budget을 측정한다 | 완료 기준: BlobRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0498 | P1 | db/BlobRepository | BlobRepository database integrity fixture를 추가한다 | 완료 기준: BlobRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0499 | P1 | db/BlobRepository | BlobRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: BlobRepository: integration smoke test가 통과한다
+
+- [x] ATW-0500 | P2 | db/BlobRepository | BlobRepository 문서 예제를 작성한다 | 완료 기준: BlobRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0501 | P0 | db/ConfigRepository | ConfigRepository typed public contract를 정의한다 | 완료 기준: ConfigRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0502 | P0 | db/ConfigRepository | ConfigRepository happy path unit test를 작성한다 | 완료 기준: ConfigRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0503 | P0 | db/ConfigRepository | ConfigRepository transaction 경계를 구현한다 | 완료 기준: ConfigRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0504 | P0 | db/ConfigRepository | ConfigRepository error taxonomy를 연결한다 | 완료 기준: ConfigRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0505 | P0 | db/ConfigRepository | ConfigRepository concurrency 테스트를 작성한다 | 완료 기준: ConfigRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0506 | P0 | db/ConfigRepository | ConfigRepository audit hook을 연결한다 | 완료 기준: ConfigRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0507 | P1 | db/ConfigRepository | ConfigRepository performance budget을 측정한다 | 완료 기준: ConfigRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0508 | P1 | db/ConfigRepository | ConfigRepository database integrity fixture를 추가한다 | 완료 기준: ConfigRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0509 | P1 | db/ConfigRepository | ConfigRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: ConfigRepository: integration smoke test가 통과한다
+
+- [x] ATW-0510 | P2 | db/ConfigRepository | ConfigRepository 문서 예제를 작성한다 | 완료 기준: ConfigRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0511 | P0 | db/DoctorCheck | DoctorCheck typed public contract를 정의한다 | 완료 기준: DoctorCheck: public API가 타입으로 고정된다
+
+- [x] ATW-0512 | P0 | db/DoctorCheck | DoctorCheck happy path unit test를 작성한다 | 완료 기준: DoctorCheck: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0513 | P0 | db/DoctorCheck | DoctorCheck transaction 경계를 구현한다 | 완료 기준: DoctorCheck: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0514 | P0 | db/DoctorCheck | DoctorCheck error taxonomy를 연결한다 | 완료 기준: DoctorCheck: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0515 | P0 | db/DoctorCheck | DoctorCheck concurrency 테스트를 작성한다 | 완료 기준: DoctorCheck: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0516 | P0 | db/DoctorCheck | DoctorCheck audit hook을 연결한다 | 완료 기준: DoctorCheck: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0517 | P1 | db/DoctorCheck | DoctorCheck performance budget을 측정한다 | 완료 기준: DoctorCheck: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0518 | P1 | db/DoctorCheck | DoctorCheck database integrity fixture를 추가한다 | 완료 기준: DoctorCheck: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0519 | P1 | db/DoctorCheck | DoctorCheck CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: DoctorCheck: integration smoke test가 통과한다
+
+- [x] ATW-0520 | P2 | db/DoctorCheck | DoctorCheck 문서 예제를 작성한다 | 완료 기준: DoctorCheck: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0521 | P0 | db/IntegrityChecker | IntegrityChecker typed public contract를 정의한다 | 완료 기준: IntegrityChecker: public API가 타입으로 고정된다
+
+- [x] ATW-0522 | P0 | db/IntegrityChecker | IntegrityChecker happy path unit test를 작성한다 | 완료 기준: IntegrityChecker: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0523 | P0 | db/IntegrityChecker | IntegrityChecker transaction 경계를 구현한다 | 완료 기준: IntegrityChecker: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0524 | P0 | db/IntegrityChecker | IntegrityChecker error taxonomy를 연결한다 | 완료 기준: IntegrityChecker: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0525 | P0 | db/IntegrityChecker | IntegrityChecker concurrency 테스트를 작성한다 | 완료 기준: IntegrityChecker: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0526 | P0 | db/IntegrityChecker | IntegrityChecker audit hook을 연결한다 | 완료 기준: IntegrityChecker: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0527 | P1 | db/IntegrityChecker | IntegrityChecker performance budget을 측정한다 | 완료 기준: IntegrityChecker: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0528 | P1 | db/IntegrityChecker | IntegrityChecker database integrity fixture를 추가한다 | 완료 기준: IntegrityChecker: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0529 | P1 | db/IntegrityChecker | IntegrityChecker CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: IntegrityChecker: integration smoke test가 통과한다
+
+- [x] ATW-0530 | P2 | db/IntegrityChecker | IntegrityChecker 문서 예제를 작성한다 | 완료 기준: IntegrityChecker: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0531 | P0 | db/JsonExportRepository | JsonExportRepository typed public contract를 정의한다 | 완료 기준: JsonExportRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0532 | P0 | db/JsonExportRepository | JsonExportRepository happy path unit test를 작성한다 | 완료 기준: JsonExportRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0533 | P0 | db/JsonExportRepository | JsonExportRepository transaction 경계를 구현한다 | 완료 기준: JsonExportRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0534 | P0 | db/JsonExportRepository | JsonExportRepository error taxonomy를 연결한다 | 완료 기준: JsonExportRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0535 | P0 | db/JsonExportRepository | JsonExportRepository concurrency 테스트를 작성한다 | 완료 기준: JsonExportRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0536 | P0 | db/JsonExportRepository | JsonExportRepository audit hook을 연결한다 | 완료 기준: JsonExportRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0537 | P1 | db/JsonExportRepository | JsonExportRepository performance budget을 측정한다 | 완료 기준: JsonExportRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0538 | P1 | db/JsonExportRepository | JsonExportRepository database integrity fixture를 추가한다 | 완료 기준: JsonExportRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0539 | P1 | db/JsonExportRepository | JsonExportRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: JsonExportRepository: integration smoke test가 통과한다
+
+- [x] ATW-0540 | P2 | db/JsonExportRepository | JsonExportRepository 문서 예제를 작성한다 | 완료 기준: JsonExportRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0541 | P0 | db/JsonImportRepository | JsonImportRepository typed public contract를 정의한다 | 완료 기준: JsonImportRepository: public API가 타입으로 고정된다
+
+- [x] ATW-0542 | P0 | db/JsonImportRepository | JsonImportRepository happy path unit test를 작성한다 | 완료 기준: JsonImportRepository: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0543 | P0 | db/JsonImportRepository | JsonImportRepository transaction 경계를 구현한다 | 완료 기준: JsonImportRepository: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0544 | P0 | db/JsonImportRepository | JsonImportRepository error taxonomy를 연결한다 | 완료 기준: JsonImportRepository: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0545 | P0 | db/JsonImportRepository | JsonImportRepository concurrency 테스트를 작성한다 | 완료 기준: JsonImportRepository: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0546 | P0 | db/JsonImportRepository | JsonImportRepository audit hook을 연결한다 | 완료 기준: JsonImportRepository: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0547 | P1 | db/JsonImportRepository | JsonImportRepository performance budget을 측정한다 | 완료 기준: JsonImportRepository: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0548 | P1 | db/JsonImportRepository | JsonImportRepository database integrity fixture를 추가한다 | 완료 기준: JsonImportRepository: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0549 | P1 | db/JsonImportRepository | JsonImportRepository CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: JsonImportRepository: integration smoke test가 통과한다
+
+- [x] ATW-0550 | P2 | db/JsonImportRepository | JsonImportRepository 문서 예제를 작성한다 | 완료 기준: JsonImportRepository: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0551 | P0 | db/WalCheckpointManager | WalCheckpointManager typed public contract를 정의한다 | 완료 기준: WalCheckpointManager: public API가 타입으로 고정된다
+
+- [x] ATW-0552 | P0 | db/WalCheckpointManager | WalCheckpointManager happy path unit test를 작성한다 | 완료 기준: WalCheckpointManager: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0553 | P0 | db/WalCheckpointManager | WalCheckpointManager transaction 경계를 구현한다 | 완료 기준: WalCheckpointManager: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0554 | P0 | db/WalCheckpointManager | WalCheckpointManager error taxonomy를 연결한다 | 완료 기준: WalCheckpointManager: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0555 | P0 | db/WalCheckpointManager | WalCheckpointManager concurrency 테스트를 작성한다 | 완료 기준: WalCheckpointManager: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0556 | P0 | db/WalCheckpointManager | WalCheckpointManager audit hook을 연결한다 | 완료 기준: WalCheckpointManager: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0557 | P1 | db/WalCheckpointManager | WalCheckpointManager performance budget을 측정한다 | 완료 기준: WalCheckpointManager: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0558 | P1 | db/WalCheckpointManager | WalCheckpointManager database integrity fixture를 추가한다 | 완료 기준: WalCheckpointManager: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0559 | P1 | db/WalCheckpointManager | WalCheckpointManager CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: WalCheckpointManager: integration smoke test가 통과한다
+
+- [x] ATW-0560 | P2 | db/WalCheckpointManager | WalCheckpointManager 문서 예제를 작성한다 | 완료 기준: WalCheckpointManager: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0561 | P0 | db/BusyRetryPolicy | BusyRetryPolicy typed public contract를 정의한다 | 완료 기준: BusyRetryPolicy: public API가 타입으로 고정된다
+
+- [x] ATW-0562 | P0 | db/BusyRetryPolicy | BusyRetryPolicy happy path unit test를 작성한다 | 완료 기준: BusyRetryPolicy: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0563 | P0 | db/BusyRetryPolicy | BusyRetryPolicy transaction 경계를 구현한다 | 완료 기준: BusyRetryPolicy: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0564 | P0 | db/BusyRetryPolicy | BusyRetryPolicy error taxonomy를 연결한다 | 완료 기준: BusyRetryPolicy: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0565 | P0 | db/BusyRetryPolicy | BusyRetryPolicy concurrency 테스트를 작성한다 | 완료 기준: BusyRetryPolicy: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0566 | P0 | db/BusyRetryPolicy | BusyRetryPolicy audit hook을 연결한다 | 완료 기준: BusyRetryPolicy: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0567 | P1 | db/BusyRetryPolicy | BusyRetryPolicy performance budget을 측정한다 | 완료 기준: BusyRetryPolicy: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0568 | P1 | db/BusyRetryPolicy | BusyRetryPolicy database integrity fixture를 추가한다 | 완료 기준: BusyRetryPolicy: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0569 | P1 | db/BusyRetryPolicy | BusyRetryPolicy CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: BusyRetryPolicy: integration smoke test가 통과한다
+
+- [x] ATW-0570 | P2 | db/BusyRetryPolicy | BusyRetryPolicy 문서 예제를 작성한다 | 완료 기준: BusyRetryPolicy: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0571 | P0 | db/TombstoneManager | TombstoneManager typed public contract를 정의한다 | 완료 기준: TombstoneManager: public API가 타입으로 고정된다
+
+- [x] ATW-0572 | P0 | db/TombstoneManager | TombstoneManager happy path unit test를 작성한다 | 완료 기준: TombstoneManager: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0573 | P0 | db/TombstoneManager | TombstoneManager transaction 경계를 구현한다 | 완료 기준: TombstoneManager: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0574 | P0 | db/TombstoneManager | TombstoneManager error taxonomy를 연결한다 | 완료 기준: TombstoneManager: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0575 | P0 | db/TombstoneManager | TombstoneManager concurrency 테스트를 작성한다 | 완료 기준: TombstoneManager: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0576 | P0 | db/TombstoneManager | TombstoneManager audit hook을 연결한다 | 완료 기준: TombstoneManager: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0577 | P1 | db/TombstoneManager | TombstoneManager performance budget을 측정한다 | 완료 기준: TombstoneManager: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0578 | P1 | db/TombstoneManager | TombstoneManager database integrity fixture를 추가한다 | 완료 기준: TombstoneManager: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0579 | P1 | db/TombstoneManager | TombstoneManager CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: TombstoneManager: integration smoke test가 통과한다
+
+- [x] ATW-0580 | P2 | db/TombstoneManager | TombstoneManager 문서 예제를 작성한다 | 완료 기준: TombstoneManager: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0581 | P0 | db/RevisionManager | RevisionManager typed public contract를 정의한다 | 완료 기준: RevisionManager: public API가 타입으로 고정된다
+
+- [x] ATW-0582 | P0 | db/RevisionManager | RevisionManager happy path unit test를 작성한다 | 완료 기준: RevisionManager: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0583 | P0 | db/RevisionManager | RevisionManager transaction 경계를 구현한다 | 완료 기준: RevisionManager: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0584 | P0 | db/RevisionManager | RevisionManager error taxonomy를 연결한다 | 완료 기준: RevisionManager: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0585 | P0 | db/RevisionManager | RevisionManager concurrency 테스트를 작성한다 | 완료 기준: RevisionManager: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0586 | P0 | db/RevisionManager | RevisionManager audit hook을 연결한다 | 완료 기준: RevisionManager: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0587 | P1 | db/RevisionManager | RevisionManager performance budget을 측정한다 | 완료 기준: RevisionManager: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0588 | P1 | db/RevisionManager | RevisionManager database integrity fixture를 추가한다 | 완료 기준: RevisionManager: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0589 | P1 | db/RevisionManager | RevisionManager CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: RevisionManager: integration smoke test가 통과한다
+
+- [x] ATW-0590 | P2 | db/RevisionManager | RevisionManager 문서 예제를 작성한다 | 완료 기준: RevisionManager: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0591 | P0 | db/DbPathResolver | DbPathResolver typed public contract를 정의한다 | 완료 기준: DbPathResolver: public API가 타입으로 고정된다
+
+- [x] ATW-0592 | P0 | db/DbPathResolver | DbPathResolver happy path unit test를 작성한다 | 완료 기준: DbPathResolver: 기본 CRUD 또는 실행 테스트가 통과한다
+
+- [x] ATW-0593 | P0 | db/DbPathResolver | DbPathResolver transaction 경계를 구현한다 | 완료 기준: DbPathResolver: rollback simulation 테스트가 통과한다
+
+- [x] ATW-0594 | P0 | db/DbPathResolver | DbPathResolver error taxonomy를 연결한다 | 완료 기준: DbPathResolver: NotFound/Conflict/ValidationError가 typed로 반환된다
+
+- [x] ATW-0595 | P0 | db/DbPathResolver | DbPathResolver concurrency 테스트를 작성한다 | 완료 기준: DbPathResolver: 동시 write 충돌이 deterministic하게 처리된다
+
+- [x] ATW-0596 | P0 | db/DbPathResolver | DbPathResolver audit hook을 연결한다 | 완료 기준: DbPathResolver: write 이벤트가 audit_events에 남는다
+
+- [x] ATW-0597 | P1 | db/DbPathResolver | DbPathResolver performance budget을 측정한다 | 완료 기준: DbPathResolver: 1k/10k fixture 기준 시간이 기록된다
+
+- [x] ATW-0598 | P1 | db/DbPathResolver | DbPathResolver database integrity fixture를 추가한다 | 완료 기준: DbPathResolver: corrupt DB fixture가 doctor에서 감지된다
+
+- [x] ATW-0599 | P1 | db/DbPathResolver | DbPathResolver CLI 또는 SDK에서 호출 가능하게 연결한다 | 완료 기준: DbPathResolver: integration smoke test가 통과한다
+
+- [x] ATW-0600 | P2 | db/DbPathResolver | DbPathResolver 문서 예제를 작성한다 | 완료 기준: DbPathResolver: docs/sqlite-storage.md에 사용법이 있다
+
+- [x] ATW-0601 | P0 | store/SQLiteStore | SQLiteStore read/write/list/delete contract를 구현한다 | 완료 기준: SQLiteStore: typed contract test가 통과한다
+
+- [x] ATW-0602 | P0 | store/SQLiteStore | SQLiteStore schema validator와 연결한다 | 완료 기준: SQLiteStore: invalid record write가 차단된다
+
+- [x] ATW-0603 | P0 | store/SQLiteStore | SQLiteStore ACL projection update를 연결한다 | 완료 기준: SQLiteStore: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0604 | P0 | store/SQLiteStore | SQLiteStore revision/optimistic lock을 구현한다 | 완료 기준: SQLiteStore: stale update가 conflict를 낸다
+
+- [x] ATW-0605 | P1 | store/SQLiteStore | SQLiteStore pagination을 구현한다 | 완료 기준: SQLiteStore: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0606 | P1 | store/SQLiteStore | SQLiteStore dry-run mode를 구현한다 | 완료 기준: SQLiteStore: write 없이 change plan이 출력된다
+
+- [x] ATW-0607 | P1 | store/SQLiteStore | SQLiteStore audit hook을 연결한다 | 완료 기준: SQLiteStore: write 이벤트가 audit에 남는다
+
+- [x] ATW-0608 | P2 | store/SQLiteStore | SQLiteStore 문서화한다 | 완료 기준: SQLiteStore: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0609 | P0 | store/MemoryStore | MemoryStore read/write/list/delete contract를 구현한다 | 완료 기준: MemoryStore: typed contract test가 통과한다
+
+- [x] ATW-0610 | P0 | store/MemoryStore | MemoryStore schema validator와 연결한다 | 완료 기준: MemoryStore: invalid record write가 차단된다
+
+- [x] ATW-0611 | P0 | store/MemoryStore | MemoryStore ACL projection update를 연결한다 | 완료 기준: MemoryStore: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0612 | P0 | store/MemoryStore | MemoryStore revision/optimistic lock을 구현한다 | 완료 기준: MemoryStore: stale update가 conflict를 낸다
+
+- [x] ATW-0613 | P1 | store/MemoryStore | MemoryStore pagination을 구현한다 | 완료 기준: MemoryStore: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0614 | P1 | store/MemoryStore | MemoryStore dry-run mode를 구현한다 | 완료 기준: MemoryStore: write 없이 change plan이 출력된다
+
+- [x] ATW-0615 | P1 | store/MemoryStore | MemoryStore audit hook을 연결한다 | 완료 기준: MemoryStore: write 이벤트가 audit에 남는다
+
+- [x] ATW-0616 | P2 | store/MemoryStore | MemoryStore 문서화한다 | 완료 기준: MemoryStore: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0617 | P0 | store/JsonExportStore | JsonExportStore read/write/list/delete contract를 구현한다 | 완료 기준: JsonExportStore: typed contract test가 통과한다
+
+- [x] ATW-0618 | P0 | store/JsonExportStore | JsonExportStore schema validator와 연결한다 | 완료 기준: JsonExportStore: invalid record write가 차단된다
+
+- [x] ATW-0619 | P0 | store/JsonExportStore | JsonExportStore ACL projection update를 연결한다 | 완료 기준: JsonExportStore: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0620 | P0 | store/JsonExportStore | JsonExportStore revision/optimistic lock을 구현한다 | 완료 기준: JsonExportStore: stale update가 conflict를 낸다
+
+- [x] ATW-0621 | P1 | store/JsonExportStore | JsonExportStore pagination을 구현한다 | 완료 기준: JsonExportStore: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0622 | P1 | store/JsonExportStore | JsonExportStore dry-run mode를 구현한다 | 완료 기준: JsonExportStore: write 없이 change plan이 출력된다
+
+- [x] ATW-0623 | P1 | store/JsonExportStore | JsonExportStore audit hook을 연결한다 | 완료 기준: JsonExportStore: write 이벤트가 audit에 남는다
+
+- [x] ATW-0624 | P2 | store/JsonExportStore | JsonExportStore 문서화한다 | 완료 기준: JsonExportStore: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0625 | P0 | store/StoreContract | StoreContract read/write/list/delete contract를 구현한다 | 완료 기준: StoreContract: typed contract test가 통과한다
+
+- [x] ATW-0626 | P0 | store/StoreContract | StoreContract schema validator와 연결한다 | 완료 기준: StoreContract: invalid record write가 차단된다
+
+- [x] ATW-0627 | P0 | store/StoreContract | StoreContract ACL projection update를 연결한다 | 완료 기준: StoreContract: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0628 | P0 | store/StoreContract | StoreContract revision/optimistic lock을 구현한다 | 완료 기준: StoreContract: stale update가 conflict를 낸다
+
+- [x] ATW-0629 | P1 | store/StoreContract | StoreContract pagination을 구현한다 | 완료 기준: StoreContract: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0630 | P1 | store/StoreContract | StoreContract dry-run mode를 구현한다 | 완료 기준: StoreContract: write 없이 change plan이 출력된다
+
+- [x] ATW-0631 | P1 | store/StoreContract | StoreContract audit hook을 연결한다 | 완료 기준: StoreContract: write 이벤트가 audit에 남는다
+
+- [x] ATW-0632 | P2 | store/StoreContract | StoreContract 문서화한다 | 완료 기준: StoreContract: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0633 | P0 | store/StoreErrorMapper | StoreErrorMapper read/write/list/delete contract를 구현한다 | 완료 기준: StoreErrorMapper: typed contract test가 통과한다
+
+- [x] ATW-0634 | P0 | store/StoreErrorMapper | StoreErrorMapper schema validator와 연결한다 | 완료 기준: StoreErrorMapper: invalid record write가 차단된다
+
+- [x] ATW-0635 | P0 | store/StoreErrorMapper | StoreErrorMapper ACL projection update를 연결한다 | 완료 기준: StoreErrorMapper: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0636 | P0 | store/StoreErrorMapper | StoreErrorMapper revision/optimistic lock을 구현한다 | 완료 기준: StoreErrorMapper: stale update가 conflict를 낸다
+
+- [x] ATW-0637 | P1 | store/StoreErrorMapper | StoreErrorMapper pagination을 구현한다 | 완료 기준: StoreErrorMapper: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0638 | P1 | store/StoreErrorMapper | StoreErrorMapper dry-run mode를 구현한다 | 완료 기준: StoreErrorMapper: write 없이 change plan이 출력된다
+
+- [x] ATW-0639 | P1 | store/StoreErrorMapper | StoreErrorMapper audit hook을 연결한다 | 완료 기준: StoreErrorMapper: write 이벤트가 audit에 남는다
+
+- [x] ATW-0640 | P2 | store/StoreErrorMapper | StoreErrorMapper 문서화한다 | 완료 기준: StoreErrorMapper: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0641 | P0 | store/StoreEventBus | StoreEventBus read/write/list/delete contract를 구현한다 | 완료 기준: StoreEventBus: typed contract test가 통과한다
+
+- [x] ATW-0642 | P0 | store/StoreEventBus | StoreEventBus schema validator와 연결한다 | 완료 기준: StoreEventBus: invalid record write가 차단된다
+
+- [x] ATW-0643 | P0 | store/StoreEventBus | StoreEventBus ACL projection update를 연결한다 | 완료 기준: StoreEventBus: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0644 | P0 | store/StoreEventBus | StoreEventBus revision/optimistic lock을 구현한다 | 완료 기준: StoreEventBus: stale update가 conflict를 낸다
+
+- [x] ATW-0645 | P1 | store/StoreEventBus | StoreEventBus pagination을 구현한다 | 완료 기준: StoreEventBus: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0646 | P1 | store/StoreEventBus | StoreEventBus dry-run mode를 구현한다 | 완료 기준: StoreEventBus: write 없이 change plan이 출력된다
+
+- [x] ATW-0647 | P1 | store/StoreEventBus | StoreEventBus audit hook을 연결한다 | 완료 기준: StoreEventBus: write 이벤트가 audit에 남는다
+
+- [x] ATW-0648 | P2 | store/StoreEventBus | StoreEventBus 문서화한다 | 완료 기준: StoreEventBus: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0649 | P0 | store/StoreMetrics | StoreMetrics read/write/list/delete contract를 구현한다 | 완료 기준: StoreMetrics: typed contract test가 통과한다
+
+- [x] ATW-0650 | P0 | store/StoreMetrics | StoreMetrics schema validator와 연결한다 | 완료 기준: StoreMetrics: invalid record write가 차단된다
+
+- [x] ATW-0651 | P0 | store/StoreMetrics | StoreMetrics ACL projection update를 연결한다 | 완료 기준: StoreMetrics: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0652 | P0 | store/StoreMetrics | StoreMetrics revision/optimistic lock을 구현한다 | 완료 기준: StoreMetrics: stale update가 conflict를 낸다
+
+- [x] ATW-0653 | P1 | store/StoreMetrics | StoreMetrics pagination을 구현한다 | 완료 기준: StoreMetrics: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0654 | P1 | store/StoreMetrics | StoreMetrics dry-run mode를 구현한다 | 완료 기준: StoreMetrics: write 없이 change plan이 출력된다
+
+- [x] ATW-0655 | P1 | store/StoreMetrics | StoreMetrics audit hook을 연결한다 | 완료 기준: StoreMetrics: write 이벤트가 audit에 남는다
+
+- [x] ATW-0656 | P2 | store/StoreMetrics | StoreMetrics 문서화한다 | 완료 기준: StoreMetrics: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0657 | P0 | store/StoreTestHarness | StoreTestHarness read/write/list/delete contract를 구현한다 | 완료 기준: StoreTestHarness: typed contract test가 통과한다
+
+- [x] ATW-0658 | P0 | store/StoreTestHarness | StoreTestHarness schema validator와 연결한다 | 완료 기준: StoreTestHarness: invalid record write가 차단된다
+
+- [x] ATW-0659 | P0 | store/StoreTestHarness | StoreTestHarness ACL projection update를 연결한다 | 완료 기준: StoreTestHarness: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0660 | P0 | store/StoreTestHarness | StoreTestHarness revision/optimistic lock을 구현한다 | 완료 기준: StoreTestHarness: stale update가 conflict를 낸다
+
+- [x] ATW-0661 | P1 | store/StoreTestHarness | StoreTestHarness pagination을 구현한다 | 완료 기준: StoreTestHarness: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0662 | P1 | store/StoreTestHarness | StoreTestHarness dry-run mode를 구현한다 | 완료 기준: StoreTestHarness: write 없이 change plan이 출력된다
+
+- [x] ATW-0663 | P1 | store/StoreTestHarness | StoreTestHarness audit hook을 연결한다 | 완료 기준: StoreTestHarness: write 이벤트가 audit에 남는다
+
+- [x] ATW-0664 | P2 | store/StoreTestHarness | StoreTestHarness 문서화한다 | 완료 기준: StoreTestHarness: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0665 | P0 | store/PostgresAdapterPlaceholder | PostgresAdapterPlaceholder read/write/list/delete contract를 구현한다 | 완료 기준: PostgresAdapterPlaceholder: typed contract test가 통과한다
+
+- [x] ATW-0666 | P0 | store/PostgresAdapterPlaceholder | PostgresAdapterPlaceholder schema validator와 연결한다 | 완료 기준: PostgresAdapterPlaceholder: invalid record write가 차단된다
+
+- [x] ATW-0667 | P0 | store/PostgresAdapterPlaceholder | PostgresAdapterPlaceholder ACL projection update를 연결한다 | 완료 기준: PostgresAdapterPlaceholder: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0668 | P0 | store/PostgresAdapterPlaceholder | PostgresAdapterPlaceholder revision/optimistic lock을 구현한다 | 완료 기준: PostgresAdapterPlaceholder: stale update가 conflict를 낸다
+
+- [x] ATW-0669 | P1 | store/PostgresAdapterPlaceholder | PostgresAdapterPlaceholder pagination을 구현한다 | 완료 기준: PostgresAdapterPlaceholder: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0670 | P1 | store/PostgresAdapterPlaceholder | PostgresAdapterPlaceholder dry-run mode를 구현한다 | 완료 기준: PostgresAdapterPlaceholder: write 없이 change plan이 출력된다
+
+- [x] ATW-0671 | P1 | store/PostgresAdapterPlaceholder | PostgresAdapterPlaceholder audit hook을 연결한다 | 완료 기준: PostgresAdapterPlaceholder: write 이벤트가 audit에 남는다
+
+- [x] ATW-0672 | P2 | store/PostgresAdapterPlaceholder | PostgresAdapterPlaceholder 문서화한다 | 완료 기준: PostgresAdapterPlaceholder: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0673 | P0 | store/ObjectStorageAdapterPlaceholder | ObjectStorageAdapterPlaceholder read/write/list/delete contract를 구현한다 | 완료 기준: ObjectStorageAdapterPlaceholder: typed contract test가 통과한다
+
+- [x] ATW-0674 | P0 | store/ObjectStorageAdapterPlaceholder | ObjectStorageAdapterPlaceholder schema validator와 연결한다 | 완료 기준: ObjectStorageAdapterPlaceholder: invalid record write가 차단된다
+
+- [x] ATW-0675 | P0 | store/ObjectStorageAdapterPlaceholder | ObjectStorageAdapterPlaceholder ACL projection update를 연결한다 | 완료 기준: ObjectStorageAdapterPlaceholder: ACL projection이 record 변경과 동기화된다
+
+- [x] ATW-0676 | P0 | store/ObjectStorageAdapterPlaceholder | ObjectStorageAdapterPlaceholder revision/optimistic lock을 구현한다 | 완료 기준: ObjectStorageAdapterPlaceholder: stale update가 conflict를 낸다
+
+- [x] ATW-0677 | P1 | store/ObjectStorageAdapterPlaceholder | ObjectStorageAdapterPlaceholder pagination을 구현한다 | 완료 기준: ObjectStorageAdapterPlaceholder: 대량 fixture에서 page token이 동작한다
+
+- [x] ATW-0678 | P1 | store/ObjectStorageAdapterPlaceholder | ObjectStorageAdapterPlaceholder dry-run mode를 구현한다 | 완료 기준: ObjectStorageAdapterPlaceholder: write 없이 change plan이 출력된다
+
+- [x] ATW-0679 | P1 | store/ObjectStorageAdapterPlaceholder | ObjectStorageAdapterPlaceholder audit hook을 연결한다 | 완료 기준: ObjectStorageAdapterPlaceholder: write 이벤트가 audit에 남는다
+
+- [x] ATW-0680 | P2 | store/ObjectStorageAdapterPlaceholder | ObjectStorageAdapterPlaceholder 문서화한다 | 완료 기준: ObjectStorageAdapterPlaceholder: docs/storage.md에 사용법이 있다
+
+- [x] ATW-0681 | P0 | policy-security/DenyByDefault | DenyByDefault 규칙을 문서화한다 | 완료 기준: DenyByDefault: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0682 | P0 | policy-security/DenyByDefault | DenyByDefault core implementation을 작성한다 | 완료 기준: DenyByDefault: typed API가 존재한다
+
+- [x] ATW-0683 | P0 | policy-security/DenyByDefault | DenyByDefault validator에 연결한다 | 완료 기준: DenyByDefault: awiki validate에 결과가 나온다
+
+- [x] ATW-0684 | P0 | policy-security/DenyByDefault | DenyByDefault retrieval pipeline에 연결한다 | 완료 기준: DenyByDefault: context pack 생성 전에 적용된다
+
+- [x] ATW-0685 | P0 | policy-security/DenyByDefault | DenyByDefault security fixture를 추가한다 | 완료 기준: DenyByDefault: 정상/차단 fixture가 있다
+
+- [x] ATW-0686 | P1 | policy-security/DenyByDefault | DenyByDefault MCP/CLI report에 연결한다 | 완료 기준: DenyByDefault: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0687 | P1 | policy-security/DenyByDefault | DenyByDefault audit event를 남긴다 | 완료 기준: DenyByDefault: policy decision이 audit에 기록된다
+
+- [x] ATW-0688 | P2 | policy-security/DenyByDefault | DenyByDefault 문서 예제를 작성한다 | 완료 기준: DenyByDefault: docs에 예제가 있다
+
+- [x] ATW-0689 | P0 | policy-security/ActorResolver | ActorResolver 규칙을 문서화한다 | 완료 기준: ActorResolver: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0690 | P0 | policy-security/ActorResolver | ActorResolver core implementation을 작성한다 | 완료 기준: ActorResolver: typed API가 존재한다
+
+- [x] ATW-0691 | P0 | policy-security/ActorResolver | ActorResolver validator에 연결한다 | 완료 기준: ActorResolver: awiki validate에 결과가 나온다
+
+- [x] ATW-0692 | P0 | policy-security/ActorResolver | ActorResolver retrieval pipeline에 연결한다 | 완료 기준: ActorResolver: context pack 생성 전에 적용된다
+
+- [x] ATW-0693 | P0 | policy-security/ActorResolver | ActorResolver security fixture를 추가한다 | 완료 기준: ActorResolver: 정상/차단 fixture가 있다
+
+- [x] ATW-0694 | P1 | policy-security/ActorResolver | ActorResolver MCP/CLI report에 연결한다 | 완료 기준: ActorResolver: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0695 | P1 | policy-security/ActorResolver | ActorResolver audit event를 남긴다 | 완료 기준: ActorResolver: policy decision이 audit에 기록된다
+
+- [x] ATW-0696 | P2 | policy-security/ActorResolver | ActorResolver 문서 예제를 작성한다 | 완료 기준: ActorResolver: docs에 예제가 있다
+
+- [x] ATW-0697 | P0 | policy-security/PrincipalResolver | PrincipalResolver 규칙을 문서화한다 | 완료 기준: PrincipalResolver: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0698 | P0 | policy-security/PrincipalResolver | PrincipalResolver core implementation을 작성한다 | 완료 기준: PrincipalResolver: typed API가 존재한다
+
+- [x] ATW-0699 | P0 | policy-security/PrincipalResolver | PrincipalResolver validator에 연결한다 | 완료 기준: PrincipalResolver: awiki validate에 결과가 나온다
+
+- [x] ATW-0700 | P0 | policy-security/PrincipalResolver | PrincipalResolver retrieval pipeline에 연결한다 | 완료 기준: PrincipalResolver: context pack 생성 전에 적용된다
+
+- [x] ATW-0701 | P0 | policy-security/PrincipalResolver | PrincipalResolver security fixture를 추가한다 | 완료 기준: PrincipalResolver: 정상/차단 fixture가 있다
+
+- [x] ATW-0702 | P1 | policy-security/PrincipalResolver | PrincipalResolver MCP/CLI report에 연결한다 | 완료 기준: PrincipalResolver: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0703 | P1 | policy-security/PrincipalResolver | PrincipalResolver audit event를 남긴다 | 완료 기준: PrincipalResolver: policy decision이 audit에 기록된다
+
+- [x] ATW-0704 | P2 | policy-security/PrincipalResolver | PrincipalResolver 문서 예제를 작성한다 | 완료 기준: PrincipalResolver: docs에 예제가 있다
+
+- [x] ATW-0705 | P0 | policy-security/GroupResolver | GroupResolver 규칙을 문서화한다 | 완료 기준: GroupResolver: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0706 | P0 | policy-security/GroupResolver | GroupResolver core implementation을 작성한다 | 완료 기준: GroupResolver: typed API가 존재한다
+
+- [x] ATW-0707 | P0 | policy-security/GroupResolver | GroupResolver validator에 연결한다 | 완료 기준: GroupResolver: awiki validate에 결과가 나온다
+
+- [x] ATW-0708 | P0 | policy-security/GroupResolver | GroupResolver retrieval pipeline에 연결한다 | 완료 기준: GroupResolver: context pack 생성 전에 적용된다
+
+- [x] ATW-0709 | P0 | policy-security/GroupResolver | GroupResolver security fixture를 추가한다 | 완료 기준: GroupResolver: 정상/차단 fixture가 있다
+
+- [x] ATW-0710 | P1 | policy-security/GroupResolver | GroupResolver MCP/CLI report에 연결한다 | 완료 기준: GroupResolver: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0711 | P1 | policy-security/GroupResolver | GroupResolver audit event를 남긴다 | 완료 기준: GroupResolver: policy decision이 audit에 기록된다
+
+- [x] ATW-0712 | P2 | policy-security/GroupResolver | GroupResolver 문서 예제를 작성한다 | 완료 기준: GroupResolver: docs에 예제가 있다
+
+- [x] ATW-0713 | P0 | policy-security/AclInheritance | AclInheritance 규칙을 문서화한다 | 완료 기준: AclInheritance: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0714 | P0 | policy-security/AclInheritance | AclInheritance core implementation을 작성한다 | 완료 기준: AclInheritance: typed API가 존재한다
+
+- [x] ATW-0715 | P0 | policy-security/AclInheritance | AclInheritance validator에 연결한다 | 완료 기준: AclInheritance: awiki validate에 결과가 나온다
+
+- [x] ATW-0716 | P0 | policy-security/AclInheritance | AclInheritance retrieval pipeline에 연결한다 | 완료 기준: AclInheritance: context pack 생성 전에 적용된다
+
+- [x] ATW-0717 | P0 | policy-security/AclInheritance | AclInheritance security fixture를 추가한다 | 완료 기준: AclInheritance: 정상/차단 fixture가 있다
+
+- [x] ATW-0718 | P1 | policy-security/AclInheritance | AclInheritance MCP/CLI report에 연결한다 | 완료 기준: AclInheritance: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0719 | P1 | policy-security/AclInheritance | AclInheritance audit event를 남긴다 | 완료 기준: AclInheritance: policy decision이 audit에 기록된다
+
+- [x] ATW-0720 | P2 | policy-security/AclInheritance | AclInheritance 문서 예제를 작성한다 | 완료 기준: AclInheritance: docs에 예제가 있다
+
+- [x] ATW-0721 | P0 | policy-security/RecordAclProjection | RecordAclProjection 규칙을 문서화한다 | 완료 기준: RecordAclProjection: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0722 | P0 | policy-security/RecordAclProjection | RecordAclProjection core implementation을 작성한다 | 완료 기준: RecordAclProjection: typed API가 존재한다
+
+- [x] ATW-0723 | P0 | policy-security/RecordAclProjection | RecordAclProjection validator에 연결한다 | 완료 기준: RecordAclProjection: awiki validate에 결과가 나온다
+
+- [x] ATW-0724 | P0 | policy-security/RecordAclProjection | RecordAclProjection retrieval pipeline에 연결한다 | 완료 기준: RecordAclProjection: context pack 생성 전에 적용된다
+
+- [x] ATW-0725 | P0 | policy-security/RecordAclProjection | RecordAclProjection security fixture를 추가한다 | 완료 기준: RecordAclProjection: 정상/차단 fixture가 있다
+
+- [x] ATW-0726 | P1 | policy-security/RecordAclProjection | RecordAclProjection MCP/CLI report에 연결한다 | 완료 기준: RecordAclProjection: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0727 | P1 | policy-security/RecordAclProjection | RecordAclProjection audit event를 남긴다 | 완료 기준: RecordAclProjection: policy decision이 audit에 기록된다
+
+- [x] ATW-0728 | P2 | policy-security/RecordAclProjection | RecordAclProjection 문서 예제를 작성한다 | 완료 기준: RecordAclProjection: docs에 예제가 있다
+
+- [x] ATW-0729 | P0 | policy-security/QueryTimePermissionFilter | QueryTimePermissionFilter 규칙을 문서화한다 | 완료 기준: QueryTimePermissionFilter: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0730 | P0 | policy-security/QueryTimePermissionFilter | QueryTimePermissionFilter core implementation을 작성한다 | 완료 기준: QueryTimePermissionFilter: typed API가 존재한다
+
+- [x] ATW-0731 | P0 | policy-security/QueryTimePermissionFilter | QueryTimePermissionFilter validator에 연결한다 | 완료 기준: QueryTimePermissionFilter: awiki validate에 결과가 나온다
+
+- [x] ATW-0732 | P0 | policy-security/QueryTimePermissionFilter | QueryTimePermissionFilter retrieval pipeline에 연결한다 | 완료 기준: QueryTimePermissionFilter: context pack 생성 전에 적용된다
+
+- [x] ATW-0733 | P0 | policy-security/QueryTimePermissionFilter | QueryTimePermissionFilter security fixture를 추가한다 | 완료 기준: QueryTimePermissionFilter: 정상/차단 fixture가 있다
+
+- [x] ATW-0734 | P1 | policy-security/QueryTimePermissionFilter | QueryTimePermissionFilter MCP/CLI report에 연결한다 | 완료 기준: QueryTimePermissionFilter: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0735 | P1 | policy-security/QueryTimePermissionFilter | QueryTimePermissionFilter audit event를 남긴다 | 완료 기준: QueryTimePermissionFilter: policy decision이 audit에 기록된다
+
+- [x] ATW-0736 | P2 | policy-security/QueryTimePermissionFilter | QueryTimePermissionFilter 문서 예제를 작성한다 | 완료 기준: QueryTimePermissionFilter: docs에 예제가 있다
+
+- [x] ATW-0737 | P0 | policy-security/PreContextRedaction | PreContextRedaction 규칙을 문서화한다 | 완료 기준: PreContextRedaction: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0738 | P0 | policy-security/PreContextRedaction | PreContextRedaction core implementation을 작성한다 | 완료 기준: PreContextRedaction: typed API가 존재한다
+
+- [x] ATW-0739 | P0 | policy-security/PreContextRedaction | PreContextRedaction validator에 연결한다 | 완료 기준: PreContextRedaction: awiki validate에 결과가 나온다
+
+- [x] ATW-0740 | P0 | policy-security/PreContextRedaction | PreContextRedaction retrieval pipeline에 연결한다 | 완료 기준: PreContextRedaction: context pack 생성 전에 적용된다
+
+- [x] ATW-0741 | P0 | policy-security/PreContextRedaction | PreContextRedaction security fixture를 추가한다 | 완료 기준: PreContextRedaction: 정상/차단 fixture가 있다
+
+- [x] ATW-0742 | P1 | policy-security/PreContextRedaction | PreContextRedaction MCP/CLI report에 연결한다 | 완료 기준: PreContextRedaction: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0743 | P1 | policy-security/PreContextRedaction | PreContextRedaction audit event를 남긴다 | 완료 기준: PreContextRedaction: policy decision이 audit에 기록된다
+
+- [x] ATW-0744 | P2 | policy-security/PreContextRedaction | PreContextRedaction 문서 예제를 작성한다 | 완료 기준: PreContextRedaction: docs에 예제가 있다
+
+- [x] ATW-0745 | P0 | policy-security/SensitivityClassifier | SensitivityClassifier 규칙을 문서화한다 | 완료 기준: SensitivityClassifier: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0746 | P0 | policy-security/SensitivityClassifier | SensitivityClassifier core implementation을 작성한다 | 완료 기준: SensitivityClassifier: typed API가 존재한다
+
+- [x] ATW-0747 | P0 | policy-security/SensitivityClassifier | SensitivityClassifier validator에 연결한다 | 완료 기준: SensitivityClassifier: awiki validate에 결과가 나온다
+
+- [x] ATW-0748 | P0 | policy-security/SensitivityClassifier | SensitivityClassifier retrieval pipeline에 연결한다 | 완료 기준: SensitivityClassifier: context pack 생성 전에 적용된다
+
+- [x] ATW-0749 | P0 | policy-security/SensitivityClassifier | SensitivityClassifier security fixture를 추가한다 | 완료 기준: SensitivityClassifier: 정상/차단 fixture가 있다
+
+- [x] ATW-0750 | P1 | policy-security/SensitivityClassifier | SensitivityClassifier MCP/CLI report에 연결한다 | 완료 기준: SensitivityClassifier: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0751 | P1 | policy-security/SensitivityClassifier | SensitivityClassifier audit event를 남긴다 | 완료 기준: SensitivityClassifier: policy decision이 audit에 기록된다
+
+- [x] ATW-0752 | P2 | policy-security/SensitivityClassifier | SensitivityClassifier 문서 예제를 작성한다 | 완료 기준: SensitivityClassifier: docs에 예제가 있다
+
+- [x] ATW-0753 | P0 | policy-security/RetentionPolicy | RetentionPolicy 규칙을 문서화한다 | 완료 기준: RetentionPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0754 | P0 | policy-security/RetentionPolicy | RetentionPolicy core implementation을 작성한다 | 완료 기준: RetentionPolicy: typed API가 존재한다
+
+- [x] ATW-0755 | P0 | policy-security/RetentionPolicy | RetentionPolicy validator에 연결한다 | 완료 기준: RetentionPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0756 | P0 | policy-security/RetentionPolicy | RetentionPolicy retrieval pipeline에 연결한다 | 완료 기준: RetentionPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0757 | P0 | policy-security/RetentionPolicy | RetentionPolicy security fixture를 추가한다 | 완료 기준: RetentionPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0758 | P1 | policy-security/RetentionPolicy | RetentionPolicy MCP/CLI report에 연결한다 | 완료 기준: RetentionPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0759 | P1 | policy-security/RetentionPolicy | RetentionPolicy audit event를 남긴다 | 완료 기준: RetentionPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0760 | P2 | policy-security/RetentionPolicy | RetentionPolicy 문서 예제를 작성한다 | 완료 기준: RetentionPolicy: docs에 예제가 있다
+
+- [x] ATW-0761 | P0 | policy-security/ApprovalPolicy | ApprovalPolicy 규칙을 문서화한다 | 완료 기준: ApprovalPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0762 | P0 | policy-security/ApprovalPolicy | ApprovalPolicy core implementation을 작성한다 | 완료 기준: ApprovalPolicy: typed API가 존재한다
+
+- [x] ATW-0763 | P0 | policy-security/ApprovalPolicy | ApprovalPolicy validator에 연결한다 | 완료 기준: ApprovalPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0764 | P0 | policy-security/ApprovalPolicy | ApprovalPolicy retrieval pipeline에 연결한다 | 완료 기준: ApprovalPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0765 | P0 | policy-security/ApprovalPolicy | ApprovalPolicy security fixture를 추가한다 | 완료 기준: ApprovalPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0766 | P1 | policy-security/ApprovalPolicy | ApprovalPolicy MCP/CLI report에 연결한다 | 완료 기준: ApprovalPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0767 | P1 | policy-security/ApprovalPolicy | ApprovalPolicy audit event를 남긴다 | 완료 기준: ApprovalPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0768 | P2 | policy-security/ApprovalPolicy | ApprovalPolicy 문서 예제를 작성한다 | 완료 기준: ApprovalPolicy: docs에 예제가 있다
+
+- [x] ATW-0769 | P0 | policy-security/FreshnessPolicy | FreshnessPolicy 규칙을 문서화한다 | 완료 기준: FreshnessPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0770 | P0 | policy-security/FreshnessPolicy | FreshnessPolicy core implementation을 작성한다 | 완료 기준: FreshnessPolicy: typed API가 존재한다
+
+- [x] ATW-0771 | P0 | policy-security/FreshnessPolicy | FreshnessPolicy validator에 연결한다 | 완료 기준: FreshnessPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0772 | P0 | policy-security/FreshnessPolicy | FreshnessPolicy retrieval pipeline에 연결한다 | 완료 기준: FreshnessPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0773 | P0 | policy-security/FreshnessPolicy | FreshnessPolicy security fixture를 추가한다 | 완료 기준: FreshnessPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0774 | P1 | policy-security/FreshnessPolicy | FreshnessPolicy MCP/CLI report에 연결한다 | 완료 기준: FreshnessPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0775 | P1 | policy-security/FreshnessPolicy | FreshnessPolicy audit event를 남긴다 | 완료 기준: FreshnessPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0776 | P2 | policy-security/FreshnessPolicy | FreshnessPolicy 문서 예제를 작성한다 | 완료 기준: FreshnessPolicy: docs에 예제가 있다
+
+- [x] ATW-0777 | P0 | policy-security/OwnerPolicy | OwnerPolicy 규칙을 문서화한다 | 완료 기준: OwnerPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0778 | P0 | policy-security/OwnerPolicy | OwnerPolicy core implementation을 작성한다 | 완료 기준: OwnerPolicy: typed API가 존재한다
+
+- [x] ATW-0779 | P0 | policy-security/OwnerPolicy | OwnerPolicy validator에 연결한다 | 완료 기준: OwnerPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0780 | P0 | policy-security/OwnerPolicy | OwnerPolicy retrieval pipeline에 연결한다 | 완료 기준: OwnerPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0781 | P0 | policy-security/OwnerPolicy | OwnerPolicy security fixture를 추가한다 | 완료 기준: OwnerPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0782 | P1 | policy-security/OwnerPolicy | OwnerPolicy MCP/CLI report에 연결한다 | 완료 기준: OwnerPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0783 | P1 | policy-security/OwnerPolicy | OwnerPolicy audit event를 남긴다 | 완료 기준: OwnerPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0784 | P2 | policy-security/OwnerPolicy | OwnerPolicy 문서 예제를 작성한다 | 완료 기준: OwnerPolicy: docs에 예제가 있다
+
+- [x] ATW-0785 | P0 | policy-security/SourceAuthorityPolicy | SourceAuthorityPolicy 규칙을 문서화한다 | 완료 기준: SourceAuthorityPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0786 | P0 | policy-security/SourceAuthorityPolicy | SourceAuthorityPolicy core implementation을 작성한다 | 완료 기준: SourceAuthorityPolicy: typed API가 존재한다
+
+- [x] ATW-0787 | P0 | policy-security/SourceAuthorityPolicy | SourceAuthorityPolicy validator에 연결한다 | 완료 기준: SourceAuthorityPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0788 | P0 | policy-security/SourceAuthorityPolicy | SourceAuthorityPolicy retrieval pipeline에 연결한다 | 완료 기준: SourceAuthorityPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0789 | P0 | policy-security/SourceAuthorityPolicy | SourceAuthorityPolicy security fixture를 추가한다 | 완료 기준: SourceAuthorityPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0790 | P1 | policy-security/SourceAuthorityPolicy | SourceAuthorityPolicy MCP/CLI report에 연결한다 | 완료 기준: SourceAuthorityPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0791 | P1 | policy-security/SourceAuthorityPolicy | SourceAuthorityPolicy audit event를 남긴다 | 완료 기준: SourceAuthorityPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0792 | P2 | policy-security/SourceAuthorityPolicy | SourceAuthorityPolicy 문서 예제를 작성한다 | 완료 기준: SourceAuthorityPolicy: docs에 예제가 있다
+
+- [x] ATW-0793 | P0 | policy-security/ConflictPolicy | ConflictPolicy 규칙을 문서화한다 | 완료 기준: ConflictPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0794 | P0 | policy-security/ConflictPolicy | ConflictPolicy core implementation을 작성한다 | 완료 기준: ConflictPolicy: typed API가 존재한다
+
+- [x] ATW-0795 | P0 | policy-security/ConflictPolicy | ConflictPolicy validator에 연결한다 | 완료 기준: ConflictPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0796 | P0 | policy-security/ConflictPolicy | ConflictPolicy retrieval pipeline에 연결한다 | 완료 기준: ConflictPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0797 | P0 | policy-security/ConflictPolicy | ConflictPolicy security fixture를 추가한다 | 완료 기준: ConflictPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0798 | P1 | policy-security/ConflictPolicy | ConflictPolicy MCP/CLI report에 연결한다 | 완료 기준: ConflictPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0799 | P1 | policy-security/ConflictPolicy | ConflictPolicy audit event를 남긴다 | 완료 기준: ConflictPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0800 | P2 | policy-security/ConflictPolicy | ConflictPolicy 문서 예제를 작성한다 | 완료 기준: ConflictPolicy: docs에 예제가 있다
+
+- [x] ATW-0801 | P0 | policy-security/ConnectorScopePolicy | ConnectorScopePolicy 규칙을 문서화한다 | 완료 기준: ConnectorScopePolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0802 | P0 | policy-security/ConnectorScopePolicy | ConnectorScopePolicy core implementation을 작성한다 | 완료 기준: ConnectorScopePolicy: typed API가 존재한다
+
+- [x] ATW-0803 | P0 | policy-security/ConnectorScopePolicy | ConnectorScopePolicy validator에 연결한다 | 완료 기준: ConnectorScopePolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0804 | P0 | policy-security/ConnectorScopePolicy | ConnectorScopePolicy retrieval pipeline에 연결한다 | 완료 기준: ConnectorScopePolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0805 | P0 | policy-security/ConnectorScopePolicy | ConnectorScopePolicy security fixture를 추가한다 | 완료 기준: ConnectorScopePolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0806 | P1 | policy-security/ConnectorScopePolicy | ConnectorScopePolicy MCP/CLI report에 연결한다 | 완료 기준: ConnectorScopePolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0807 | P1 | policy-security/ConnectorScopePolicy | ConnectorScopePolicy audit event를 남긴다 | 완료 기준: ConnectorScopePolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0808 | P2 | policy-security/ConnectorScopePolicy | ConnectorScopePolicy 문서 예제를 작성한다 | 완료 기준: ConnectorScopePolicy: docs에 예제가 있다
+
+- [x] ATW-0809 | P0 | policy-security/AuditMandatoryPolicy | AuditMandatoryPolicy 규칙을 문서화한다 | 완료 기준: AuditMandatoryPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0810 | P0 | policy-security/AuditMandatoryPolicy | AuditMandatoryPolicy core implementation을 작성한다 | 완료 기준: AuditMandatoryPolicy: typed API가 존재한다
+
+- [x] ATW-0811 | P0 | policy-security/AuditMandatoryPolicy | AuditMandatoryPolicy validator에 연결한다 | 완료 기준: AuditMandatoryPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0812 | P0 | policy-security/AuditMandatoryPolicy | AuditMandatoryPolicy retrieval pipeline에 연결한다 | 완료 기준: AuditMandatoryPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0813 | P0 | policy-security/AuditMandatoryPolicy | AuditMandatoryPolicy security fixture를 추가한다 | 완료 기준: AuditMandatoryPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0814 | P1 | policy-security/AuditMandatoryPolicy | AuditMandatoryPolicy MCP/CLI report에 연결한다 | 완료 기준: AuditMandatoryPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0815 | P1 | policy-security/AuditMandatoryPolicy | AuditMandatoryPolicy audit event를 남긴다 | 완료 기준: AuditMandatoryPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0816 | P2 | policy-security/AuditMandatoryPolicy | AuditMandatoryPolicy 문서 예제를 작성한다 | 완료 기준: AuditMandatoryPolicy: docs에 예제가 있다
+
+- [x] ATW-0817 | P0 | policy-security/NoUnauthorizedHintPolicy | NoUnauthorizedHintPolicy 규칙을 문서화한다 | 완료 기준: NoUnauthorizedHintPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0818 | P0 | policy-security/NoUnauthorizedHintPolicy | NoUnauthorizedHintPolicy core implementation을 작성한다 | 완료 기준: NoUnauthorizedHintPolicy: typed API가 존재한다
+
+- [x] ATW-0819 | P0 | policy-security/NoUnauthorizedHintPolicy | NoUnauthorizedHintPolicy validator에 연결한다 | 완료 기준: NoUnauthorizedHintPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0820 | P0 | policy-security/NoUnauthorizedHintPolicy | NoUnauthorizedHintPolicy retrieval pipeline에 연결한다 | 완료 기준: NoUnauthorizedHintPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0821 | P0 | policy-security/NoUnauthorizedHintPolicy | NoUnauthorizedHintPolicy security fixture를 추가한다 | 완료 기준: NoUnauthorizedHintPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0822 | P1 | policy-security/NoUnauthorizedHintPolicy | NoUnauthorizedHintPolicy MCP/CLI report에 연결한다 | 완료 기준: NoUnauthorizedHintPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0823 | P1 | policy-security/NoUnauthorizedHintPolicy | NoUnauthorizedHintPolicy audit event를 남긴다 | 완료 기준: NoUnauthorizedHintPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0824 | P2 | policy-security/NoUnauthorizedHintPolicy | NoUnauthorizedHintPolicy 문서 예제를 작성한다 | 완료 기준: NoUnauthorizedHintPolicy: docs에 예제가 있다
+
+- [x] ATW-0825 | P0 | policy-security/SecretScanner | SecretScanner 규칙을 문서화한다 | 완료 기준: SecretScanner: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0826 | P0 | policy-security/SecretScanner | SecretScanner core implementation을 작성한다 | 완료 기준: SecretScanner: typed API가 존재한다
+
+- [x] ATW-0827 | P0 | policy-security/SecretScanner | SecretScanner validator에 연결한다 | 완료 기준: SecretScanner: awiki validate에 결과가 나온다
+
+- [x] ATW-0828 | P0 | policy-security/SecretScanner | SecretScanner retrieval pipeline에 연결한다 | 완료 기준: SecretScanner: context pack 생성 전에 적용된다
+
+- [x] ATW-0829 | P0 | policy-security/SecretScanner | SecretScanner security fixture를 추가한다 | 완료 기준: SecretScanner: 정상/차단 fixture가 있다
+
+- [x] ATW-0830 | P1 | policy-security/SecretScanner | SecretScanner MCP/CLI report에 연결한다 | 완료 기준: SecretScanner: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0831 | P1 | policy-security/SecretScanner | SecretScanner audit event를 남긴다 | 완료 기준: SecretScanner: policy decision이 audit에 기록된다
+
+- [x] ATW-0832 | P2 | policy-security/SecretScanner | SecretScanner 문서 예제를 작성한다 | 완료 기준: SecretScanner: docs에 예제가 있다
+
+- [x] ATW-0833 | P0 | policy-security/PromptInjectionClassifier | PromptInjectionClassifier 규칙을 문서화한다 | 완료 기준: PromptInjectionClassifier: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0834 | P0 | policy-security/PromptInjectionClassifier | PromptInjectionClassifier core implementation을 작성한다 | 완료 기준: PromptInjectionClassifier: typed API가 존재한다
+
+- [x] ATW-0835 | P0 | policy-security/PromptInjectionClassifier | PromptInjectionClassifier validator에 연결한다 | 완료 기준: PromptInjectionClassifier: awiki validate에 결과가 나온다
+
+- [x] ATW-0836 | P0 | policy-security/PromptInjectionClassifier | PromptInjectionClassifier retrieval pipeline에 연결한다 | 완료 기준: PromptInjectionClassifier: context pack 생성 전에 적용된다
+
+- [x] ATW-0837 | P0 | policy-security/PromptInjectionClassifier | PromptInjectionClassifier security fixture를 추가한다 | 완료 기준: PromptInjectionClassifier: 정상/차단 fixture가 있다
+
+- [x] ATW-0838 | P1 | policy-security/PromptInjectionClassifier | PromptInjectionClassifier MCP/CLI report에 연결한다 | 완료 기준: PromptInjectionClassifier: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0839 | P1 | policy-security/PromptInjectionClassifier | PromptInjectionClassifier audit event를 남긴다 | 완료 기준: PromptInjectionClassifier: policy decision이 audit에 기록된다
+
+- [x] ATW-0840 | P2 | policy-security/PromptInjectionClassifier | PromptInjectionClassifier 문서 예제를 작성한다 | 완료 기준: PromptInjectionClassifier: docs에 예제가 있다
+
+- [x] ATW-0841 | P0 | policy-security/UntrustedContentBoundary | UntrustedContentBoundary 규칙을 문서화한다 | 완료 기준: UntrustedContentBoundary: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0842 | P0 | policy-security/UntrustedContentBoundary | UntrustedContentBoundary core implementation을 작성한다 | 완료 기준: UntrustedContentBoundary: typed API가 존재한다
+
+- [x] ATW-0843 | P0 | policy-security/UntrustedContentBoundary | UntrustedContentBoundary validator에 연결한다 | 완료 기준: UntrustedContentBoundary: awiki validate에 결과가 나온다
+
+- [x] ATW-0844 | P0 | policy-security/UntrustedContentBoundary | UntrustedContentBoundary retrieval pipeline에 연결한다 | 완료 기준: UntrustedContentBoundary: context pack 생성 전에 적용된다
+
+- [x] ATW-0845 | P0 | policy-security/UntrustedContentBoundary | UntrustedContentBoundary security fixture를 추가한다 | 완료 기준: UntrustedContentBoundary: 정상/차단 fixture가 있다
+
+- [x] ATW-0846 | P1 | policy-security/UntrustedContentBoundary | UntrustedContentBoundary MCP/CLI report에 연결한다 | 완료 기준: UntrustedContentBoundary: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0847 | P1 | policy-security/UntrustedContentBoundary | UntrustedContentBoundary audit event를 남긴다 | 완료 기준: UntrustedContentBoundary: policy decision이 audit에 기록된다
+
+- [x] ATW-0848 | P2 | policy-security/UntrustedContentBoundary | UntrustedContentBoundary 문서 예제를 작성한다 | 완료 기준: UntrustedContentBoundary: docs에 예제가 있다
+
+- [x] ATW-0849 | P0 | policy-security/EmbeddingAclPolicy | EmbeddingAclPolicy 규칙을 문서화한다 | 완료 기준: EmbeddingAclPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0850 | P0 | policy-security/EmbeddingAclPolicy | EmbeddingAclPolicy core implementation을 작성한다 | 완료 기준: EmbeddingAclPolicy: typed API가 존재한다
+
+- [x] ATW-0851 | P0 | policy-security/EmbeddingAclPolicy | EmbeddingAclPolicy validator에 연결한다 | 완료 기준: EmbeddingAclPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0852 | P0 | policy-security/EmbeddingAclPolicy | EmbeddingAclPolicy retrieval pipeline에 연결한다 | 완료 기준: EmbeddingAclPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0853 | P0 | policy-security/EmbeddingAclPolicy | EmbeddingAclPolicy security fixture를 추가한다 | 완료 기준: EmbeddingAclPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0854 | P1 | policy-security/EmbeddingAclPolicy | EmbeddingAclPolicy MCP/CLI report에 연결한다 | 완료 기준: EmbeddingAclPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0855 | P1 | policy-security/EmbeddingAclPolicy | EmbeddingAclPolicy audit event를 남긴다 | 완료 기준: EmbeddingAclPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0856 | P2 | policy-security/EmbeddingAclPolicy | EmbeddingAclPolicy 문서 예제를 작성한다 | 완료 기준: EmbeddingAclPolicy: docs에 예제가 있다
+
+- [x] ATW-0857 | P0 | policy-security/DeletionSyncPolicy | DeletionSyncPolicy 규칙을 문서화한다 | 완료 기준: DeletionSyncPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0858 | P0 | policy-security/DeletionSyncPolicy | DeletionSyncPolicy core implementation을 작성한다 | 완료 기준: DeletionSyncPolicy: typed API가 존재한다
+
+- [x] ATW-0859 | P0 | policy-security/DeletionSyncPolicy | DeletionSyncPolicy validator에 연결한다 | 완료 기준: DeletionSyncPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0860 | P0 | policy-security/DeletionSyncPolicy | DeletionSyncPolicy retrieval pipeline에 연결한다 | 완료 기준: DeletionSyncPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0861 | P0 | policy-security/DeletionSyncPolicy | DeletionSyncPolicy security fixture를 추가한다 | 완료 기준: DeletionSyncPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0862 | P1 | policy-security/DeletionSyncPolicy | DeletionSyncPolicy MCP/CLI report에 연결한다 | 완료 기준: DeletionSyncPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0863 | P1 | policy-security/DeletionSyncPolicy | DeletionSyncPolicy audit event를 남긴다 | 완료 기준: DeletionSyncPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0864 | P2 | policy-security/DeletionSyncPolicy | DeletionSyncPolicy 문서 예제를 작성한다 | 완료 기준: DeletionSyncPolicy: docs에 예제가 있다
+
+- [x] ATW-0865 | P0 | policy-security/LegalHoldPolicy | LegalHoldPolicy 규칙을 문서화한다 | 완료 기준: LegalHoldPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0866 | P0 | policy-security/LegalHoldPolicy | LegalHoldPolicy core implementation을 작성한다 | 완료 기준: LegalHoldPolicy: typed API가 존재한다
+
+- [x] ATW-0867 | P0 | policy-security/LegalHoldPolicy | LegalHoldPolicy validator에 연결한다 | 완료 기준: LegalHoldPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0868 | P0 | policy-security/LegalHoldPolicy | LegalHoldPolicy retrieval pipeline에 연결한다 | 완료 기준: LegalHoldPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0869 | P0 | policy-security/LegalHoldPolicy | LegalHoldPolicy security fixture를 추가한다 | 완료 기준: LegalHoldPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0870 | P1 | policy-security/LegalHoldPolicy | LegalHoldPolicy MCP/CLI report에 연결한다 | 완료 기준: LegalHoldPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0871 | P1 | policy-security/LegalHoldPolicy | LegalHoldPolicy audit event를 남긴다 | 완료 기준: LegalHoldPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0872 | P2 | policy-security/LegalHoldPolicy | LegalHoldPolicy 문서 예제를 작성한다 | 완료 기준: LegalHoldPolicy: docs에 예제가 있다
+
+- [x] ATW-0873 | P0 | policy-security/DataResidencyPolicy | DataResidencyPolicy 규칙을 문서화한다 | 완료 기준: DataResidencyPolicy: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0874 | P0 | policy-security/DataResidencyPolicy | DataResidencyPolicy core implementation을 작성한다 | 완료 기준: DataResidencyPolicy: typed API가 존재한다
+
+- [x] ATW-0875 | P0 | policy-security/DataResidencyPolicy | DataResidencyPolicy validator에 연결한다 | 완료 기준: DataResidencyPolicy: awiki validate에 결과가 나온다
+
+- [x] ATW-0876 | P0 | policy-security/DataResidencyPolicy | DataResidencyPolicy retrieval pipeline에 연결한다 | 완료 기준: DataResidencyPolicy: context pack 생성 전에 적용된다
+
+- [x] ATW-0877 | P0 | policy-security/DataResidencyPolicy | DataResidencyPolicy security fixture를 추가한다 | 완료 기준: DataResidencyPolicy: 정상/차단 fixture가 있다
+
+- [x] ATW-0878 | P1 | policy-security/DataResidencyPolicy | DataResidencyPolicy MCP/CLI report에 연결한다 | 완료 기준: DataResidencyPolicy: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0879 | P1 | policy-security/DataResidencyPolicy | DataResidencyPolicy audit event를 남긴다 | 완료 기준: DataResidencyPolicy: policy decision이 audit에 기록된다
+
+- [x] ATW-0880 | P2 | policy-security/DataResidencyPolicy | DataResidencyPolicy 문서 예제를 작성한다 | 완료 기준: DataResidencyPolicy: docs에 예제가 있다
+
+- [x] ATW-0881 | P0 | policy-security/PolicyDecisionLog | PolicyDecisionLog 규칙을 문서화한다 | 완료 기준: PolicyDecisionLog: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0882 | P0 | policy-security/PolicyDecisionLog | PolicyDecisionLog core implementation을 작성한다 | 완료 기준: PolicyDecisionLog: typed API가 존재한다
+
+- [x] ATW-0883 | P0 | policy-security/PolicyDecisionLog | PolicyDecisionLog validator에 연결한다 | 완료 기준: PolicyDecisionLog: awiki validate에 결과가 나온다
+
+- [x] ATW-0884 | P0 | policy-security/PolicyDecisionLog | PolicyDecisionLog retrieval pipeline에 연결한다 | 완료 기준: PolicyDecisionLog: context pack 생성 전에 적용된다
+
+- [x] ATW-0885 | P0 | policy-security/PolicyDecisionLog | PolicyDecisionLog security fixture를 추가한다 | 완료 기준: PolicyDecisionLog: 정상/차단 fixture가 있다
+
+- [x] ATW-0886 | P1 | policy-security/PolicyDecisionLog | PolicyDecisionLog MCP/CLI report에 연결한다 | 완료 기준: PolicyDecisionLog: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0887 | P1 | policy-security/PolicyDecisionLog | PolicyDecisionLog audit event를 남긴다 | 완료 기준: PolicyDecisionLog: policy decision이 audit에 기록된다
+
+- [x] ATW-0888 | P2 | policy-security/PolicyDecisionLog | PolicyDecisionLog 문서 예제를 작성한다 | 완료 기준: PolicyDecisionLog: docs에 예제가 있다
+
+- [x] ATW-0889 | P0 | policy-security/PolicyExplainability | PolicyExplainability 규칙을 문서화한다 | 완료 기준: PolicyExplainability: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0890 | P0 | policy-security/PolicyExplainability | PolicyExplainability core implementation을 작성한다 | 완료 기준: PolicyExplainability: typed API가 존재한다
+
+- [x] ATW-0891 | P0 | policy-security/PolicyExplainability | PolicyExplainability validator에 연결한다 | 완료 기준: PolicyExplainability: awiki validate에 결과가 나온다
+
+- [x] ATW-0892 | P0 | policy-security/PolicyExplainability | PolicyExplainability retrieval pipeline에 연결한다 | 완료 기준: PolicyExplainability: context pack 생성 전에 적용된다
+
+- [x] ATW-0893 | P0 | policy-security/PolicyExplainability | PolicyExplainability security fixture를 추가한다 | 완료 기준: PolicyExplainability: 정상/차단 fixture가 있다
+
+- [x] ATW-0894 | P1 | policy-security/PolicyExplainability | PolicyExplainability MCP/CLI report에 연결한다 | 완료 기준: PolicyExplainability: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0895 | P1 | policy-security/PolicyExplainability | PolicyExplainability audit event를 남긴다 | 완료 기준: PolicyExplainability: policy decision이 audit에 기록된다
+
+- [x] ATW-0896 | P2 | policy-security/PolicyExplainability | PolicyExplainability 문서 예제를 작성한다 | 완료 기준: PolicyExplainability: docs에 예제가 있다
+
+- [x] ATW-0897 | P0 | policy-security/PolicyRegressionFixtures | PolicyRegressionFixtures 규칙을 문서화한다 | 완료 기준: PolicyRegressionFixtures: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0898 | P0 | policy-security/PolicyRegressionFixtures | PolicyRegressionFixtures core implementation을 작성한다 | 완료 기준: PolicyRegressionFixtures: typed API가 존재한다
+
+- [x] ATW-0899 | P0 | policy-security/PolicyRegressionFixtures | PolicyRegressionFixtures validator에 연결한다 | 완료 기준: PolicyRegressionFixtures: awiki validate에 결과가 나온다
+
+- [x] ATW-0900 | P0 | policy-security/PolicyRegressionFixtures | PolicyRegressionFixtures retrieval pipeline에 연결한다 | 완료 기준: PolicyRegressionFixtures: context pack 생성 전에 적용된다
+
+- [x] ATW-0901 | P0 | policy-security/PolicyRegressionFixtures | PolicyRegressionFixtures security fixture를 추가한다 | 완료 기준: PolicyRegressionFixtures: 정상/차단 fixture가 있다
+
+- [x] ATW-0902 | P1 | policy-security/PolicyRegressionFixtures | PolicyRegressionFixtures MCP/CLI report에 연결한다 | 완료 기준: PolicyRegressionFixtures: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0903 | P1 | policy-security/PolicyRegressionFixtures | PolicyRegressionFixtures audit event를 남긴다 | 완료 기준: PolicyRegressionFixtures: policy decision이 audit에 기록된다
+
+- [x] ATW-0904 | P2 | policy-security/PolicyRegressionFixtures | PolicyRegressionFixtures 문서 예제를 작성한다 | 완료 기준: PolicyRegressionFixtures: docs에 예제가 있다
+
+- [x] ATW-0905 | P0 | policy-security/SecurityReport | SecurityReport 규칙을 문서화한다 | 완료 기준: SecurityReport: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0906 | P0 | policy-security/SecurityReport | SecurityReport core implementation을 작성한다 | 완료 기준: SecurityReport: typed API가 존재한다
+
+- [x] ATW-0907 | P0 | policy-security/SecurityReport | SecurityReport validator에 연결한다 | 완료 기준: SecurityReport: awiki validate에 결과가 나온다
+
+- [x] ATW-0908 | P0 | policy-security/SecurityReport | SecurityReport retrieval pipeline에 연결한다 | 완료 기준: SecurityReport: context pack 생성 전에 적용된다
+
+- [x] ATW-0909 | P0 | policy-security/SecurityReport | SecurityReport security fixture를 추가한다 | 완료 기준: SecurityReport: 정상/차단 fixture가 있다
+
+- [x] ATW-0910 | P1 | policy-security/SecurityReport | SecurityReport MCP/CLI report에 연결한다 | 완료 기준: SecurityReport: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0911 | P1 | policy-security/SecurityReport | SecurityReport audit event를 남긴다 | 완료 기준: SecurityReport: policy decision이 audit에 기록된다
+
+- [x] ATW-0912 | P2 | policy-security/SecurityReport | SecurityReport 문서 예제를 작성한다 | 완료 기준: SecurityReport: docs에 예제가 있다
+
+- [x] ATW-0913 | P0 | policy-security/SecurityGate | SecurityGate 규칙을 문서화한다 | 완료 기준: SecurityGate: docs/security-model.md 또는 docs/acl-model.md에 규칙이 있다
+
+- [x] ATW-0914 | P0 | policy-security/SecurityGate | SecurityGate core implementation을 작성한다 | 완료 기준: SecurityGate: typed API가 존재한다
+
+- [x] ATW-0915 | P0 | policy-security/SecurityGate | SecurityGate validator에 연결한다 | 완료 기준: SecurityGate: awiki validate에 결과가 나온다
+
+- [x] ATW-0916 | P0 | policy-security/SecurityGate | SecurityGate retrieval pipeline에 연결한다 | 완료 기준: SecurityGate: context pack 생성 전에 적용된다
+
+- [x] ATW-0917 | P0 | policy-security/SecurityGate | SecurityGate security fixture를 추가한다 | 완료 기준: SecurityGate: 정상/차단 fixture가 있다
+
+- [x] ATW-0918 | P1 | policy-security/SecurityGate | SecurityGate MCP/CLI report에 연결한다 | 완료 기준: SecurityGate: 사용자가 결정 근거를 볼 수 있다
+
+- [x] ATW-0919 | P1 | policy-security/SecurityGate | SecurityGate audit event를 남긴다 | 완료 기준: SecurityGate: policy decision이 audit에 기록된다
+
+- [x] ATW-0920 | P2 | policy-security/SecurityGate | SecurityGate 문서 예제를 작성한다 | 완료 기준: SecurityGate: docs에 예제가 있다
+
+- [x] ATW-0921 | P0 | ingest/LocalFileIngest | LocalFileIngest input contract를 정의한다 | 완료 기준: LocalFileIngest: typed API가 있다
+
+- [x] ATW-0922 | P0 | ingest/LocalFileIngest | LocalFileIngest happy path fixture를 추가한다 | 완료 기준: LocalFileIngest: fixture ingest가 통과한다
+
+- [x] ATW-0923 | P0 | ingest/LocalFileIngest | LocalFileIngest source record 생성에 연결한다 | 완료 기준: LocalFileIngest: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-0924 | P0 | ingest/LocalFileIngest | LocalFileIngest chunk 생성에 연결한다 | 완료 기준: LocalFileIngest: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-0925 | P0 | ingest/LocalFileIngest | LocalFileIngest ACL/sensitivity 초기값을 적용한다 | 완료 기준: LocalFileIngest: 권한 없는 검색이 차단된다
+
+- [x] ATW-0926 | P1 | ingest/LocalFileIngest | LocalFileIngest dedupe/hash 정책을 적용한다 | 완료 기준: LocalFileIngest: 동일 content hash가 중복 처리된다
+
+- [x] ATW-0927 | P1 | ingest/LocalFileIngest | LocalFileIngest error handling을 구현한다 | 완료 기준: LocalFileIngest: parser failure가 typed error를 낸다
+
+- [x] ATW-0928 | P1 | ingest/LocalFileIngest | LocalFileIngest audit event를 남긴다 | 완료 기준: LocalFileIngest: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-0929 | P1 | ingest/LocalFileIngest | LocalFileIngest CLI 명령에 연결한다 | 완료 기준: LocalFileIngest: awiki ingest smoke test가 통과한다
+
+- [x] ATW-0930 | P2 | ingest/LocalFileIngest | LocalFileIngest 문서 예제를 작성한다 | 완료 기준: LocalFileIngest: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-0931 | P0 | ingest/MarkdownParser | MarkdownParser input contract를 정의한다 | 완료 기준: MarkdownParser: typed API가 있다
+
+- [x] ATW-0932 | P0 | ingest/MarkdownParser | MarkdownParser happy path fixture를 추가한다 | 완료 기준: MarkdownParser: fixture ingest가 통과한다
+
+- [x] ATW-0933 | P0 | ingest/MarkdownParser | MarkdownParser source record 생성에 연결한다 | 완료 기준: MarkdownParser: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-0934 | P0 | ingest/MarkdownParser | MarkdownParser chunk 생성에 연결한다 | 완료 기준: MarkdownParser: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-0935 | P0 | ingest/MarkdownParser | MarkdownParser ACL/sensitivity 초기값을 적용한다 | 완료 기준: MarkdownParser: 권한 없는 검색이 차단된다
+
+- [x] ATW-0936 | P1 | ingest/MarkdownParser | MarkdownParser dedupe/hash 정책을 적용한다 | 완료 기준: MarkdownParser: 동일 content hash가 중복 처리된다
+
+- [x] ATW-0937 | P1 | ingest/MarkdownParser | MarkdownParser error handling을 구현한다 | 완료 기준: MarkdownParser: parser failure가 typed error를 낸다
+
+- [x] ATW-0938 | P1 | ingest/MarkdownParser | MarkdownParser audit event를 남긴다 | 완료 기준: MarkdownParser: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-0939 | P1 | ingest/MarkdownParser | MarkdownParser CLI 명령에 연결한다 | 완료 기준: MarkdownParser: awiki ingest smoke test가 통과한다
+
+- [x] ATW-0940 | P2 | ingest/MarkdownParser | MarkdownParser 문서 예제를 작성한다 | 완료 기준: MarkdownParser: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-0941 | P0 | ingest/TextParser | TextParser input contract를 정의한다 | 완료 기준: TextParser: typed API가 있다
+
+- [x] ATW-0942 | P0 | ingest/TextParser | TextParser happy path fixture를 추가한다 | 완료 기준: TextParser: fixture ingest가 통과한다
+
+- [x] ATW-0943 | P0 | ingest/TextParser | TextParser source record 생성에 연결한다 | 완료 기준: TextParser: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-0944 | P0 | ingest/TextParser | TextParser chunk 생성에 연결한다 | 완료 기준: TextParser: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-0945 | P0 | ingest/TextParser | TextParser ACL/sensitivity 초기값을 적용한다 | 완료 기준: TextParser: 권한 없는 검색이 차단된다
+
+- [x] ATW-0946 | P1 | ingest/TextParser | TextParser dedupe/hash 정책을 적용한다 | 완료 기준: TextParser: 동일 content hash가 중복 처리된다
+
+- [x] ATW-0947 | P1 | ingest/TextParser | TextParser error handling을 구현한다 | 완료 기준: TextParser: parser failure가 typed error를 낸다
+
+- [x] ATW-0948 | P1 | ingest/TextParser | TextParser audit event를 남긴다 | 완료 기준: TextParser: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-0949 | P1 | ingest/TextParser | TextParser CLI 명령에 연결한다 | 완료 기준: TextParser: awiki ingest smoke test가 통과한다
+
+- [x] ATW-0950 | P2 | ingest/TextParser | TextParser 문서 예제를 작성한다 | 완료 기준: TextParser: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-0951 | P0 | ingest/JsonParser | JsonParser input contract를 정의한다 | 완료 기준: JsonParser: typed API가 있다
+
+- [x] ATW-0952 | P0 | ingest/JsonParser | JsonParser happy path fixture를 추가한다 | 완료 기준: JsonParser: fixture ingest가 통과한다
+
+- [x] ATW-0953 | P0 | ingest/JsonParser | JsonParser source record 생성에 연결한다 | 완료 기준: JsonParser: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-0954 | P0 | ingest/JsonParser | JsonParser chunk 생성에 연결한다 | 완료 기준: JsonParser: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-0955 | P0 | ingest/JsonParser | JsonParser ACL/sensitivity 초기값을 적용한다 | 완료 기준: JsonParser: 권한 없는 검색이 차단된다
+
+- [x] ATW-0956 | P1 | ingest/JsonParser | JsonParser dedupe/hash 정책을 적용한다 | 완료 기준: JsonParser: 동일 content hash가 중복 처리된다
+
+- [x] ATW-0957 | P1 | ingest/JsonParser | JsonParser error handling을 구현한다 | 완료 기준: JsonParser: parser failure가 typed error를 낸다
+
+- [x] ATW-0958 | P1 | ingest/JsonParser | JsonParser audit event를 남긴다 | 완료 기준: JsonParser: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-0959 | P1 | ingest/JsonParser | JsonParser CLI 명령에 연결한다 | 완료 기준: JsonParser: awiki ingest smoke test가 통과한다
+
+- [x] ATW-0960 | P2 | ingest/JsonParser | JsonParser 문서 예제를 작성한다 | 완료 기준: JsonParser: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-0961 | P0 | ingest/JsonlParser | JsonlParser input contract를 정의한다 | 완료 기준: JsonlParser: typed API가 있다
+
+- [x] ATW-0962 | P0 | ingest/JsonlParser | JsonlParser happy path fixture를 추가한다 | 완료 기준: JsonlParser: fixture ingest가 통과한다
+
+- [x] ATW-0963 | P0 | ingest/JsonlParser | JsonlParser source record 생성에 연결한다 | 완료 기준: JsonlParser: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-0964 | P0 | ingest/JsonlParser | JsonlParser chunk 생성에 연결한다 | 완료 기준: JsonlParser: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-0965 | P0 | ingest/JsonlParser | JsonlParser ACL/sensitivity 초기값을 적용한다 | 완료 기준: JsonlParser: 권한 없는 검색이 차단된다
+
+- [x] ATW-0966 | P1 | ingest/JsonlParser | JsonlParser dedupe/hash 정책을 적용한다 | 완료 기준: JsonlParser: 동일 content hash가 중복 처리된다
+
+- [x] ATW-0967 | P1 | ingest/JsonlParser | JsonlParser error handling을 구현한다 | 완료 기준: JsonlParser: parser failure가 typed error를 낸다
+
+- [x] ATW-0968 | P1 | ingest/JsonlParser | JsonlParser audit event를 남긴다 | 완료 기준: JsonlParser: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-0969 | P1 | ingest/JsonlParser | JsonlParser CLI 명령에 연결한다 | 완료 기준: JsonlParser: awiki ingest smoke test가 통과한다
+
+- [x] ATW-0970 | P2 | ingest/JsonlParser | JsonlParser 문서 예제를 작성한다 | 완료 기준: JsonlParser: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-0971 | P0 | ingest/CsvParser | CsvParser input contract를 정의한다 | 완료 기준: CsvParser: typed API가 있다
+
+- [x] ATW-0972 | P0 | ingest/CsvParser | CsvParser happy path fixture를 추가한다 | 완료 기준: CsvParser: fixture ingest가 통과한다
+
+- [x] ATW-0973 | P0 | ingest/CsvParser | CsvParser source record 생성에 연결한다 | 완료 기준: CsvParser: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-0974 | P0 | ingest/CsvParser | CsvParser chunk 생성에 연결한다 | 완료 기준: CsvParser: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-0975 | P0 | ingest/CsvParser | CsvParser ACL/sensitivity 초기값을 적용한다 | 완료 기준: CsvParser: 권한 없는 검색이 차단된다
+
+- [x] ATW-0976 | P1 | ingest/CsvParser | CsvParser dedupe/hash 정책을 적용한다 | 완료 기준: CsvParser: 동일 content hash가 중복 처리된다
+
+- [x] ATW-0977 | P1 | ingest/CsvParser | CsvParser error handling을 구현한다 | 완료 기준: CsvParser: parser failure가 typed error를 낸다
+
+- [x] ATW-0978 | P1 | ingest/CsvParser | CsvParser audit event를 남긴다 | 완료 기준: CsvParser: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-0979 | P1 | ingest/CsvParser | CsvParser CLI 명령에 연결한다 | 완료 기준: CsvParser: awiki ingest smoke test가 통과한다
+
+- [x] ATW-0980 | P2 | ingest/CsvParser | CsvParser 문서 예제를 작성한다 | 완료 기준: CsvParser: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-0981 | P0 | ingest/HtmlParser | HtmlParser input contract를 정의한다 | 완료 기준: HtmlParser: typed API가 있다
+
+- [x] ATW-0982 | P0 | ingest/HtmlParser | HtmlParser happy path fixture를 추가한다 | 완료 기준: HtmlParser: fixture ingest가 통과한다
+
+- [x] ATW-0983 | P0 | ingest/HtmlParser | HtmlParser source record 생성에 연결한다 | 완료 기준: HtmlParser: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-0984 | P0 | ingest/HtmlParser | HtmlParser chunk 생성에 연결한다 | 완료 기준: HtmlParser: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-0985 | P0 | ingest/HtmlParser | HtmlParser ACL/sensitivity 초기값을 적용한다 | 완료 기준: HtmlParser: 권한 없는 검색이 차단된다
+
+- [x] ATW-0986 | P1 | ingest/HtmlParser | HtmlParser dedupe/hash 정책을 적용한다 | 완료 기준: HtmlParser: 동일 content hash가 중복 처리된다
+
+- [x] ATW-0987 | P1 | ingest/HtmlParser | HtmlParser error handling을 구현한다 | 완료 기준: HtmlParser: parser failure가 typed error를 낸다
+
+- [x] ATW-0988 | P1 | ingest/HtmlParser | HtmlParser audit event를 남긴다 | 완료 기준: HtmlParser: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-0989 | P1 | ingest/HtmlParser | HtmlParser CLI 명령에 연결한다 | 완료 기준: HtmlParser: awiki ingest smoke test가 통과한다
+
+- [x] ATW-0990 | P2 | ingest/HtmlParser | HtmlParser 문서 예제를 작성한다 | 완료 기준: HtmlParser: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-0991 | P0 | ingest/PdfParserPlaceholder | PdfParserPlaceholder input contract를 정의한다 | 완료 기준: PdfParserPlaceholder: typed API가 있다
+
+- [x] ATW-0992 | P0 | ingest/PdfParserPlaceholder | PdfParserPlaceholder happy path fixture를 추가한다 | 완료 기준: PdfParserPlaceholder: fixture ingest가 통과한다
+
+- [x] ATW-0993 | P0 | ingest/PdfParserPlaceholder | PdfParserPlaceholder source record 생성에 연결한다 | 완료 기준: PdfParserPlaceholder: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-0994 | P0 | ingest/PdfParserPlaceholder | PdfParserPlaceholder chunk 생성에 연결한다 | 완료 기준: PdfParserPlaceholder: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-0995 | P0 | ingest/PdfParserPlaceholder | PdfParserPlaceholder ACL/sensitivity 초기값을 적용한다 | 완료 기준: PdfParserPlaceholder: 권한 없는 검색이 차단된다
+
+- [x] ATW-0996 | P1 | ingest/PdfParserPlaceholder | PdfParserPlaceholder dedupe/hash 정책을 적용한다 | 완료 기준: PdfParserPlaceholder: 동일 content hash가 중복 처리된다
+
+- [x] ATW-0997 | P1 | ingest/PdfParserPlaceholder | PdfParserPlaceholder error handling을 구현한다 | 완료 기준: PdfParserPlaceholder: parser failure가 typed error를 낸다
+
+- [x] ATW-0998 | P1 | ingest/PdfParserPlaceholder | PdfParserPlaceholder audit event를 남긴다 | 완료 기준: PdfParserPlaceholder: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-0999 | P1 | ingest/PdfParserPlaceholder | PdfParserPlaceholder CLI 명령에 연결한다 | 완료 기준: PdfParserPlaceholder: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1000 | P2 | ingest/PdfParserPlaceholder | PdfParserPlaceholder 문서 예제를 작성한다 | 완료 기준: PdfParserPlaceholder: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1001 | P0 | ingest/DocxParserPlaceholder | DocxParserPlaceholder input contract를 정의한다 | 완료 기준: DocxParserPlaceholder: typed API가 있다
+
+- [x] ATW-1002 | P0 | ingest/DocxParserPlaceholder | DocxParserPlaceholder happy path fixture를 추가한다 | 완료 기준: DocxParserPlaceholder: fixture ingest가 통과한다
+
+- [x] ATW-1003 | P0 | ingest/DocxParserPlaceholder | DocxParserPlaceholder source record 생성에 연결한다 | 완료 기준: DocxParserPlaceholder: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1004 | P0 | ingest/DocxParserPlaceholder | DocxParserPlaceholder chunk 생성에 연결한다 | 완료 기준: DocxParserPlaceholder: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1005 | P0 | ingest/DocxParserPlaceholder | DocxParserPlaceholder ACL/sensitivity 초기값을 적용한다 | 완료 기준: DocxParserPlaceholder: 권한 없는 검색이 차단된다
+
+- [x] ATW-1006 | P1 | ingest/DocxParserPlaceholder | DocxParserPlaceholder dedupe/hash 정책을 적용한다 | 완료 기준: DocxParserPlaceholder: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1007 | P1 | ingest/DocxParserPlaceholder | DocxParserPlaceholder error handling을 구현한다 | 완료 기준: DocxParserPlaceholder: parser failure가 typed error를 낸다
+
+- [x] ATW-1008 | P1 | ingest/DocxParserPlaceholder | DocxParserPlaceholder audit event를 남긴다 | 완료 기준: DocxParserPlaceholder: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1009 | P1 | ingest/DocxParserPlaceholder | DocxParserPlaceholder CLI 명령에 연결한다 | 완료 기준: DocxParserPlaceholder: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1010 | P2 | ingest/DocxParserPlaceholder | DocxParserPlaceholder 문서 예제를 작성한다 | 완료 기준: DocxParserPlaceholder: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1011 | P0 | ingest/Chunker | Chunker input contract를 정의한다 | 완료 기준: Chunker: typed API가 있다
+
+- [x] ATW-1012 | P0 | ingest/Chunker | Chunker happy path fixture를 추가한다 | 완료 기준: Chunker: fixture ingest가 통과한다
+
+- [x] ATW-1013 | P0 | ingest/Chunker | Chunker source record 생성에 연결한다 | 완료 기준: Chunker: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1014 | P0 | ingest/Chunker | Chunker chunk 생성에 연결한다 | 완료 기준: Chunker: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1015 | P0 | ingest/Chunker | Chunker ACL/sensitivity 초기값을 적용한다 | 완료 기준: Chunker: 권한 없는 검색이 차단된다
+
+- [x] ATW-1016 | P1 | ingest/Chunker | Chunker dedupe/hash 정책을 적용한다 | 완료 기준: Chunker: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1017 | P1 | ingest/Chunker | Chunker error handling을 구현한다 | 완료 기준: Chunker: parser failure가 typed error를 낸다
+
+- [x] ATW-1018 | P1 | ingest/Chunker | Chunker audit event를 남긴다 | 완료 기준: Chunker: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1019 | P1 | ingest/Chunker | Chunker CLI 명령에 연결한다 | 완료 기준: Chunker: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1020 | P2 | ingest/Chunker | Chunker 문서 예제를 작성한다 | 완료 기준: Chunker: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1021 | P0 | ingest/ChunkHashing | ChunkHashing input contract를 정의한다 | 완료 기준: ChunkHashing: typed API가 있다
+
+- [x] ATW-1022 | P0 | ingest/ChunkHashing | ChunkHashing happy path fixture를 추가한다 | 완료 기준: ChunkHashing: fixture ingest가 통과한다
+
+- [x] ATW-1023 | P0 | ingest/ChunkHashing | ChunkHashing source record 생성에 연결한다 | 완료 기준: ChunkHashing: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1024 | P0 | ingest/ChunkHashing | ChunkHashing chunk 생성에 연결한다 | 완료 기준: ChunkHashing: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1025 | P0 | ingest/ChunkHashing | ChunkHashing ACL/sensitivity 초기값을 적용한다 | 완료 기준: ChunkHashing: 권한 없는 검색이 차단된다
+
+- [x] ATW-1026 | P1 | ingest/ChunkHashing | ChunkHashing dedupe/hash 정책을 적용한다 | 완료 기준: ChunkHashing: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1027 | P1 | ingest/ChunkHashing | ChunkHashing error handling을 구현한다 | 완료 기준: ChunkHashing: parser failure가 typed error를 낸다
+
+- [x] ATW-1028 | P1 | ingest/ChunkHashing | ChunkHashing audit event를 남긴다 | 완료 기준: ChunkHashing: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1029 | P1 | ingest/ChunkHashing | ChunkHashing CLI 명령에 연결한다 | 완료 기준: ChunkHashing: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1030 | P2 | ingest/ChunkHashing | ChunkHashing 문서 예제를 작성한다 | 완료 기준: ChunkHashing: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1031 | P0 | ingest/SourceDeduper | SourceDeduper input contract를 정의한다 | 완료 기준: SourceDeduper: typed API가 있다
+
+- [x] ATW-1032 | P0 | ingest/SourceDeduper | SourceDeduper happy path fixture를 추가한다 | 완료 기준: SourceDeduper: fixture ingest가 통과한다
+
+- [x] ATW-1033 | P0 | ingest/SourceDeduper | SourceDeduper source record 생성에 연결한다 | 완료 기준: SourceDeduper: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1034 | P0 | ingest/SourceDeduper | SourceDeduper chunk 생성에 연결한다 | 완료 기준: SourceDeduper: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1035 | P0 | ingest/SourceDeduper | SourceDeduper ACL/sensitivity 초기값을 적용한다 | 완료 기준: SourceDeduper: 권한 없는 검색이 차단된다
+
+- [x] ATW-1036 | P1 | ingest/SourceDeduper | SourceDeduper dedupe/hash 정책을 적용한다 | 완료 기준: SourceDeduper: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1037 | P1 | ingest/SourceDeduper | SourceDeduper error handling을 구현한다 | 완료 기준: SourceDeduper: parser failure가 typed error를 낸다
+
+- [x] ATW-1038 | P1 | ingest/SourceDeduper | SourceDeduper audit event를 남긴다 | 완료 기준: SourceDeduper: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1039 | P1 | ingest/SourceDeduper | SourceDeduper CLI 명령에 연결한다 | 완료 기준: SourceDeduper: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1040 | P2 | ingest/SourceDeduper | SourceDeduper 문서 예제를 작성한다 | 완료 기준: SourceDeduper: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1041 | P0 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor input contract를 정의한다 | 완료 기준: ClaimCandidateExtractor: typed API가 있다
+
+- [x] ATW-1042 | P0 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor happy path fixture를 추가한다 | 완료 기준: ClaimCandidateExtractor: fixture ingest가 통과한다
+
+- [x] ATW-1043 | P0 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor source record 생성에 연결한다 | 완료 기준: ClaimCandidateExtractor: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1044 | P0 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor chunk 생성에 연결한다 | 완료 기준: ClaimCandidateExtractor: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1045 | P0 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor ACL/sensitivity 초기값을 적용한다 | 완료 기준: ClaimCandidateExtractor: 권한 없는 검색이 차단된다
+
+- [x] ATW-1046 | P1 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor dedupe/hash 정책을 적용한다 | 완료 기준: ClaimCandidateExtractor: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1047 | P1 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor error handling을 구현한다 | 완료 기준: ClaimCandidateExtractor: parser failure가 typed error를 낸다
+
+- [x] ATW-1048 | P1 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor audit event를 남긴다 | 완료 기준: ClaimCandidateExtractor: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1049 | P1 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor CLI 명령에 연결한다 | 완료 기준: ClaimCandidateExtractor: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1050 | P2 | ingest/ClaimCandidateExtractor | ClaimCandidateExtractor 문서 예제를 작성한다 | 완료 기준: ClaimCandidateExtractor: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1051 | P0 | ingest/EntityExtractor | EntityExtractor input contract를 정의한다 | 완료 기준: EntityExtractor: typed API가 있다
+
+- [x] ATW-1052 | P0 | ingest/EntityExtractor | EntityExtractor happy path fixture를 추가한다 | 완료 기준: EntityExtractor: fixture ingest가 통과한다
+
+- [x] ATW-1053 | P0 | ingest/EntityExtractor | EntityExtractor source record 생성에 연결한다 | 완료 기준: EntityExtractor: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1054 | P0 | ingest/EntityExtractor | EntityExtractor chunk 생성에 연결한다 | 완료 기준: EntityExtractor: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1055 | P0 | ingest/EntityExtractor | EntityExtractor ACL/sensitivity 초기값을 적용한다 | 완료 기준: EntityExtractor: 권한 없는 검색이 차단된다
+
+- [x] ATW-1056 | P1 | ingest/EntityExtractor | EntityExtractor dedupe/hash 정책을 적용한다 | 완료 기준: EntityExtractor: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1057 | P1 | ingest/EntityExtractor | EntityExtractor error handling을 구현한다 | 완료 기준: EntityExtractor: parser failure가 typed error를 낸다
+
+- [x] ATW-1058 | P1 | ingest/EntityExtractor | EntityExtractor audit event를 남긴다 | 완료 기준: EntityExtractor: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1059 | P1 | ingest/EntityExtractor | EntityExtractor CLI 명령에 연결한다 | 완료 기준: EntityExtractor: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1060 | P2 | ingest/EntityExtractor | EntityExtractor 문서 예제를 작성한다 | 완료 기준: EntityExtractor: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1061 | P0 | ingest/RelationExtractor | RelationExtractor input contract를 정의한다 | 완료 기준: RelationExtractor: typed API가 있다
+
+- [x] ATW-1062 | P0 | ingest/RelationExtractor | RelationExtractor happy path fixture를 추가한다 | 완료 기준: RelationExtractor: fixture ingest가 통과한다
+
+- [x] ATW-1063 | P0 | ingest/RelationExtractor | RelationExtractor source record 생성에 연결한다 | 완료 기준: RelationExtractor: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1064 | P0 | ingest/RelationExtractor | RelationExtractor chunk 생성에 연결한다 | 완료 기준: RelationExtractor: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1065 | P0 | ingest/RelationExtractor | RelationExtractor ACL/sensitivity 초기값을 적용한다 | 완료 기준: RelationExtractor: 권한 없는 검색이 차단된다
+
+- [x] ATW-1066 | P1 | ingest/RelationExtractor | RelationExtractor dedupe/hash 정책을 적용한다 | 완료 기준: RelationExtractor: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1067 | P1 | ingest/RelationExtractor | RelationExtractor error handling을 구현한다 | 완료 기준: RelationExtractor: parser failure가 typed error를 낸다
+
+- [x] ATW-1068 | P1 | ingest/RelationExtractor | RelationExtractor audit event를 남긴다 | 완료 기준: RelationExtractor: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1069 | P1 | ingest/RelationExtractor | RelationExtractor CLI 명령에 연결한다 | 완료 기준: RelationExtractor: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1070 | P2 | ingest/RelationExtractor | RelationExtractor 문서 예제를 작성한다 | 완료 기준: RelationExtractor: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1071 | P0 | ingest/ManualClaimEditor | ManualClaimEditor input contract를 정의한다 | 완료 기준: ManualClaimEditor: typed API가 있다
+
+- [x] ATW-1072 | P0 | ingest/ManualClaimEditor | ManualClaimEditor happy path fixture를 추가한다 | 완료 기준: ManualClaimEditor: fixture ingest가 통과한다
+
+- [x] ATW-1073 | P0 | ingest/ManualClaimEditor | ManualClaimEditor source record 생성에 연결한다 | 완료 기준: ManualClaimEditor: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1074 | P0 | ingest/ManualClaimEditor | ManualClaimEditor chunk 생성에 연결한다 | 완료 기준: ManualClaimEditor: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1075 | P0 | ingest/ManualClaimEditor | ManualClaimEditor ACL/sensitivity 초기값을 적용한다 | 완료 기준: ManualClaimEditor: 권한 없는 검색이 차단된다
+
+- [x] ATW-1076 | P1 | ingest/ManualClaimEditor | ManualClaimEditor dedupe/hash 정책을 적용한다 | 완료 기준: ManualClaimEditor: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1077 | P1 | ingest/ManualClaimEditor | ManualClaimEditor error handling을 구현한다 | 완료 기준: ManualClaimEditor: parser failure가 typed error를 낸다
+
+- [x] ATW-1078 | P1 | ingest/ManualClaimEditor | ManualClaimEditor audit event를 남긴다 | 완료 기준: ManualClaimEditor: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1079 | P1 | ingest/ManualClaimEditor | ManualClaimEditor CLI 명령에 연결한다 | 완료 기준: ManualClaimEditor: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1080 | P2 | ingest/ManualClaimEditor | ManualClaimEditor 문서 예제를 작성한다 | 완료 기준: ManualClaimEditor: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1081 | P0 | ingest/IngestPlanner | IngestPlanner input contract를 정의한다 | 완료 기준: IngestPlanner: typed API가 있다
+
+- [x] ATW-1082 | P0 | ingest/IngestPlanner | IngestPlanner happy path fixture를 추가한다 | 완료 기준: IngestPlanner: fixture ingest가 통과한다
+
+- [x] ATW-1083 | P0 | ingest/IngestPlanner | IngestPlanner source record 생성에 연결한다 | 완료 기준: IngestPlanner: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1084 | P0 | ingest/IngestPlanner | IngestPlanner chunk 생성에 연결한다 | 완료 기준: IngestPlanner: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1085 | P0 | ingest/IngestPlanner | IngestPlanner ACL/sensitivity 초기값을 적용한다 | 완료 기준: IngestPlanner: 권한 없는 검색이 차단된다
+
+- [x] ATW-1086 | P1 | ingest/IngestPlanner | IngestPlanner dedupe/hash 정책을 적용한다 | 완료 기준: IngestPlanner: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1087 | P1 | ingest/IngestPlanner | IngestPlanner error handling을 구현한다 | 완료 기준: IngestPlanner: parser failure가 typed error를 낸다
+
+- [x] ATW-1088 | P1 | ingest/IngestPlanner | IngestPlanner audit event를 남긴다 | 완료 기준: IngestPlanner: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1089 | P1 | ingest/IngestPlanner | IngestPlanner CLI 명령에 연결한다 | 완료 기준: IngestPlanner: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1090 | P2 | ingest/IngestPlanner | IngestPlanner 문서 예제를 작성한다 | 완료 기준: IngestPlanner: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1091 | P0 | ingest/IngestDryRun | IngestDryRun input contract를 정의한다 | 완료 기준: IngestDryRun: typed API가 있다
+
+- [x] ATW-1092 | P0 | ingest/IngestDryRun | IngestDryRun happy path fixture를 추가한다 | 완료 기준: IngestDryRun: fixture ingest가 통과한다
+
+- [x] ATW-1093 | P0 | ingest/IngestDryRun | IngestDryRun source record 생성에 연결한다 | 완료 기준: IngestDryRun: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1094 | P0 | ingest/IngestDryRun | IngestDryRun chunk 생성에 연결한다 | 완료 기준: IngestDryRun: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1095 | P0 | ingest/IngestDryRun | IngestDryRun ACL/sensitivity 초기값을 적용한다 | 완료 기준: IngestDryRun: 권한 없는 검색이 차단된다
+
+- [x] ATW-1096 | P1 | ingest/IngestDryRun | IngestDryRun dedupe/hash 정책을 적용한다 | 완료 기준: IngestDryRun: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1097 | P1 | ingest/IngestDryRun | IngestDryRun error handling을 구현한다 | 완료 기준: IngestDryRun: parser failure가 typed error를 낸다
+
+- [x] ATW-1098 | P1 | ingest/IngestDryRun | IngestDryRun audit event를 남긴다 | 완료 기준: IngestDryRun: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1099 | P1 | ingest/IngestDryRun | IngestDryRun CLI 명령에 연결한다 | 완료 기준: IngestDryRun: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1100 | P2 | ingest/IngestDryRun | IngestDryRun 문서 예제를 작성한다 | 완료 기준: IngestDryRun: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1101 | P0 | ingest/BlobWriter | BlobWriter input contract를 정의한다 | 완료 기준: BlobWriter: typed API가 있다
+
+- [x] ATW-1102 | P0 | ingest/BlobWriter | BlobWriter happy path fixture를 추가한다 | 완료 기준: BlobWriter: fixture ingest가 통과한다
+
+- [x] ATW-1103 | P0 | ingest/BlobWriter | BlobWriter source record 생성에 연결한다 | 완료 기준: BlobWriter: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1104 | P0 | ingest/BlobWriter | BlobWriter chunk 생성에 연결한다 | 완료 기준: BlobWriter: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1105 | P0 | ingest/BlobWriter | BlobWriter ACL/sensitivity 초기값을 적용한다 | 완료 기준: BlobWriter: 권한 없는 검색이 차단된다
+
+- [x] ATW-1106 | P1 | ingest/BlobWriter | BlobWriter dedupe/hash 정책을 적용한다 | 완료 기준: BlobWriter: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1107 | P1 | ingest/BlobWriter | BlobWriter error handling을 구현한다 | 완료 기준: BlobWriter: parser failure가 typed error를 낸다
+
+- [x] ATW-1108 | P1 | ingest/BlobWriter | BlobWriter audit event를 남긴다 | 완료 기준: BlobWriter: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1109 | P1 | ingest/BlobWriter | BlobWriter CLI 명령에 연결한다 | 완료 기준: BlobWriter: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1110 | P2 | ingest/BlobWriter | BlobWriter 문서 예제를 작성한다 | 완료 기준: BlobWriter: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1111 | P0 | ingest/ExtractedTextWriter | ExtractedTextWriter input contract를 정의한다 | 완료 기준: ExtractedTextWriter: typed API가 있다
+
+- [x] ATW-1112 | P0 | ingest/ExtractedTextWriter | ExtractedTextWriter happy path fixture를 추가한다 | 완료 기준: ExtractedTextWriter: fixture ingest가 통과한다
+
+- [x] ATW-1113 | P0 | ingest/ExtractedTextWriter | ExtractedTextWriter source record 생성에 연결한다 | 완료 기준: ExtractedTextWriter: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1114 | P0 | ingest/ExtractedTextWriter | ExtractedTextWriter chunk 생성에 연결한다 | 완료 기준: ExtractedTextWriter: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1115 | P0 | ingest/ExtractedTextWriter | ExtractedTextWriter ACL/sensitivity 초기값을 적용한다 | 완료 기준: ExtractedTextWriter: 권한 없는 검색이 차단된다
+
+- [x] ATW-1116 | P1 | ingest/ExtractedTextWriter | ExtractedTextWriter dedupe/hash 정책을 적용한다 | 완료 기준: ExtractedTextWriter: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1117 | P1 | ingest/ExtractedTextWriter | ExtractedTextWriter error handling을 구현한다 | 완료 기준: ExtractedTextWriter: parser failure가 typed error를 낸다
+
+- [x] ATW-1118 | P1 | ingest/ExtractedTextWriter | ExtractedTextWriter audit event를 남긴다 | 완료 기준: ExtractedTextWriter: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1119 | P1 | ingest/ExtractedTextWriter | ExtractedTextWriter CLI 명령에 연결한다 | 완료 기준: ExtractedTextWriter: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1120 | P2 | ingest/ExtractedTextWriter | ExtractedTextWriter 문서 예제를 작성한다 | 완료 기준: ExtractedTextWriter: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1121 | P0 | ingest/ConnectorContract | ConnectorContract input contract를 정의한다 | 완료 기준: ConnectorContract: typed API가 있다
+
+- [x] ATW-1122 | P0 | ingest/ConnectorContract | ConnectorContract happy path fixture를 추가한다 | 완료 기준: ConnectorContract: fixture ingest가 통과한다
+
+- [x] ATW-1123 | P0 | ingest/ConnectorContract | ConnectorContract source record 생성에 연결한다 | 완료 기준: ConnectorContract: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1124 | P0 | ingest/ConnectorContract | ConnectorContract chunk 생성에 연결한다 | 완료 기준: ConnectorContract: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1125 | P0 | ingest/ConnectorContract | ConnectorContract ACL/sensitivity 초기값을 적용한다 | 완료 기준: ConnectorContract: 권한 없는 검색이 차단된다
+
+- [x] ATW-1126 | P1 | ingest/ConnectorContract | ConnectorContract dedupe/hash 정책을 적용한다 | 완료 기준: ConnectorContract: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1127 | P1 | ingest/ConnectorContract | ConnectorContract error handling을 구현한다 | 완료 기준: ConnectorContract: parser failure가 typed error를 낸다
+
+- [x] ATW-1128 | P1 | ingest/ConnectorContract | ConnectorContract audit event를 남긴다 | 완료 기준: ConnectorContract: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1129 | P1 | ingest/ConnectorContract | ConnectorContract CLI 명령에 연결한다 | 완료 기준: ConnectorContract: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1130 | P2 | ingest/ConnectorContract | ConnectorContract 문서 예제를 작성한다 | 완료 기준: ConnectorContract: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1131 | P0 | ingest/ConnectorCursor | ConnectorCursor input contract를 정의한다 | 완료 기준: ConnectorCursor: typed API가 있다
+
+- [x] ATW-1132 | P0 | ingest/ConnectorCursor | ConnectorCursor happy path fixture를 추가한다 | 완료 기준: ConnectorCursor: fixture ingest가 통과한다
+
+- [x] ATW-1133 | P0 | ingest/ConnectorCursor | ConnectorCursor source record 생성에 연결한다 | 완료 기준: ConnectorCursor: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1134 | P0 | ingest/ConnectorCursor | ConnectorCursor chunk 생성에 연결한다 | 완료 기준: ConnectorCursor: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1135 | P0 | ingest/ConnectorCursor | ConnectorCursor ACL/sensitivity 초기값을 적용한다 | 완료 기준: ConnectorCursor: 권한 없는 검색이 차단된다
+
+- [x] ATW-1136 | P1 | ingest/ConnectorCursor | ConnectorCursor dedupe/hash 정책을 적용한다 | 완료 기준: ConnectorCursor: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1137 | P1 | ingest/ConnectorCursor | ConnectorCursor error handling을 구현한다 | 완료 기준: ConnectorCursor: parser failure가 typed error를 낸다
+
+- [x] ATW-1138 | P1 | ingest/ConnectorCursor | ConnectorCursor audit event를 남긴다 | 완료 기준: ConnectorCursor: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1139 | P1 | ingest/ConnectorCursor | ConnectorCursor CLI 명령에 연결한다 | 완료 기준: ConnectorCursor: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1140 | P2 | ingest/ConnectorCursor | ConnectorCursor 문서 예제를 작성한다 | 완료 기준: ConnectorCursor: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1141 | P0 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot input contract를 정의한다 | 완료 기준: ConnectorAclSnapshot: typed API가 있다
+
+- [x] ATW-1142 | P0 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot happy path fixture를 추가한다 | 완료 기준: ConnectorAclSnapshot: fixture ingest가 통과한다
+
+- [x] ATW-1143 | P0 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot source record 생성에 연결한다 | 완료 기준: ConnectorAclSnapshot: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1144 | P0 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot chunk 생성에 연결한다 | 완료 기준: ConnectorAclSnapshot: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1145 | P0 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot ACL/sensitivity 초기값을 적용한다 | 완료 기준: ConnectorAclSnapshot: 권한 없는 검색이 차단된다
+
+- [x] ATW-1146 | P1 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot dedupe/hash 정책을 적용한다 | 완료 기준: ConnectorAclSnapshot: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1147 | P1 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot error handling을 구현한다 | 완료 기준: ConnectorAclSnapshot: parser failure가 typed error를 낸다
+
+- [x] ATW-1148 | P1 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot audit event를 남긴다 | 완료 기준: ConnectorAclSnapshot: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1149 | P1 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot CLI 명령에 연결한다 | 완료 기준: ConnectorAclSnapshot: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1150 | P2 | ingest/ConnectorAclSnapshot | ConnectorAclSnapshot 문서 예제를 작성한다 | 완료 기준: ConnectorAclSnapshot: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1151 | P0 | ingest/ConnectorDeletionSync | ConnectorDeletionSync input contract를 정의한다 | 완료 기준: ConnectorDeletionSync: typed API가 있다
+
+- [x] ATW-1152 | P0 | ingest/ConnectorDeletionSync | ConnectorDeletionSync happy path fixture를 추가한다 | 완료 기준: ConnectorDeletionSync: fixture ingest가 통과한다
+
+- [x] ATW-1153 | P0 | ingest/ConnectorDeletionSync | ConnectorDeletionSync source record 생성에 연결한다 | 완료 기준: ConnectorDeletionSync: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1154 | P0 | ingest/ConnectorDeletionSync | ConnectorDeletionSync chunk 생성에 연결한다 | 완료 기준: ConnectorDeletionSync: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1155 | P0 | ingest/ConnectorDeletionSync | ConnectorDeletionSync ACL/sensitivity 초기값을 적용한다 | 완료 기준: ConnectorDeletionSync: 권한 없는 검색이 차단된다
+
+- [x] ATW-1156 | P1 | ingest/ConnectorDeletionSync | ConnectorDeletionSync dedupe/hash 정책을 적용한다 | 완료 기준: ConnectorDeletionSync: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1157 | P1 | ingest/ConnectorDeletionSync | ConnectorDeletionSync error handling을 구현한다 | 완료 기준: ConnectorDeletionSync: parser failure가 typed error를 낸다
+
+- [x] ATW-1158 | P1 | ingest/ConnectorDeletionSync | ConnectorDeletionSync audit event를 남긴다 | 완료 기준: ConnectorDeletionSync: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1159 | P1 | ingest/ConnectorDeletionSync | ConnectorDeletionSync CLI 명령에 연결한다 | 완료 기준: ConnectorDeletionSync: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1160 | P2 | ingest/ConnectorDeletionSync | ConnectorDeletionSync 문서 예제를 작성한다 | 완료 기준: ConnectorDeletionSync: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1161 | P0 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder input contract를 정의한다 | 완료 기준: GoogleDriveConnectorPlaceholder: typed API가 있다
+
+- [x] ATW-1162 | P0 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder happy path fixture를 추가한다 | 완료 기준: GoogleDriveConnectorPlaceholder: fixture ingest가 통과한다
+
+- [x] ATW-1163 | P0 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder source record 생성에 연결한다 | 완료 기준: GoogleDriveConnectorPlaceholder: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1164 | P0 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder chunk 생성에 연결한다 | 완료 기준: GoogleDriveConnectorPlaceholder: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1165 | P0 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder ACL/sensitivity 초기값을 적용한다 | 완료 기준: GoogleDriveConnectorPlaceholder: 권한 없는 검색이 차단된다
+
+- [x] ATW-1166 | P1 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder dedupe/hash 정책을 적용한다 | 완료 기준: GoogleDriveConnectorPlaceholder: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1167 | P1 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder error handling을 구현한다 | 완료 기준: GoogleDriveConnectorPlaceholder: parser failure가 typed error를 낸다
+
+- [x] ATW-1168 | P1 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder audit event를 남긴다 | 완료 기준: GoogleDriveConnectorPlaceholder: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1169 | P1 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder CLI 명령에 연결한다 | 완료 기준: GoogleDriveConnectorPlaceholder: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1170 | P2 | ingest/GoogleDriveConnectorPlaceholder | GoogleDriveConnectorPlaceholder 문서 예제를 작성한다 | 완료 기준: GoogleDriveConnectorPlaceholder: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1171 | P0 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder input contract를 정의한다 | 완료 기준: SlackConnectorPlaceholder: typed API가 있다
+
+- [x] ATW-1172 | P0 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder happy path fixture를 추가한다 | 완료 기준: SlackConnectorPlaceholder: fixture ingest가 통과한다
+
+- [x] ATW-1173 | P0 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder source record 생성에 연결한다 | 완료 기준: SlackConnectorPlaceholder: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1174 | P0 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder chunk 생성에 연결한다 | 완료 기준: SlackConnectorPlaceholder: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1175 | P0 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder ACL/sensitivity 초기값을 적용한다 | 완료 기준: SlackConnectorPlaceholder: 권한 없는 검색이 차단된다
+
+- [x] ATW-1176 | P1 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder dedupe/hash 정책을 적용한다 | 완료 기준: SlackConnectorPlaceholder: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1177 | P1 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder error handling을 구현한다 | 완료 기준: SlackConnectorPlaceholder: parser failure가 typed error를 낸다
+
+- [x] ATW-1178 | P1 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder audit event를 남긴다 | 완료 기준: SlackConnectorPlaceholder: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1179 | P1 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder CLI 명령에 연결한다 | 완료 기준: SlackConnectorPlaceholder: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1180 | P2 | ingest/SlackConnectorPlaceholder | SlackConnectorPlaceholder 문서 예제를 작성한다 | 완료 기준: SlackConnectorPlaceholder: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1181 | P0 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder input contract를 정의한다 | 완료 기준: NotionConnectorPlaceholder: typed API가 있다
+
+- [x] ATW-1182 | P0 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder happy path fixture를 추가한다 | 완료 기준: NotionConnectorPlaceholder: fixture ingest가 통과한다
+
+- [x] ATW-1183 | P0 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder source record 생성에 연결한다 | 완료 기준: NotionConnectorPlaceholder: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1184 | P0 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder chunk 생성에 연결한다 | 완료 기준: NotionConnectorPlaceholder: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1185 | P0 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder ACL/sensitivity 초기값을 적용한다 | 완료 기준: NotionConnectorPlaceholder: 권한 없는 검색이 차단된다
+
+- [x] ATW-1186 | P1 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder dedupe/hash 정책을 적용한다 | 완료 기준: NotionConnectorPlaceholder: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1187 | P1 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder error handling을 구현한다 | 완료 기준: NotionConnectorPlaceholder: parser failure가 typed error를 낸다
+
+- [x] ATW-1188 | P1 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder audit event를 남긴다 | 완료 기준: NotionConnectorPlaceholder: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1189 | P1 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder CLI 명령에 연결한다 | 완료 기준: NotionConnectorPlaceholder: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1190 | P2 | ingest/NotionConnectorPlaceholder | NotionConnectorPlaceholder 문서 예제를 작성한다 | 완료 기준: NotionConnectorPlaceholder: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1191 | P0 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder input contract를 정의한다 | 완료 기준: Microsoft365ConnectorPlaceholder: typed API가 있다
+
+- [x] ATW-1192 | P0 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder happy path fixture를 추가한다 | 완료 기준: Microsoft365ConnectorPlaceholder: fixture ingest가 통과한다
+
+- [x] ATW-1193 | P0 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder source record 생성에 연결한다 | 완료 기준: Microsoft365ConnectorPlaceholder: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1194 | P0 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder chunk 생성에 연결한다 | 완료 기준: Microsoft365ConnectorPlaceholder: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1195 | P0 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder ACL/sensitivity 초기값을 적용한다 | 완료 기준: Microsoft365ConnectorPlaceholder: 권한 없는 검색이 차단된다
+
+- [x] ATW-1196 | P1 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder dedupe/hash 정책을 적용한다 | 완료 기준: Microsoft365ConnectorPlaceholder: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1197 | P1 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder error handling을 구현한다 | 완료 기준: Microsoft365ConnectorPlaceholder: parser failure가 typed error를 낸다
+
+- [x] ATW-1198 | P1 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder audit event를 남긴다 | 완료 기준: Microsoft365ConnectorPlaceholder: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1199 | P1 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder CLI 명령에 연결한다 | 완료 기준: Microsoft365ConnectorPlaceholder: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1200 | P2 | ingest/Microsoft365ConnectorPlaceholder | Microsoft365ConnectorPlaceholder 문서 예제를 작성한다 | 완료 기준: Microsoft365ConnectorPlaceholder: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1201 | P0 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder input contract를 정의한다 | 완료 기준: ConfluenceConnectorPlaceholder: typed API가 있다
+
+- [x] ATW-1202 | P0 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder happy path fixture를 추가한다 | 완료 기준: ConfluenceConnectorPlaceholder: fixture ingest가 통과한다
+
+- [x] ATW-1203 | P0 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder source record 생성에 연결한다 | 완료 기준: ConfluenceConnectorPlaceholder: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1204 | P0 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder chunk 생성에 연결한다 | 완료 기준: ConfluenceConnectorPlaceholder: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1205 | P0 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder ACL/sensitivity 초기값을 적용한다 | 완료 기준: ConfluenceConnectorPlaceholder: 권한 없는 검색이 차단된다
+
+- [x] ATW-1206 | P1 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder dedupe/hash 정책을 적용한다 | 완료 기준: ConfluenceConnectorPlaceholder: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1207 | P1 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder error handling을 구현한다 | 완료 기준: ConfluenceConnectorPlaceholder: parser failure가 typed error를 낸다
+
+- [x] ATW-1208 | P1 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder audit event를 남긴다 | 완료 기준: ConfluenceConnectorPlaceholder: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1209 | P1 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder CLI 명령에 연결한다 | 완료 기준: ConfluenceConnectorPlaceholder: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1210 | P2 | ingest/ConfluenceConnectorPlaceholder | ConfluenceConnectorPlaceholder 문서 예제를 작성한다 | 완료 기준: ConfluenceConnectorPlaceholder: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1211 | P0 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder input contract를 정의한다 | 완료 기준: JiraConnectorPlaceholder: typed API가 있다
+
+- [x] ATW-1212 | P0 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder happy path fixture를 추가한다 | 완료 기준: JiraConnectorPlaceholder: fixture ingest가 통과한다
+
+- [x] ATW-1213 | P0 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder source record 생성에 연결한다 | 완료 기준: JiraConnectorPlaceholder: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1214 | P0 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder chunk 생성에 연결한다 | 완료 기준: JiraConnectorPlaceholder: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1215 | P0 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder ACL/sensitivity 초기값을 적용한다 | 완료 기준: JiraConnectorPlaceholder: 권한 없는 검색이 차단된다
+
+- [x] ATW-1216 | P1 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder dedupe/hash 정책을 적용한다 | 완료 기준: JiraConnectorPlaceholder: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1217 | P1 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder error handling을 구현한다 | 완료 기준: JiraConnectorPlaceholder: parser failure가 typed error를 낸다
+
+- [x] ATW-1218 | P1 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder audit event를 남긴다 | 완료 기준: JiraConnectorPlaceholder: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1219 | P1 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder CLI 명령에 연결한다 | 완료 기준: JiraConnectorPlaceholder: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1220 | P2 | ingest/JiraConnectorPlaceholder | JiraConnectorPlaceholder 문서 예제를 작성한다 | 완료 기준: JiraConnectorPlaceholder: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1221 | P0 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder input contract를 정의한다 | 완료 기준: ZendeskConnectorPlaceholder: typed API가 있다
+
+- [x] ATW-1222 | P0 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder happy path fixture를 추가한다 | 완료 기준: ZendeskConnectorPlaceholder: fixture ingest가 통과한다
+
+- [x] ATW-1223 | P0 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder source record 생성에 연결한다 | 완료 기준: ZendeskConnectorPlaceholder: SourceRecord가 SQLite에 저장된다
+
+- [x] ATW-1224 | P0 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder chunk 생성에 연결한다 | 완료 기준: ZendeskConnectorPlaceholder: ChunkRecord와 chunks table이 채워진다
+
+- [x] ATW-1225 | P0 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder ACL/sensitivity 초기값을 적용한다 | 완료 기준: ZendeskConnectorPlaceholder: 권한 없는 검색이 차단된다
+
+- [x] ATW-1226 | P1 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder dedupe/hash 정책을 적용한다 | 완료 기준: ZendeskConnectorPlaceholder: 동일 content hash가 중복 처리된다
+
+- [x] ATW-1227 | P1 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder error handling을 구현한다 | 완료 기준: ZendeskConnectorPlaceholder: parser failure가 typed error를 낸다
+
+- [x] ATW-1228 | P1 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder audit event를 남긴다 | 완료 기준: ZendeskConnectorPlaceholder: ingest 이벤트가 audit에 기록된다
+
+- [x] ATW-1229 | P1 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder CLI 명령에 연결한다 | 완료 기준: ZendeskConnectorPlaceholder: awiki ingest smoke test가 통과한다
+
+- [x] ATW-1230 | P2 | ingest/ZendeskConnectorPlaceholder | ZendeskConnectorPlaceholder 문서 예제를 작성한다 | 완료 기준: ZendeskConnectorPlaceholder: docs/ingestion.md에 예제가 있다
+
+- [x] ATW-1231 | P0 | retrieve-index/QueryNormalizer | QueryNormalizer typed API를 정의한다 | 완료 기준: QueryNormalizer: public contract가 있다
+
+- [x] ATW-1232 | P0 | retrieve-index/QueryNormalizer | QueryNormalizer unit test를 작성한다 | 완료 기준: QueryNormalizer: 기본 테스트가 통과한다
+
+- [x] ATW-1233 | P0 | retrieve-index/QueryNormalizer | QueryNormalizer 권한 필터와 연결한다 | 완료 기준: QueryNormalizer: unauthorized record가 빠진다
+
+- [x] ATW-1234 | P0 | retrieve-index/QueryNormalizer | QueryNormalizer audit에 연결한다 | 완료 기준: QueryNormalizer: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1235 | P1 | retrieve-index/QueryNormalizer | QueryNormalizer freshness/conflict marker를 연결한다 | 완료 기준: QueryNormalizer: context pack에 marker가 포함된다
+
+- [x] ATW-1236 | P1 | retrieve-index/QueryNormalizer | QueryNormalizer golden fixture를 추가한다 | 완료 기준: QueryNormalizer: snapshot이 안정적이다
+
+- [x] ATW-1237 | P1 | retrieve-index/QueryNormalizer | QueryNormalizer performance budget을 측정한다 | 완료 기준: QueryNormalizer: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1238 | P2 | retrieve-index/QueryNormalizer | QueryNormalizer 문서 예제를 작성한다 | 완료 기준: QueryNormalizer: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1239 | P0 | retrieve-index/FtsSearch | FtsSearch typed API를 정의한다 | 완료 기준: FtsSearch: public contract가 있다
+
+- [x] ATW-1240 | P0 | retrieve-index/FtsSearch | FtsSearch unit test를 작성한다 | 완료 기준: FtsSearch: 기본 테스트가 통과한다
+
+- [x] ATW-1241 | P0 | retrieve-index/FtsSearch | FtsSearch 권한 필터와 연결한다 | 완료 기준: FtsSearch: unauthorized record가 빠진다
+
+- [x] ATW-1242 | P0 | retrieve-index/FtsSearch | FtsSearch audit에 연결한다 | 완료 기준: FtsSearch: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1243 | P1 | retrieve-index/FtsSearch | FtsSearch freshness/conflict marker를 연결한다 | 완료 기준: FtsSearch: context pack에 marker가 포함된다
+
+- [x] ATW-1244 | P1 | retrieve-index/FtsSearch | FtsSearch golden fixture를 추가한다 | 완료 기준: FtsSearch: snapshot이 안정적이다
+
+- [x] ATW-1245 | P1 | retrieve-index/FtsSearch | FtsSearch performance budget을 측정한다 | 완료 기준: FtsSearch: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1246 | P2 | retrieve-index/FtsSearch | FtsSearch 문서 예제를 작성한다 | 완료 기준: FtsSearch: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1247 | P0 | retrieve-index/HybridSearchPlanner | HybridSearchPlanner typed API를 정의한다 | 완료 기준: HybridSearchPlanner: public contract가 있다
+
+- [x] ATW-1248 | P0 | retrieve-index/HybridSearchPlanner | HybridSearchPlanner unit test를 작성한다 | 완료 기준: HybridSearchPlanner: 기본 테스트가 통과한다
+
+- [x] ATW-1249 | P0 | retrieve-index/HybridSearchPlanner | HybridSearchPlanner 권한 필터와 연결한다 | 완료 기준: HybridSearchPlanner: unauthorized record가 빠진다
+
+- [x] ATW-1250 | P0 | retrieve-index/HybridSearchPlanner | HybridSearchPlanner audit에 연결한다 | 완료 기준: HybridSearchPlanner: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1251 | P1 | retrieve-index/HybridSearchPlanner | HybridSearchPlanner freshness/conflict marker를 연결한다 | 완료 기준: HybridSearchPlanner: context pack에 marker가 포함된다
+
+- [x] ATW-1252 | P1 | retrieve-index/HybridSearchPlanner | HybridSearchPlanner golden fixture를 추가한다 | 완료 기준: HybridSearchPlanner: snapshot이 안정적이다
+
+- [x] ATW-1253 | P1 | retrieve-index/HybridSearchPlanner | HybridSearchPlanner performance budget을 측정한다 | 완료 기준: HybridSearchPlanner: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1254 | P2 | retrieve-index/HybridSearchPlanner | HybridSearchPlanner 문서 예제를 작성한다 | 완료 기준: HybridSearchPlanner: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1255 | P0 | retrieve-index/VectorAdapterContract | VectorAdapterContract typed API를 정의한다 | 완료 기준: VectorAdapterContract: public contract가 있다
+
+- [x] ATW-1256 | P0 | retrieve-index/VectorAdapterContract | VectorAdapterContract unit test를 작성한다 | 완료 기준: VectorAdapterContract: 기본 테스트가 통과한다
+
+- [x] ATW-1257 | P0 | retrieve-index/VectorAdapterContract | VectorAdapterContract 권한 필터와 연결한다 | 완료 기준: VectorAdapterContract: unauthorized record가 빠진다
+
+- [x] ATW-1258 | P0 | retrieve-index/VectorAdapterContract | VectorAdapterContract audit에 연결한다 | 완료 기준: VectorAdapterContract: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1259 | P1 | retrieve-index/VectorAdapterContract | VectorAdapterContract freshness/conflict marker를 연결한다 | 완료 기준: VectorAdapterContract: context pack에 marker가 포함된다
+
+- [x] ATW-1260 | P1 | retrieve-index/VectorAdapterContract | VectorAdapterContract golden fixture를 추가한다 | 완료 기준: VectorAdapterContract: snapshot이 안정적이다
+
+- [x] ATW-1261 | P1 | retrieve-index/VectorAdapterContract | VectorAdapterContract performance budget을 측정한다 | 완료 기준: VectorAdapterContract: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1262 | P2 | retrieve-index/VectorAdapterContract | VectorAdapterContract 문서 예제를 작성한다 | 완료 기준: VectorAdapterContract: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1263 | P0 | retrieve-index/EmbeddingProviderContract | EmbeddingProviderContract typed API를 정의한다 | 완료 기준: EmbeddingProviderContract: public contract가 있다
+
+- [x] ATW-1264 | P0 | retrieve-index/EmbeddingProviderContract | EmbeddingProviderContract unit test를 작성한다 | 완료 기준: EmbeddingProviderContract: 기본 테스트가 통과한다
+
+- [x] ATW-1265 | P0 | retrieve-index/EmbeddingProviderContract | EmbeddingProviderContract 권한 필터와 연결한다 | 완료 기준: EmbeddingProviderContract: unauthorized record가 빠진다
+
+- [x] ATW-1266 | P0 | retrieve-index/EmbeddingProviderContract | EmbeddingProviderContract audit에 연결한다 | 완료 기준: EmbeddingProviderContract: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1267 | P1 | retrieve-index/EmbeddingProviderContract | EmbeddingProviderContract freshness/conflict marker를 연결한다 | 완료 기준: EmbeddingProviderContract: context pack에 marker가 포함된다
+
+- [x] ATW-1268 | P1 | retrieve-index/EmbeddingProviderContract | EmbeddingProviderContract golden fixture를 추가한다 | 완료 기준: EmbeddingProviderContract: snapshot이 안정적이다
+
+- [x] ATW-1269 | P1 | retrieve-index/EmbeddingProviderContract | EmbeddingProviderContract performance budget을 측정한다 | 완료 기준: EmbeddingProviderContract: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1270 | P2 | retrieve-index/EmbeddingProviderContract | EmbeddingProviderContract 문서 예제를 작성한다 | 완료 기준: EmbeddingProviderContract: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1271 | P0 | retrieve-index/EmbeddingCache | EmbeddingCache typed API를 정의한다 | 완료 기준: EmbeddingCache: public contract가 있다
+
+- [x] ATW-1272 | P0 | retrieve-index/EmbeddingCache | EmbeddingCache unit test를 작성한다 | 완료 기준: EmbeddingCache: 기본 테스트가 통과한다
+
+- [x] ATW-1273 | P0 | retrieve-index/EmbeddingCache | EmbeddingCache 권한 필터와 연결한다 | 완료 기준: EmbeddingCache: unauthorized record가 빠진다
+
+- [x] ATW-1274 | P0 | retrieve-index/EmbeddingCache | EmbeddingCache audit에 연결한다 | 완료 기준: EmbeddingCache: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1275 | P1 | retrieve-index/EmbeddingCache | EmbeddingCache freshness/conflict marker를 연결한다 | 완료 기준: EmbeddingCache: context pack에 marker가 포함된다
+
+- [x] ATW-1276 | P1 | retrieve-index/EmbeddingCache | EmbeddingCache golden fixture를 추가한다 | 완료 기준: EmbeddingCache: snapshot이 안정적이다
+
+- [x] ATW-1277 | P1 | retrieve-index/EmbeddingCache | EmbeddingCache performance budget을 측정한다 | 완료 기준: EmbeddingCache: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1278 | P2 | retrieve-index/EmbeddingCache | EmbeddingCache 문서 예제를 작성한다 | 완료 기준: EmbeddingCache: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1279 | P0 | retrieve-index/GraphExpansion | GraphExpansion typed API를 정의한다 | 완료 기준: GraphExpansion: public contract가 있다
+
+- [x] ATW-1280 | P0 | retrieve-index/GraphExpansion | GraphExpansion unit test를 작성한다 | 완료 기준: GraphExpansion: 기본 테스트가 통과한다
+
+- [x] ATW-1281 | P0 | retrieve-index/GraphExpansion | GraphExpansion 권한 필터와 연결한다 | 완료 기준: GraphExpansion: unauthorized record가 빠진다
+
+- [x] ATW-1282 | P0 | retrieve-index/GraphExpansion | GraphExpansion audit에 연결한다 | 완료 기준: GraphExpansion: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1283 | P1 | retrieve-index/GraphExpansion | GraphExpansion freshness/conflict marker를 연결한다 | 완료 기준: GraphExpansion: context pack에 marker가 포함된다
+
+- [x] ATW-1284 | P1 | retrieve-index/GraphExpansion | GraphExpansion golden fixture를 추가한다 | 완료 기준: GraphExpansion: snapshot이 안정적이다
+
+- [x] ATW-1285 | P1 | retrieve-index/GraphExpansion | GraphExpansion performance budget을 측정한다 | 완료 기준: GraphExpansion: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1286 | P2 | retrieve-index/GraphExpansion | GraphExpansion 문서 예제를 작성한다 | 완료 기준: GraphExpansion: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1287 | P0 | retrieve-index/EntityResolver | EntityResolver typed API를 정의한다 | 완료 기준: EntityResolver: public contract가 있다
+
+- [x] ATW-1288 | P0 | retrieve-index/EntityResolver | EntityResolver unit test를 작성한다 | 완료 기준: EntityResolver: 기본 테스트가 통과한다
+
+- [x] ATW-1289 | P0 | retrieve-index/EntityResolver | EntityResolver 권한 필터와 연결한다 | 완료 기준: EntityResolver: unauthorized record가 빠진다
+
+- [x] ATW-1290 | P0 | retrieve-index/EntityResolver | EntityResolver audit에 연결한다 | 완료 기준: EntityResolver: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1291 | P1 | retrieve-index/EntityResolver | EntityResolver freshness/conflict marker를 연결한다 | 완료 기준: EntityResolver: context pack에 marker가 포함된다
+
+- [x] ATW-1292 | P1 | retrieve-index/EntityResolver | EntityResolver golden fixture를 추가한다 | 완료 기준: EntityResolver: snapshot이 안정적이다
+
+- [x] ATW-1293 | P1 | retrieve-index/EntityResolver | EntityResolver performance budget을 측정한다 | 완료 기준: EntityResolver: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1294 | P2 | retrieve-index/EntityResolver | EntityResolver 문서 예제를 작성한다 | 완료 기준: EntityResolver: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1295 | P0 | retrieve-index/OwnerResolver | OwnerResolver typed API를 정의한다 | 완료 기준: OwnerResolver: public contract가 있다
+
+- [x] ATW-1296 | P0 | retrieve-index/OwnerResolver | OwnerResolver unit test를 작성한다 | 완료 기준: OwnerResolver: 기본 테스트가 통과한다
+
+- [x] ATW-1297 | P0 | retrieve-index/OwnerResolver | OwnerResolver 권한 필터와 연결한다 | 완료 기준: OwnerResolver: unauthorized record가 빠진다
+
+- [x] ATW-1298 | P0 | retrieve-index/OwnerResolver | OwnerResolver audit에 연결한다 | 완료 기준: OwnerResolver: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1299 | P1 | retrieve-index/OwnerResolver | OwnerResolver freshness/conflict marker를 연결한다 | 완료 기준: OwnerResolver: context pack에 marker가 포함된다
+
+- [x] ATW-1300 | P1 | retrieve-index/OwnerResolver | OwnerResolver golden fixture를 추가한다 | 완료 기준: OwnerResolver: snapshot이 안정적이다
+
+- [x] ATW-1301 | P1 | retrieve-index/OwnerResolver | OwnerResolver performance budget을 측정한다 | 완료 기준: OwnerResolver: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1302 | P2 | retrieve-index/OwnerResolver | OwnerResolver 문서 예제를 작성한다 | 완료 기준: OwnerResolver: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1303 | P0 | retrieve-index/FreshnessAnnotator | FreshnessAnnotator typed API를 정의한다 | 완료 기준: FreshnessAnnotator: public contract가 있다
+
+- [x] ATW-1304 | P0 | retrieve-index/FreshnessAnnotator | FreshnessAnnotator unit test를 작성한다 | 완료 기준: FreshnessAnnotator: 기본 테스트가 통과한다
+
+- [x] ATW-1305 | P0 | retrieve-index/FreshnessAnnotator | FreshnessAnnotator 권한 필터와 연결한다 | 완료 기준: FreshnessAnnotator: unauthorized record가 빠진다
+
+- [x] ATW-1306 | P0 | retrieve-index/FreshnessAnnotator | FreshnessAnnotator audit에 연결한다 | 완료 기준: FreshnessAnnotator: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1307 | P1 | retrieve-index/FreshnessAnnotator | FreshnessAnnotator freshness/conflict marker를 연결한다 | 완료 기준: FreshnessAnnotator: context pack에 marker가 포함된다
+
+- [x] ATW-1308 | P1 | retrieve-index/FreshnessAnnotator | FreshnessAnnotator golden fixture를 추가한다 | 완료 기준: FreshnessAnnotator: snapshot이 안정적이다
+
+- [x] ATW-1309 | P1 | retrieve-index/FreshnessAnnotator | FreshnessAnnotator performance budget을 측정한다 | 완료 기준: FreshnessAnnotator: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1310 | P2 | retrieve-index/FreshnessAnnotator | FreshnessAnnotator 문서 예제를 작성한다 | 완료 기준: FreshnessAnnotator: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1311 | P0 | retrieve-index/ConflictAnnotator | ConflictAnnotator typed API를 정의한다 | 완료 기준: ConflictAnnotator: public contract가 있다
+
+- [x] ATW-1312 | P0 | retrieve-index/ConflictAnnotator | ConflictAnnotator unit test를 작성한다 | 완료 기준: ConflictAnnotator: 기본 테스트가 통과한다
+
+- [x] ATW-1313 | P0 | retrieve-index/ConflictAnnotator | ConflictAnnotator 권한 필터와 연결한다 | 완료 기준: ConflictAnnotator: unauthorized record가 빠진다
+
+- [x] ATW-1314 | P0 | retrieve-index/ConflictAnnotator | ConflictAnnotator audit에 연결한다 | 완료 기준: ConflictAnnotator: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1315 | P1 | retrieve-index/ConflictAnnotator | ConflictAnnotator freshness/conflict marker를 연결한다 | 완료 기준: ConflictAnnotator: context pack에 marker가 포함된다
+
+- [x] ATW-1316 | P1 | retrieve-index/ConflictAnnotator | ConflictAnnotator golden fixture를 추가한다 | 완료 기준: ConflictAnnotator: snapshot이 안정적이다
+
+- [x] ATW-1317 | P1 | retrieve-index/ConflictAnnotator | ConflictAnnotator performance budget을 측정한다 | 완료 기준: ConflictAnnotator: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1318 | P2 | retrieve-index/ConflictAnnotator | ConflictAnnotator 문서 예제를 작성한다 | 완료 기준: ConflictAnnotator: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1319 | P0 | retrieve-index/PermissionFilteredRetriever | PermissionFilteredRetriever typed API를 정의한다 | 완료 기준: PermissionFilteredRetriever: public contract가 있다
+
+- [x] ATW-1320 | P0 | retrieve-index/PermissionFilteredRetriever | PermissionFilteredRetriever unit test를 작성한다 | 완료 기준: PermissionFilteredRetriever: 기본 테스트가 통과한다
+
+- [x] ATW-1321 | P0 | retrieve-index/PermissionFilteredRetriever | PermissionFilteredRetriever 권한 필터와 연결한다 | 완료 기준: PermissionFilteredRetriever: unauthorized record가 빠진다
+
+- [x] ATW-1322 | P0 | retrieve-index/PermissionFilteredRetriever | PermissionFilteredRetriever audit에 연결한다 | 완료 기준: PermissionFilteredRetriever: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1323 | P1 | retrieve-index/PermissionFilteredRetriever | PermissionFilteredRetriever freshness/conflict marker를 연결한다 | 완료 기준: PermissionFilteredRetriever: context pack에 marker가 포함된다
+
+- [x] ATW-1324 | P1 | retrieve-index/PermissionFilteredRetriever | PermissionFilteredRetriever golden fixture를 추가한다 | 완료 기준: PermissionFilteredRetriever: snapshot이 안정적이다
+
+- [x] ATW-1325 | P1 | retrieve-index/PermissionFilteredRetriever | PermissionFilteredRetriever performance budget을 측정한다 | 완료 기준: PermissionFilteredRetriever: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1326 | P2 | retrieve-index/PermissionFilteredRetriever | PermissionFilteredRetriever 문서 예제를 작성한다 | 완료 기준: PermissionFilteredRetriever: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1327 | P0 | retrieve-index/Reranker | Reranker typed API를 정의한다 | 완료 기준: Reranker: public contract가 있다
+
+- [x] ATW-1328 | P0 | retrieve-index/Reranker | Reranker unit test를 작성한다 | 완료 기준: Reranker: 기본 테스트가 통과한다
+
+- [x] ATW-1329 | P0 | retrieve-index/Reranker | Reranker 권한 필터와 연결한다 | 완료 기준: Reranker: unauthorized record가 빠진다
+
+- [x] ATW-1330 | P0 | retrieve-index/Reranker | Reranker audit에 연결한다 | 완료 기준: Reranker: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1331 | P1 | retrieve-index/Reranker | Reranker freshness/conflict marker를 연결한다 | 완료 기준: Reranker: context pack에 marker가 포함된다
+
+- [x] ATW-1332 | P1 | retrieve-index/Reranker | Reranker golden fixture를 추가한다 | 완료 기준: Reranker: snapshot이 안정적이다
+
+- [x] ATW-1333 | P1 | retrieve-index/Reranker | Reranker performance budget을 측정한다 | 완료 기준: Reranker: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1334 | P2 | retrieve-index/Reranker | Reranker 문서 예제를 작성한다 | 완료 기준: Reranker: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1335 | P0 | retrieve-index/CitationBuilder | CitationBuilder typed API를 정의한다 | 완료 기준: CitationBuilder: public contract가 있다
+
+- [x] ATW-1336 | P0 | retrieve-index/CitationBuilder | CitationBuilder unit test를 작성한다 | 완료 기준: CitationBuilder: 기본 테스트가 통과한다
+
+- [x] ATW-1337 | P0 | retrieve-index/CitationBuilder | CitationBuilder 권한 필터와 연결한다 | 완료 기준: CitationBuilder: unauthorized record가 빠진다
+
+- [x] ATW-1338 | P0 | retrieve-index/CitationBuilder | CitationBuilder audit에 연결한다 | 완료 기준: CitationBuilder: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1339 | P1 | retrieve-index/CitationBuilder | CitationBuilder freshness/conflict marker를 연결한다 | 완료 기준: CitationBuilder: context pack에 marker가 포함된다
+
+- [x] ATW-1340 | P1 | retrieve-index/CitationBuilder | CitationBuilder golden fixture를 추가한다 | 완료 기준: CitationBuilder: snapshot이 안정적이다
+
+- [x] ATW-1341 | P1 | retrieve-index/CitationBuilder | CitationBuilder performance budget을 측정한다 | 완료 기준: CitationBuilder: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1342 | P2 | retrieve-index/CitationBuilder | CitationBuilder 문서 예제를 작성한다 | 완료 기준: CitationBuilder: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1343 | P0 | retrieve-index/SourceLocatorResolver | SourceLocatorResolver typed API를 정의한다 | 완료 기준: SourceLocatorResolver: public contract가 있다
+
+- [x] ATW-1344 | P0 | retrieve-index/SourceLocatorResolver | SourceLocatorResolver unit test를 작성한다 | 완료 기준: SourceLocatorResolver: 기본 테스트가 통과한다
+
+- [x] ATW-1345 | P0 | retrieve-index/SourceLocatorResolver | SourceLocatorResolver 권한 필터와 연결한다 | 완료 기준: SourceLocatorResolver: unauthorized record가 빠진다
+
+- [x] ATW-1346 | P0 | retrieve-index/SourceLocatorResolver | SourceLocatorResolver audit에 연결한다 | 완료 기준: SourceLocatorResolver: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1347 | P1 | retrieve-index/SourceLocatorResolver | SourceLocatorResolver freshness/conflict marker를 연결한다 | 완료 기준: SourceLocatorResolver: context pack에 marker가 포함된다
+
+- [x] ATW-1348 | P1 | retrieve-index/SourceLocatorResolver | SourceLocatorResolver golden fixture를 추가한다 | 완료 기준: SourceLocatorResolver: snapshot이 안정적이다
+
+- [x] ATW-1349 | P1 | retrieve-index/SourceLocatorResolver | SourceLocatorResolver performance budget을 측정한다 | 완료 기준: SourceLocatorResolver: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1350 | P2 | retrieve-index/SourceLocatorResolver | SourceLocatorResolver 문서 예제를 작성한다 | 완료 기준: SourceLocatorResolver: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1351 | P0 | retrieve-index/ContextPackBuilder | ContextPackBuilder typed API를 정의한다 | 완료 기준: ContextPackBuilder: public contract가 있다
+
+- [x] ATW-1352 | P0 | retrieve-index/ContextPackBuilder | ContextPackBuilder unit test를 작성한다 | 완료 기준: ContextPackBuilder: 기본 테스트가 통과한다
+
+- [x] ATW-1353 | P0 | retrieve-index/ContextPackBuilder | ContextPackBuilder 권한 필터와 연결한다 | 완료 기준: ContextPackBuilder: unauthorized record가 빠진다
+
+- [x] ATW-1354 | P0 | retrieve-index/ContextPackBuilder | ContextPackBuilder audit에 연결한다 | 완료 기준: ContextPackBuilder: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1355 | P1 | retrieve-index/ContextPackBuilder | ContextPackBuilder freshness/conflict marker를 연결한다 | 완료 기준: ContextPackBuilder: context pack에 marker가 포함된다
+
+- [x] ATW-1356 | P1 | retrieve-index/ContextPackBuilder | ContextPackBuilder golden fixture를 추가한다 | 완료 기준: ContextPackBuilder: snapshot이 안정적이다
+
+- [x] ATW-1357 | P1 | retrieve-index/ContextPackBuilder | ContextPackBuilder performance budget을 측정한다 | 완료 기준: ContextPackBuilder: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1358 | P2 | retrieve-index/ContextPackBuilder | ContextPackBuilder 문서 예제를 작성한다 | 완료 기준: ContextPackBuilder: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1359 | P0 | retrieve-index/ContextPackCompressor | ContextPackCompressor typed API를 정의한다 | 완료 기준: ContextPackCompressor: public contract가 있다
+
+- [x] ATW-1360 | P0 | retrieve-index/ContextPackCompressor | ContextPackCompressor unit test를 작성한다 | 완료 기준: ContextPackCompressor: 기본 테스트가 통과한다
+
+- [x] ATW-1361 | P0 | retrieve-index/ContextPackCompressor | ContextPackCompressor 권한 필터와 연결한다 | 완료 기준: ContextPackCompressor: unauthorized record가 빠진다
+
+- [x] ATW-1362 | P0 | retrieve-index/ContextPackCompressor | ContextPackCompressor audit에 연결한다 | 완료 기준: ContextPackCompressor: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1363 | P1 | retrieve-index/ContextPackCompressor | ContextPackCompressor freshness/conflict marker를 연결한다 | 완료 기준: ContextPackCompressor: context pack에 marker가 포함된다
+
+- [x] ATW-1364 | P1 | retrieve-index/ContextPackCompressor | ContextPackCompressor golden fixture를 추가한다 | 완료 기준: ContextPackCompressor: snapshot이 안정적이다
+
+- [x] ATW-1365 | P1 | retrieve-index/ContextPackCompressor | ContextPackCompressor performance budget을 측정한다 | 완료 기준: ContextPackCompressor: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1366 | P2 | retrieve-index/ContextPackCompressor | ContextPackCompressor 문서 예제를 작성한다 | 완료 기준: ContextPackCompressor: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1367 | P0 | retrieve-index/ContextPackCache | ContextPackCache typed API를 정의한다 | 완료 기준: ContextPackCache: public contract가 있다
+
+- [x] ATW-1368 | P0 | retrieve-index/ContextPackCache | ContextPackCache unit test를 작성한다 | 완료 기준: ContextPackCache: 기본 테스트가 통과한다
+
+- [x] ATW-1369 | P0 | retrieve-index/ContextPackCache | ContextPackCache 권한 필터와 연결한다 | 완료 기준: ContextPackCache: unauthorized record가 빠진다
+
+- [x] ATW-1370 | P0 | retrieve-index/ContextPackCache | ContextPackCache audit에 연결한다 | 완료 기준: ContextPackCache: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1371 | P1 | retrieve-index/ContextPackCache | ContextPackCache freshness/conflict marker를 연결한다 | 완료 기준: ContextPackCache: context pack에 marker가 포함된다
+
+- [x] ATW-1372 | P1 | retrieve-index/ContextPackCache | ContextPackCache golden fixture를 추가한다 | 완료 기준: ContextPackCache: snapshot이 안정적이다
+
+- [x] ATW-1373 | P1 | retrieve-index/ContextPackCache | ContextPackCache performance budget을 측정한다 | 완료 기준: ContextPackCache: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1374 | P2 | retrieve-index/ContextPackCache | ContextPackCache 문서 예제를 작성한다 | 완료 기준: ContextPackCache: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1375 | P0 | retrieve-index/SearchExplain | SearchExplain typed API를 정의한다 | 완료 기준: SearchExplain: public contract가 있다
+
+- [x] ATW-1376 | P0 | retrieve-index/SearchExplain | SearchExplain unit test를 작성한다 | 완료 기준: SearchExplain: 기본 테스트가 통과한다
+
+- [x] ATW-1377 | P0 | retrieve-index/SearchExplain | SearchExplain 권한 필터와 연결한다 | 완료 기준: SearchExplain: unauthorized record가 빠진다
+
+- [x] ATW-1378 | P0 | retrieve-index/SearchExplain | SearchExplain audit에 연결한다 | 완료 기준: SearchExplain: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1379 | P1 | retrieve-index/SearchExplain | SearchExplain freshness/conflict marker를 연결한다 | 완료 기준: SearchExplain: context pack에 marker가 포함된다
+
+- [x] ATW-1380 | P1 | retrieve-index/SearchExplain | SearchExplain golden fixture를 추가한다 | 완료 기준: SearchExplain: snapshot이 안정적이다
+
+- [x] ATW-1381 | P1 | retrieve-index/SearchExplain | SearchExplain performance budget을 측정한다 | 완료 기준: SearchExplain: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1382 | P2 | retrieve-index/SearchExplain | SearchExplain 문서 예제를 작성한다 | 완료 기준: SearchExplain: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1383 | P0 | retrieve-index/NoResultPolicy | NoResultPolicy typed API를 정의한다 | 완료 기준: NoResultPolicy: public contract가 있다
+
+- [x] ATW-1384 | P0 | retrieve-index/NoResultPolicy | NoResultPolicy unit test를 작성한다 | 완료 기준: NoResultPolicy: 기본 테스트가 통과한다
+
+- [x] ATW-1385 | P0 | retrieve-index/NoResultPolicy | NoResultPolicy 권한 필터와 연결한다 | 완료 기준: NoResultPolicy: unauthorized record가 빠진다
+
+- [x] ATW-1386 | P0 | retrieve-index/NoResultPolicy | NoResultPolicy audit에 연결한다 | 완료 기준: NoResultPolicy: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1387 | P1 | retrieve-index/NoResultPolicy | NoResultPolicy freshness/conflict marker를 연결한다 | 완료 기준: NoResultPolicy: context pack에 marker가 포함된다
+
+- [x] ATW-1388 | P1 | retrieve-index/NoResultPolicy | NoResultPolicy golden fixture를 추가한다 | 완료 기준: NoResultPolicy: snapshot이 안정적이다
+
+- [x] ATW-1389 | P1 | retrieve-index/NoResultPolicy | NoResultPolicy performance budget을 측정한다 | 완료 기준: NoResultPolicy: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1390 | P2 | retrieve-index/NoResultPolicy | NoResultPolicy 문서 예제를 작성한다 | 완료 기준: NoResultPolicy: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1391 | P0 | retrieve-index/DeniedResultPolicy | DeniedResultPolicy typed API를 정의한다 | 완료 기준: DeniedResultPolicy: public contract가 있다
+
+- [x] ATW-1392 | P0 | retrieve-index/DeniedResultPolicy | DeniedResultPolicy unit test를 작성한다 | 완료 기준: DeniedResultPolicy: 기본 테스트가 통과한다
+
+- [x] ATW-1393 | P0 | retrieve-index/DeniedResultPolicy | DeniedResultPolicy 권한 필터와 연결한다 | 완료 기준: DeniedResultPolicy: unauthorized record가 빠진다
+
+- [x] ATW-1394 | P0 | retrieve-index/DeniedResultPolicy | DeniedResultPolicy audit에 연결한다 | 완료 기준: DeniedResultPolicy: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1395 | P1 | retrieve-index/DeniedResultPolicy | DeniedResultPolicy freshness/conflict marker를 연결한다 | 완료 기준: DeniedResultPolicy: context pack에 marker가 포함된다
+
+- [x] ATW-1396 | P1 | retrieve-index/DeniedResultPolicy | DeniedResultPolicy golden fixture를 추가한다 | 완료 기준: DeniedResultPolicy: snapshot이 안정적이다
+
+- [x] ATW-1397 | P1 | retrieve-index/DeniedResultPolicy | DeniedResultPolicy performance budget을 측정한다 | 완료 기준: DeniedResultPolicy: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1398 | P2 | retrieve-index/DeniedResultPolicy | DeniedResultPolicy 문서 예제를 작성한다 | 완료 기준: DeniedResultPolicy: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1399 | P0 | retrieve-index/RetrievalAudit | RetrievalAudit typed API를 정의한다 | 완료 기준: RetrievalAudit: public contract가 있다
+
+- [x] ATW-1400 | P0 | retrieve-index/RetrievalAudit | RetrievalAudit unit test를 작성한다 | 완료 기준: RetrievalAudit: 기본 테스트가 통과한다
+
+- [x] ATW-1401 | P0 | retrieve-index/RetrievalAudit | RetrievalAudit 권한 필터와 연결한다 | 완료 기준: RetrievalAudit: unauthorized record가 빠진다
+
+- [x] ATW-1402 | P0 | retrieve-index/RetrievalAudit | RetrievalAudit audit에 연결한다 | 완료 기준: RetrievalAudit: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1403 | P1 | retrieve-index/RetrievalAudit | RetrievalAudit freshness/conflict marker를 연결한다 | 완료 기준: RetrievalAudit: context pack에 marker가 포함된다
+
+- [x] ATW-1404 | P1 | retrieve-index/RetrievalAudit | RetrievalAudit golden fixture를 추가한다 | 완료 기준: RetrievalAudit: snapshot이 안정적이다
+
+- [x] ATW-1405 | P1 | retrieve-index/RetrievalAudit | RetrievalAudit performance budget을 측정한다 | 완료 기준: RetrievalAudit: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1406 | P2 | retrieve-index/RetrievalAudit | RetrievalAudit 문서 예제를 작성한다 | 완료 기준: RetrievalAudit: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1407 | P0 | retrieve-index/RetrievalEval | RetrievalEval typed API를 정의한다 | 완료 기준: RetrievalEval: public contract가 있다
+
+- [x] ATW-1408 | P0 | retrieve-index/RetrievalEval | RetrievalEval unit test를 작성한다 | 완료 기준: RetrievalEval: 기본 테스트가 통과한다
+
+- [x] ATW-1409 | P0 | retrieve-index/RetrievalEval | RetrievalEval 권한 필터와 연결한다 | 완료 기준: RetrievalEval: unauthorized record가 빠진다
+
+- [x] ATW-1410 | P0 | retrieve-index/RetrievalEval | RetrievalEval audit에 연결한다 | 완료 기준: RetrievalEval: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1411 | P1 | retrieve-index/RetrievalEval | RetrievalEval freshness/conflict marker를 연결한다 | 완료 기준: RetrievalEval: context pack에 marker가 포함된다
+
+- [x] ATW-1412 | P1 | retrieve-index/RetrievalEval | RetrievalEval golden fixture를 추가한다 | 완료 기준: RetrievalEval: snapshot이 안정적이다
+
+- [x] ATW-1413 | P1 | retrieve-index/RetrievalEval | RetrievalEval performance budget을 측정한다 | 완료 기준: RetrievalEval: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1414 | P2 | retrieve-index/RetrievalEval | RetrievalEval 문서 예제를 작성한다 | 완료 기준: RetrievalEval: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1415 | P0 | retrieve-index/RecallPrecisionMetrics | RecallPrecisionMetrics typed API를 정의한다 | 완료 기준: RecallPrecisionMetrics: public contract가 있다
+
+- [x] ATW-1416 | P0 | retrieve-index/RecallPrecisionMetrics | RecallPrecisionMetrics unit test를 작성한다 | 완료 기준: RecallPrecisionMetrics: 기본 테스트가 통과한다
+
+- [x] ATW-1417 | P0 | retrieve-index/RecallPrecisionMetrics | RecallPrecisionMetrics 권한 필터와 연결한다 | 완료 기준: RecallPrecisionMetrics: unauthorized record가 빠진다
+
+- [x] ATW-1418 | P0 | retrieve-index/RecallPrecisionMetrics | RecallPrecisionMetrics audit에 연결한다 | 완료 기준: RecallPrecisionMetrics: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1419 | P1 | retrieve-index/RecallPrecisionMetrics | RecallPrecisionMetrics freshness/conflict marker를 연결한다 | 완료 기준: RecallPrecisionMetrics: context pack에 marker가 포함된다
+
+- [x] ATW-1420 | P1 | retrieve-index/RecallPrecisionMetrics | RecallPrecisionMetrics golden fixture를 추가한다 | 완료 기준: RecallPrecisionMetrics: snapshot이 안정적이다
+
+- [x] ATW-1421 | P1 | retrieve-index/RecallPrecisionMetrics | RecallPrecisionMetrics performance budget을 측정한다 | 완료 기준: RecallPrecisionMetrics: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1422 | P2 | retrieve-index/RecallPrecisionMetrics | RecallPrecisionMetrics 문서 예제를 작성한다 | 완료 기준: RecallPrecisionMetrics: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1423 | P0 | retrieve-index/KoreanSearchFixture | KoreanSearchFixture typed API를 정의한다 | 완료 기준: KoreanSearchFixture: public contract가 있다
+
+- [x] ATW-1424 | P0 | retrieve-index/KoreanSearchFixture | KoreanSearchFixture unit test를 작성한다 | 완료 기준: KoreanSearchFixture: 기본 테스트가 통과한다
+
+- [x] ATW-1425 | P0 | retrieve-index/KoreanSearchFixture | KoreanSearchFixture 권한 필터와 연결한다 | 완료 기준: KoreanSearchFixture: unauthorized record가 빠진다
+
+- [x] ATW-1426 | P0 | retrieve-index/KoreanSearchFixture | KoreanSearchFixture audit에 연결한다 | 완료 기준: KoreanSearchFixture: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1427 | P1 | retrieve-index/KoreanSearchFixture | KoreanSearchFixture freshness/conflict marker를 연결한다 | 완료 기준: KoreanSearchFixture: context pack에 marker가 포함된다
+
+- [x] ATW-1428 | P1 | retrieve-index/KoreanSearchFixture | KoreanSearchFixture golden fixture를 추가한다 | 완료 기준: KoreanSearchFixture: snapshot이 안정적이다
+
+- [x] ATW-1429 | P1 | retrieve-index/KoreanSearchFixture | KoreanSearchFixture performance budget을 측정한다 | 완료 기준: KoreanSearchFixture: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1430 | P2 | retrieve-index/KoreanSearchFixture | KoreanSearchFixture 문서 예제를 작성한다 | 완료 기준: KoreanSearchFixture: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1431 | P0 | retrieve-index/EnglishSearchFixture | EnglishSearchFixture typed API를 정의한다 | 완료 기준: EnglishSearchFixture: public contract가 있다
+
+- [x] ATW-1432 | P0 | retrieve-index/EnglishSearchFixture | EnglishSearchFixture unit test를 작성한다 | 완료 기준: EnglishSearchFixture: 기본 테스트가 통과한다
+
+- [x] ATW-1433 | P0 | retrieve-index/EnglishSearchFixture | EnglishSearchFixture 권한 필터와 연결한다 | 완료 기준: EnglishSearchFixture: unauthorized record가 빠진다
+
+- [x] ATW-1434 | P0 | retrieve-index/EnglishSearchFixture | EnglishSearchFixture audit에 연결한다 | 완료 기준: EnglishSearchFixture: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1435 | P1 | retrieve-index/EnglishSearchFixture | EnglishSearchFixture freshness/conflict marker를 연결한다 | 완료 기준: EnglishSearchFixture: context pack에 marker가 포함된다
+
+- [x] ATW-1436 | P1 | retrieve-index/EnglishSearchFixture | EnglishSearchFixture golden fixture를 추가한다 | 완료 기준: EnglishSearchFixture: snapshot이 안정적이다
+
+- [x] ATW-1437 | P1 | retrieve-index/EnglishSearchFixture | EnglishSearchFixture performance budget을 측정한다 | 완료 기준: EnglishSearchFixture: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1438 | P2 | retrieve-index/EnglishSearchFixture | EnglishSearchFixture 문서 예제를 작성한다 | 완료 기준: EnglishSearchFixture: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1439 | P0 | retrieve-index/MixedLanguageFixture | MixedLanguageFixture typed API를 정의한다 | 완료 기준: MixedLanguageFixture: public contract가 있다
+
+- [x] ATW-1440 | P0 | retrieve-index/MixedLanguageFixture | MixedLanguageFixture unit test를 작성한다 | 완료 기준: MixedLanguageFixture: 기본 테스트가 통과한다
+
+- [x] ATW-1441 | P0 | retrieve-index/MixedLanguageFixture | MixedLanguageFixture 권한 필터와 연결한다 | 완료 기준: MixedLanguageFixture: unauthorized record가 빠진다
+
+- [x] ATW-1442 | P0 | retrieve-index/MixedLanguageFixture | MixedLanguageFixture audit에 연결한다 | 완료 기준: MixedLanguageFixture: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1443 | P1 | retrieve-index/MixedLanguageFixture | MixedLanguageFixture freshness/conflict marker를 연결한다 | 완료 기준: MixedLanguageFixture: context pack에 marker가 포함된다
+
+- [x] ATW-1444 | P1 | retrieve-index/MixedLanguageFixture | MixedLanguageFixture golden fixture를 추가한다 | 완료 기준: MixedLanguageFixture: snapshot이 안정적이다
+
+- [x] ATW-1445 | P1 | retrieve-index/MixedLanguageFixture | MixedLanguageFixture performance budget을 측정한다 | 완료 기준: MixedLanguageFixture: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1446 | P2 | retrieve-index/MixedLanguageFixture | MixedLanguageFixture 문서 예제를 작성한다 | 완료 기준: MixedLanguageFixture: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1447 | P0 | retrieve-index/TypoTolerance | TypoTolerance typed API를 정의한다 | 완료 기준: TypoTolerance: public contract가 있다
+
+- [x] ATW-1448 | P0 | retrieve-index/TypoTolerance | TypoTolerance unit test를 작성한다 | 완료 기준: TypoTolerance: 기본 테스트가 통과한다
+
+- [x] ATW-1449 | P0 | retrieve-index/TypoTolerance | TypoTolerance 권한 필터와 연결한다 | 완료 기준: TypoTolerance: unauthorized record가 빠진다
+
+- [x] ATW-1450 | P0 | retrieve-index/TypoTolerance | TypoTolerance audit에 연결한다 | 완료 기준: TypoTolerance: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1451 | P1 | retrieve-index/TypoTolerance | TypoTolerance freshness/conflict marker를 연결한다 | 완료 기준: TypoTolerance: context pack에 marker가 포함된다
+
+- [x] ATW-1452 | P1 | retrieve-index/TypoTolerance | TypoTolerance golden fixture를 추가한다 | 완료 기준: TypoTolerance: snapshot이 안정적이다
+
+- [x] ATW-1453 | P1 | retrieve-index/TypoTolerance | TypoTolerance performance budget을 측정한다 | 완료 기준: TypoTolerance: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1454 | P2 | retrieve-index/TypoTolerance | TypoTolerance 문서 예제를 작성한다 | 완료 기준: TypoTolerance: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1455 | P0 | retrieve-index/SynonymRegistry | SynonymRegistry typed API를 정의한다 | 완료 기준: SynonymRegistry: public contract가 있다
+
+- [x] ATW-1456 | P0 | retrieve-index/SynonymRegistry | SynonymRegistry unit test를 작성한다 | 완료 기준: SynonymRegistry: 기본 테스트가 통과한다
+
+- [x] ATW-1457 | P0 | retrieve-index/SynonymRegistry | SynonymRegistry 권한 필터와 연결한다 | 완료 기준: SynonymRegistry: unauthorized record가 빠진다
+
+- [x] ATW-1458 | P0 | retrieve-index/SynonymRegistry | SynonymRegistry audit에 연결한다 | 완료 기준: SynonymRegistry: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1459 | P1 | retrieve-index/SynonymRegistry | SynonymRegistry freshness/conflict marker를 연결한다 | 완료 기준: SynonymRegistry: context pack에 marker가 포함된다
+
+- [x] ATW-1460 | P1 | retrieve-index/SynonymRegistry | SynonymRegistry golden fixture를 추가한다 | 완료 기준: SynonymRegistry: snapshot이 안정적이다
+
+- [x] ATW-1461 | P1 | retrieve-index/SynonymRegistry | SynonymRegistry performance budget을 측정한다 | 완료 기준: SynonymRegistry: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1462 | P2 | retrieve-index/SynonymRegistry | SynonymRegistry 문서 예제를 작성한다 | 완료 기준: SynonymRegistry: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1463 | P0 | retrieve-index/QueryIntentClassifier | QueryIntentClassifier typed API를 정의한다 | 완료 기준: QueryIntentClassifier: public contract가 있다
+
+- [x] ATW-1464 | P0 | retrieve-index/QueryIntentClassifier | QueryIntentClassifier unit test를 작성한다 | 완료 기준: QueryIntentClassifier: 기본 테스트가 통과한다
+
+- [x] ATW-1465 | P0 | retrieve-index/QueryIntentClassifier | QueryIntentClassifier 권한 필터와 연결한다 | 완료 기준: QueryIntentClassifier: unauthorized record가 빠진다
+
+- [x] ATW-1466 | P0 | retrieve-index/QueryIntentClassifier | QueryIntentClassifier audit에 연결한다 | 완료 기준: QueryIntentClassifier: search/context_pack 이벤트가 기록된다
+
+- [x] ATW-1467 | P1 | retrieve-index/QueryIntentClassifier | QueryIntentClassifier freshness/conflict marker를 연결한다 | 완료 기준: QueryIntentClassifier: context pack에 marker가 포함된다
+
+- [x] ATW-1468 | P1 | retrieve-index/QueryIntentClassifier | QueryIntentClassifier golden fixture를 추가한다 | 완료 기준: QueryIntentClassifier: snapshot이 안정적이다
+
+- [x] ATW-1469 | P1 | retrieve-index/QueryIntentClassifier | QueryIntentClassifier performance budget을 측정한다 | 완료 기준: QueryIntentClassifier: 1k/10k fixture 기준 시간이 있다
+
+- [x] ATW-1470 | P2 | retrieve-index/QueryIntentClassifier | QueryIntentClassifier 문서 예제를 작성한다 | 완료 기준: QueryIntentClassifier: docs/retrieval.md에 예제가 있다
+
+- [x] ATW-1471 | P0 | cli/InitCommand | InitCommand contract를 정의한다 | 완료 기준: InitCommand: typed input/output이 있다
+
+- [x] ATW-1472 | P0 | cli/InitCommand | InitCommand handler를 구현한다 | 완료 기준: InitCommand: smoke test가 통과한다
+
+- [x] ATW-1473 | P0 | cli/InitCommand | InitCommand 권한 검사를 연결한다 | 완료 기준: InitCommand: unauthorized access가 denied된다
+
+- [x] ATW-1474 | P0 | cli/InitCommand | InitCommand audit를 연결한다 | 완료 기준: InitCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1475 | P1 | cli/InitCommand | InitCommand error output을 표준화한다 | 완료 기준: InitCommand: JSON error contract가 있다
+
+- [x] ATW-1476 | P1 | cli/InitCommand | InitCommand golden snapshot을 추가한다 | 완료 기준: InitCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1477 | P2 | cli/InitCommand | InitCommand 문서화한다 | 완료 기준: InitCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1478 | P0 | cli/DoctorCommand | DoctorCommand contract를 정의한다 | 완료 기준: DoctorCommand: typed input/output이 있다
+
+- [x] ATW-1479 | P0 | cli/DoctorCommand | DoctorCommand handler를 구현한다 | 완료 기준: DoctorCommand: smoke test가 통과한다
+
+- [x] ATW-1480 | P0 | cli/DoctorCommand | DoctorCommand 권한 검사를 연결한다 | 완료 기준: DoctorCommand: unauthorized access가 denied된다
+
+- [x] ATW-1481 | P0 | cli/DoctorCommand | DoctorCommand audit를 연결한다 | 완료 기준: DoctorCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1482 | P1 | cli/DoctorCommand | DoctorCommand error output을 표준화한다 | 완료 기준: DoctorCommand: JSON error contract가 있다
+
+- [x] ATW-1483 | P1 | cli/DoctorCommand | DoctorCommand golden snapshot을 추가한다 | 완료 기준: DoctorCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1484 | P2 | cli/DoctorCommand | DoctorCommand 문서화한다 | 완료 기준: DoctorCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1485 | P0 | cli/IngestCommand | IngestCommand contract를 정의한다 | 완료 기준: IngestCommand: typed input/output이 있다
+
+- [x] ATW-1486 | P0 | cli/IngestCommand | IngestCommand handler를 구현한다 | 완료 기준: IngestCommand: smoke test가 통과한다
+
+- [x] ATW-1487 | P0 | cli/IngestCommand | IngestCommand 권한 검사를 연결한다 | 완료 기준: IngestCommand: unauthorized access가 denied된다
+
+- [x] ATW-1488 | P0 | cli/IngestCommand | IngestCommand audit를 연결한다 | 완료 기준: IngestCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1489 | P1 | cli/IngestCommand | IngestCommand error output을 표준화한다 | 완료 기준: IngestCommand: JSON error contract가 있다
+
+- [x] ATW-1490 | P1 | cli/IngestCommand | IngestCommand golden snapshot을 추가한다 | 완료 기준: IngestCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1491 | P2 | cli/IngestCommand | IngestCommand 문서화한다 | 완료 기준: IngestCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1492 | P0 | cli/ClaimCreateCommand | ClaimCreateCommand contract를 정의한다 | 완료 기준: ClaimCreateCommand: typed input/output이 있다
+
+- [x] ATW-1493 | P0 | cli/ClaimCreateCommand | ClaimCreateCommand handler를 구현한다 | 완료 기준: ClaimCreateCommand: smoke test가 통과한다
+
+- [x] ATW-1494 | P0 | cli/ClaimCreateCommand | ClaimCreateCommand 권한 검사를 연결한다 | 완료 기준: ClaimCreateCommand: unauthorized access가 denied된다
+
+- [x] ATW-1495 | P0 | cli/ClaimCreateCommand | ClaimCreateCommand audit를 연결한다 | 완료 기준: ClaimCreateCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1496 | P1 | cli/ClaimCreateCommand | ClaimCreateCommand error output을 표준화한다 | 완료 기준: ClaimCreateCommand: JSON error contract가 있다
+
+- [x] ATW-1497 | P1 | cli/ClaimCreateCommand | ClaimCreateCommand golden snapshot을 추가한다 | 완료 기준: ClaimCreateCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1498 | P2 | cli/ClaimCreateCommand | ClaimCreateCommand 문서화한다 | 완료 기준: ClaimCreateCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1499 | P0 | cli/SearchCommand | SearchCommand contract를 정의한다 | 완료 기준: SearchCommand: typed input/output이 있다
+
+- [x] ATW-1500 | P0 | cli/SearchCommand | SearchCommand handler를 구현한다 | 완료 기준: SearchCommand: smoke test가 통과한다
+
+- [x] ATW-1501 | P0 | cli/SearchCommand | SearchCommand 권한 검사를 연결한다 | 완료 기준: SearchCommand: unauthorized access가 denied된다
+
+- [x] ATW-1502 | P0 | cli/SearchCommand | SearchCommand audit를 연결한다 | 완료 기준: SearchCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1503 | P1 | cli/SearchCommand | SearchCommand error output을 표준화한다 | 완료 기준: SearchCommand: JSON error contract가 있다
+
+- [x] ATW-1504 | P1 | cli/SearchCommand | SearchCommand golden snapshot을 추가한다 | 완료 기준: SearchCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1505 | P2 | cli/SearchCommand | SearchCommand 문서화한다 | 완료 기준: SearchCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1506 | P0 | cli/FetchCommand | FetchCommand contract를 정의한다 | 완료 기준: FetchCommand: typed input/output이 있다
+
+- [x] ATW-1507 | P0 | cli/FetchCommand | FetchCommand handler를 구현한다 | 완료 기준: FetchCommand: smoke test가 통과한다
+
+- [x] ATW-1508 | P0 | cli/FetchCommand | FetchCommand 권한 검사를 연결한다 | 완료 기준: FetchCommand: unauthorized access가 denied된다
+
+- [x] ATW-1509 | P0 | cli/FetchCommand | FetchCommand audit를 연결한다 | 완료 기준: FetchCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1510 | P1 | cli/FetchCommand | FetchCommand error output을 표준화한다 | 완료 기준: FetchCommand: JSON error contract가 있다
+
+- [x] ATW-1511 | P1 | cli/FetchCommand | FetchCommand golden snapshot을 추가한다 | 완료 기준: FetchCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1512 | P2 | cli/FetchCommand | FetchCommand 문서화한다 | 완료 기준: FetchCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1513 | P0 | cli/ContextPackCommand | ContextPackCommand contract를 정의한다 | 완료 기준: ContextPackCommand: typed input/output이 있다
+
+- [x] ATW-1514 | P0 | cli/ContextPackCommand | ContextPackCommand handler를 구현한다 | 완료 기준: ContextPackCommand: smoke test가 통과한다
+
+- [x] ATW-1515 | P0 | cli/ContextPackCommand | ContextPackCommand 권한 검사를 연결한다 | 완료 기준: ContextPackCommand: unauthorized access가 denied된다
+
+- [x] ATW-1516 | P0 | cli/ContextPackCommand | ContextPackCommand audit를 연결한다 | 완료 기준: ContextPackCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1517 | P1 | cli/ContextPackCommand | ContextPackCommand error output을 표준화한다 | 완료 기준: ContextPackCommand: JSON error contract가 있다
+
+- [x] ATW-1518 | P1 | cli/ContextPackCommand | ContextPackCommand golden snapshot을 추가한다 | 완료 기준: ContextPackCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1519 | P2 | cli/ContextPackCommand | ContextPackCommand 문서화한다 | 완료 기준: ContextPackCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1520 | P0 | cli/ValidateCommand | ValidateCommand contract를 정의한다 | 완료 기준: ValidateCommand: typed input/output이 있다
+
+- [x] ATW-1521 | P0 | cli/ValidateCommand | ValidateCommand handler를 구현한다 | 완료 기준: ValidateCommand: smoke test가 통과한다
+
+- [x] ATW-1522 | P0 | cli/ValidateCommand | ValidateCommand 권한 검사를 연결한다 | 완료 기준: ValidateCommand: unauthorized access가 denied된다
+
+- [x] ATW-1523 | P0 | cli/ValidateCommand | ValidateCommand audit를 연결한다 | 완료 기준: ValidateCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1524 | P1 | cli/ValidateCommand | ValidateCommand error output을 표준화한다 | 완료 기준: ValidateCommand: JSON error contract가 있다
+
+- [x] ATW-1525 | P1 | cli/ValidateCommand | ValidateCommand golden snapshot을 추가한다 | 완료 기준: ValidateCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1526 | P2 | cli/ValidateCommand | ValidateCommand 문서화한다 | 완료 기준: ValidateCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1527 | P0 | cli/RebuildIndexCommand | RebuildIndexCommand contract를 정의한다 | 완료 기준: RebuildIndexCommand: typed input/output이 있다
+
+- [x] ATW-1528 | P0 | cli/RebuildIndexCommand | RebuildIndexCommand handler를 구현한다 | 완료 기준: RebuildIndexCommand: smoke test가 통과한다
+
+- [x] ATW-1529 | P0 | cli/RebuildIndexCommand | RebuildIndexCommand 권한 검사를 연결한다 | 완료 기준: RebuildIndexCommand: unauthorized access가 denied된다
+
+- [x] ATW-1530 | P0 | cli/RebuildIndexCommand | RebuildIndexCommand audit를 연결한다 | 완료 기준: RebuildIndexCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1531 | P1 | cli/RebuildIndexCommand | RebuildIndexCommand error output을 표준화한다 | 완료 기준: RebuildIndexCommand: JSON error contract가 있다
+
+- [x] ATW-1532 | P1 | cli/RebuildIndexCommand | RebuildIndexCommand golden snapshot을 추가한다 | 완료 기준: RebuildIndexCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1533 | P2 | cli/RebuildIndexCommand | RebuildIndexCommand 문서화한다 | 완료 기준: RebuildIndexCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1534 | P0 | cli/FreshnessReportCommand | FreshnessReportCommand contract를 정의한다 | 완료 기준: FreshnessReportCommand: typed input/output이 있다
+
+- [x] ATW-1535 | P0 | cli/FreshnessReportCommand | FreshnessReportCommand handler를 구현한다 | 완료 기준: FreshnessReportCommand: smoke test가 통과한다
+
+- [x] ATW-1536 | P0 | cli/FreshnessReportCommand | FreshnessReportCommand 권한 검사를 연결한다 | 완료 기준: FreshnessReportCommand: unauthorized access가 denied된다
+
+- [x] ATW-1537 | P0 | cli/FreshnessReportCommand | FreshnessReportCommand audit를 연결한다 | 완료 기준: FreshnessReportCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1538 | P1 | cli/FreshnessReportCommand | FreshnessReportCommand error output을 표준화한다 | 완료 기준: FreshnessReportCommand: JSON error contract가 있다
+
+- [x] ATW-1539 | P1 | cli/FreshnessReportCommand | FreshnessReportCommand golden snapshot을 추가한다 | 완료 기준: FreshnessReportCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1540 | P2 | cli/FreshnessReportCommand | FreshnessReportCommand 문서화한다 | 완료 기준: FreshnessReportCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1541 | P0 | cli/ConflictScanCommand | ConflictScanCommand contract를 정의한다 | 완료 기준: ConflictScanCommand: typed input/output이 있다
+
+- [x] ATW-1542 | P0 | cli/ConflictScanCommand | ConflictScanCommand handler를 구현한다 | 완료 기준: ConflictScanCommand: smoke test가 통과한다
+
+- [x] ATW-1543 | P0 | cli/ConflictScanCommand | ConflictScanCommand 권한 검사를 연결한다 | 완료 기준: ConflictScanCommand: unauthorized access가 denied된다
+
+- [x] ATW-1544 | P0 | cli/ConflictScanCommand | ConflictScanCommand audit를 연결한다 | 완료 기준: ConflictScanCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1545 | P1 | cli/ConflictScanCommand | ConflictScanCommand error output을 표준화한다 | 완료 기준: ConflictScanCommand: JSON error contract가 있다
+
+- [x] ATW-1546 | P1 | cli/ConflictScanCommand | ConflictScanCommand golden snapshot을 추가한다 | 완료 기준: ConflictScanCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1547 | P2 | cli/ConflictScanCommand | ConflictScanCommand 문서화한다 | 완료 기준: ConflictScanCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1548 | P0 | cli/ExportJsonShardsCommand | ExportJsonShardsCommand contract를 정의한다 | 완료 기준: ExportJsonShardsCommand: typed input/output이 있다
+
+- [x] ATW-1549 | P0 | cli/ExportJsonShardsCommand | ExportJsonShardsCommand handler를 구현한다 | 완료 기준: ExportJsonShardsCommand: smoke test가 통과한다
+
+- [x] ATW-1550 | P0 | cli/ExportJsonShardsCommand | ExportJsonShardsCommand 권한 검사를 연결한다 | 완료 기준: ExportJsonShardsCommand: unauthorized access가 denied된다
+
+- [x] ATW-1551 | P0 | cli/ExportJsonShardsCommand | ExportJsonShardsCommand audit를 연결한다 | 완료 기준: ExportJsonShardsCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1552 | P1 | cli/ExportJsonShardsCommand | ExportJsonShardsCommand error output을 표준화한다 | 완료 기준: ExportJsonShardsCommand: JSON error contract가 있다
+
+- [x] ATW-1553 | P1 | cli/ExportJsonShardsCommand | ExportJsonShardsCommand golden snapshot을 추가한다 | 완료 기준: ExportJsonShardsCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1554 | P2 | cli/ExportJsonShardsCommand | ExportJsonShardsCommand 문서화한다 | 완료 기준: ExportJsonShardsCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1555 | P0 | cli/ImportJsonShardsCommand | ImportJsonShardsCommand contract를 정의한다 | 완료 기준: ImportJsonShardsCommand: typed input/output이 있다
+
+- [x] ATW-1556 | P0 | cli/ImportJsonShardsCommand | ImportJsonShardsCommand handler를 구현한다 | 완료 기준: ImportJsonShardsCommand: smoke test가 통과한다
+
+- [x] ATW-1557 | P0 | cli/ImportJsonShardsCommand | ImportJsonShardsCommand 권한 검사를 연결한다 | 완료 기준: ImportJsonShardsCommand: unauthorized access가 denied된다
+
+- [x] ATW-1558 | P0 | cli/ImportJsonShardsCommand | ImportJsonShardsCommand audit를 연결한다 | 완료 기준: ImportJsonShardsCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1559 | P1 | cli/ImportJsonShardsCommand | ImportJsonShardsCommand error output을 표준화한다 | 완료 기준: ImportJsonShardsCommand: JSON error contract가 있다
+
+- [x] ATW-1560 | P1 | cli/ImportJsonShardsCommand | ImportJsonShardsCommand golden snapshot을 추가한다 | 완료 기준: ImportJsonShardsCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1561 | P2 | cli/ImportJsonShardsCommand | ImportJsonShardsCommand 문서화한다 | 완료 기준: ImportJsonShardsCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1562 | P0 | cli/BackupCreateCommand | BackupCreateCommand contract를 정의한다 | 완료 기준: BackupCreateCommand: typed input/output이 있다
+
+- [x] ATW-1563 | P0 | cli/BackupCreateCommand | BackupCreateCommand handler를 구현한다 | 완료 기준: BackupCreateCommand: smoke test가 통과한다
+
+- [x] ATW-1564 | P0 | cli/BackupCreateCommand | BackupCreateCommand 권한 검사를 연결한다 | 완료 기준: BackupCreateCommand: unauthorized access가 denied된다
+
+- [x] ATW-1565 | P0 | cli/BackupCreateCommand | BackupCreateCommand audit를 연결한다 | 완료 기준: BackupCreateCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1566 | P1 | cli/BackupCreateCommand | BackupCreateCommand error output을 표준화한다 | 완료 기준: BackupCreateCommand: JSON error contract가 있다
+
+- [x] ATW-1567 | P1 | cli/BackupCreateCommand | BackupCreateCommand golden snapshot을 추가한다 | 완료 기준: BackupCreateCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1568 | P2 | cli/BackupCreateCommand | BackupCreateCommand 문서화한다 | 완료 기준: BackupCreateCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1569 | P0 | cli/BackupVerifyCommand | BackupVerifyCommand contract를 정의한다 | 완료 기준: BackupVerifyCommand: typed input/output이 있다
+
+- [x] ATW-1570 | P0 | cli/BackupVerifyCommand | BackupVerifyCommand handler를 구현한다 | 완료 기준: BackupVerifyCommand: smoke test가 통과한다
+
+- [x] ATW-1571 | P0 | cli/BackupVerifyCommand | BackupVerifyCommand 권한 검사를 연결한다 | 완료 기준: BackupVerifyCommand: unauthorized access가 denied된다
+
+- [x] ATW-1572 | P0 | cli/BackupVerifyCommand | BackupVerifyCommand audit를 연결한다 | 완료 기준: BackupVerifyCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1573 | P1 | cli/BackupVerifyCommand | BackupVerifyCommand error output을 표준화한다 | 완료 기준: BackupVerifyCommand: JSON error contract가 있다
+
+- [x] ATW-1574 | P1 | cli/BackupVerifyCommand | BackupVerifyCommand golden snapshot을 추가한다 | 완료 기준: BackupVerifyCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1575 | P2 | cli/BackupVerifyCommand | BackupVerifyCommand 문서화한다 | 완료 기준: BackupVerifyCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1576 | P0 | cli/McpStartCommand | McpStartCommand contract를 정의한다 | 완료 기준: McpStartCommand: typed input/output이 있다
+
+- [x] ATW-1577 | P0 | cli/McpStartCommand | McpStartCommand handler를 구현한다 | 완료 기준: McpStartCommand: smoke test가 통과한다
+
+- [x] ATW-1578 | P0 | cli/McpStartCommand | McpStartCommand 권한 검사를 연결한다 | 완료 기준: McpStartCommand: unauthorized access가 denied된다
+
+- [x] ATW-1579 | P0 | cli/McpStartCommand | McpStartCommand audit를 연결한다 | 완료 기준: McpStartCommand: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1580 | P1 | cli/McpStartCommand | McpStartCommand error output을 표준화한다 | 완료 기준: McpStartCommand: JSON error contract가 있다
+
+- [x] ATW-1581 | P1 | cli/McpStartCommand | McpStartCommand golden snapshot을 추가한다 | 완료 기준: McpStartCommand: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1582 | P2 | cli/McpStartCommand | McpStartCommand 문서화한다 | 완료 기준: McpStartCommand: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1583 | P0 | mcp/McpServer | McpServer contract를 정의한다 | 완료 기준: McpServer: typed input/output이 있다
+
+- [x] ATW-1584 | P0 | mcp/McpServer | McpServer handler를 구현한다 | 완료 기준: McpServer: smoke test가 통과한다
+
+- [x] ATW-1585 | P0 | mcp/McpServer | McpServer 권한 검사를 연결한다 | 완료 기준: McpServer: unauthorized access가 denied된다
+
+- [x] ATW-1586 | P0 | mcp/McpServer | McpServer audit를 연결한다 | 완료 기준: McpServer: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1587 | P1 | mcp/McpServer | McpServer error output을 표준화한다 | 완료 기준: McpServer: JSON error contract가 있다
+
+- [x] ATW-1588 | P1 | mcp/McpServer | McpServer golden snapshot을 추가한다 | 완료 기준: McpServer: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1589 | P2 | mcp/McpServer | McpServer 문서화한다 | 완료 기준: McpServer: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1590 | P0 | mcp/SearchTool | SearchTool contract를 정의한다 | 완료 기준: SearchTool: typed input/output이 있다
+
+- [x] ATW-1591 | P0 | mcp/SearchTool | SearchTool handler를 구현한다 | 완료 기준: SearchTool: smoke test가 통과한다
+
+- [x] ATW-1592 | P0 | mcp/SearchTool | SearchTool 권한 검사를 연결한다 | 완료 기준: SearchTool: unauthorized access가 denied된다
+
+- [x] ATW-1593 | P0 | mcp/SearchTool | SearchTool audit를 연결한다 | 완료 기준: SearchTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1594 | P1 | mcp/SearchTool | SearchTool error output을 표준화한다 | 완료 기준: SearchTool: JSON error contract가 있다
+
+- [x] ATW-1595 | P1 | mcp/SearchTool | SearchTool golden snapshot을 추가한다 | 완료 기준: SearchTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1596 | P2 | mcp/SearchTool | SearchTool 문서화한다 | 완료 기준: SearchTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1597 | P0 | mcp/FetchTool | FetchTool contract를 정의한다 | 완료 기준: FetchTool: typed input/output이 있다
+
+- [x] ATW-1598 | P0 | mcp/FetchTool | FetchTool handler를 구현한다 | 완료 기준: FetchTool: smoke test가 통과한다
+
+- [x] ATW-1599 | P0 | mcp/FetchTool | FetchTool 권한 검사를 연결한다 | 완료 기준: FetchTool: unauthorized access가 denied된다
+
+- [x] ATW-1600 | P0 | mcp/FetchTool | FetchTool audit를 연결한다 | 완료 기준: FetchTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1601 | P1 | mcp/FetchTool | FetchTool error output을 표준화한다 | 완료 기준: FetchTool: JSON error contract가 있다
+
+- [x] ATW-1602 | P1 | mcp/FetchTool | FetchTool golden snapshot을 추가한다 | 완료 기준: FetchTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1603 | P2 | mcp/FetchTool | FetchTool 문서화한다 | 완료 기준: FetchTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1604 | P0 | mcp/ContextPackTool | ContextPackTool contract를 정의한다 | 완료 기준: ContextPackTool: typed input/output이 있다
+
+- [x] ATW-1605 | P0 | mcp/ContextPackTool | ContextPackTool handler를 구현한다 | 완료 기준: ContextPackTool: smoke test가 통과한다
+
+- [x] ATW-1606 | P0 | mcp/ContextPackTool | ContextPackTool 권한 검사를 연결한다 | 완료 기준: ContextPackTool: unauthorized access가 denied된다
+
+- [x] ATW-1607 | P0 | mcp/ContextPackTool | ContextPackTool audit를 연결한다 | 완료 기준: ContextPackTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1608 | P1 | mcp/ContextPackTool | ContextPackTool error output을 표준화한다 | 완료 기준: ContextPackTool: JSON error contract가 있다
+
+- [x] ATW-1609 | P1 | mcp/ContextPackTool | ContextPackTool golden snapshot을 추가한다 | 완료 기준: ContextPackTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1610 | P2 | mcp/ContextPackTool | ContextPackTool 문서화한다 | 완료 기준: ContextPackTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1611 | P0 | mcp/ExplainCitationTool | ExplainCitationTool contract를 정의한다 | 완료 기준: ExplainCitationTool: typed input/output이 있다
+
+- [x] ATW-1612 | P0 | mcp/ExplainCitationTool | ExplainCitationTool handler를 구현한다 | 완료 기준: ExplainCitationTool: smoke test가 통과한다
+
+- [x] ATW-1613 | P0 | mcp/ExplainCitationTool | ExplainCitationTool 권한 검사를 연결한다 | 완료 기준: ExplainCitationTool: unauthorized access가 denied된다
+
+- [x] ATW-1614 | P0 | mcp/ExplainCitationTool | ExplainCitationTool audit를 연결한다 | 완료 기준: ExplainCitationTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1615 | P1 | mcp/ExplainCitationTool | ExplainCitationTool error output을 표준화한다 | 완료 기준: ExplainCitationTool: JSON error contract가 있다
+
+- [x] ATW-1616 | P1 | mcp/ExplainCitationTool | ExplainCitationTool golden snapshot을 추가한다 | 완료 기준: ExplainCitationTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1617 | P2 | mcp/ExplainCitationTool | ExplainCitationTool 문서화한다 | 완료 기준: ExplainCitationTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1618 | P0 | mcp/CheckFreshnessTool | CheckFreshnessTool contract를 정의한다 | 완료 기준: CheckFreshnessTool: typed input/output이 있다
+
+- [x] ATW-1619 | P0 | mcp/CheckFreshnessTool | CheckFreshnessTool handler를 구현한다 | 완료 기준: CheckFreshnessTool: smoke test가 통과한다
+
+- [x] ATW-1620 | P0 | mcp/CheckFreshnessTool | CheckFreshnessTool 권한 검사를 연결한다 | 완료 기준: CheckFreshnessTool: unauthorized access가 denied된다
+
+- [x] ATW-1621 | P0 | mcp/CheckFreshnessTool | CheckFreshnessTool audit를 연결한다 | 완료 기준: CheckFreshnessTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1622 | P1 | mcp/CheckFreshnessTool | CheckFreshnessTool error output을 표준화한다 | 완료 기준: CheckFreshnessTool: JSON error contract가 있다
+
+- [x] ATW-1623 | P1 | mcp/CheckFreshnessTool | CheckFreshnessTool golden snapshot을 추가한다 | 완료 기준: CheckFreshnessTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1624 | P2 | mcp/CheckFreshnessTool | CheckFreshnessTool 문서화한다 | 완료 기준: CheckFreshnessTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1625 | P0 | mcp/FindOwnerTool | FindOwnerTool contract를 정의한다 | 완료 기준: FindOwnerTool: typed input/output이 있다
+
+- [x] ATW-1626 | P0 | mcp/FindOwnerTool | FindOwnerTool handler를 구현한다 | 완료 기준: FindOwnerTool: smoke test가 통과한다
+
+- [x] ATW-1627 | P0 | mcp/FindOwnerTool | FindOwnerTool 권한 검사를 연결한다 | 완료 기준: FindOwnerTool: unauthorized access가 denied된다
+
+- [x] ATW-1628 | P0 | mcp/FindOwnerTool | FindOwnerTool audit를 연결한다 | 완료 기준: FindOwnerTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1629 | P1 | mcp/FindOwnerTool | FindOwnerTool error output을 표준화한다 | 완료 기준: FindOwnerTool: JSON error contract가 있다
+
+- [x] ATW-1630 | P1 | mcp/FindOwnerTool | FindOwnerTool golden snapshot을 추가한다 | 완료 기준: FindOwnerTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1631 | P2 | mcp/FindOwnerTool | FindOwnerTool 문서화한다 | 완료 기준: FindOwnerTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1632 | P0 | mcp/FindConflictsTool | FindConflictsTool contract를 정의한다 | 완료 기준: FindConflictsTool: typed input/output이 있다
+
+- [x] ATW-1633 | P0 | mcp/FindConflictsTool | FindConflictsTool handler를 구현한다 | 완료 기준: FindConflictsTool: smoke test가 통과한다
+
+- [x] ATW-1634 | P0 | mcp/FindConflictsTool | FindConflictsTool 권한 검사를 연결한다 | 완료 기준: FindConflictsTool: unauthorized access가 denied된다
+
+- [x] ATW-1635 | P0 | mcp/FindConflictsTool | FindConflictsTool audit를 연결한다 | 완료 기준: FindConflictsTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1636 | P1 | mcp/FindConflictsTool | FindConflictsTool error output을 표준화한다 | 완료 기준: FindConflictsTool: JSON error contract가 있다
+
+- [x] ATW-1637 | P1 | mcp/FindConflictsTool | FindConflictsTool golden snapshot을 추가한다 | 완료 기준: FindConflictsTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1638 | P2 | mcp/FindConflictsTool | FindConflictsTool 문서화한다 | 완료 기준: FindConflictsTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1639 | P0 | mcp/ListSourcesTool | ListSourcesTool contract를 정의한다 | 완료 기준: ListSourcesTool: typed input/output이 있다
+
+- [x] ATW-1640 | P0 | mcp/ListSourcesTool | ListSourcesTool handler를 구현한다 | 완료 기준: ListSourcesTool: smoke test가 통과한다
+
+- [x] ATW-1641 | P0 | mcp/ListSourcesTool | ListSourcesTool 권한 검사를 연결한다 | 완료 기준: ListSourcesTool: unauthorized access가 denied된다
+
+- [x] ATW-1642 | P0 | mcp/ListSourcesTool | ListSourcesTool audit를 연결한다 | 완료 기준: ListSourcesTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1643 | P1 | mcp/ListSourcesTool | ListSourcesTool error output을 표준화한다 | 완료 기준: ListSourcesTool: JSON error contract가 있다
+
+- [x] ATW-1644 | P1 | mcp/ListSourcesTool | ListSourcesTool golden snapshot을 추가한다 | 완료 기준: ListSourcesTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1645 | P2 | mcp/ListSourcesTool | ListSourcesTool 문서화한다 | 완료 기준: ListSourcesTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1646 | P0 | mcp/ValidateAccessTool | ValidateAccessTool contract를 정의한다 | 완료 기준: ValidateAccessTool: typed input/output이 있다
+
+- [x] ATW-1647 | P0 | mcp/ValidateAccessTool | ValidateAccessTool handler를 구현한다 | 완료 기준: ValidateAccessTool: smoke test가 통과한다
+
+- [x] ATW-1648 | P0 | mcp/ValidateAccessTool | ValidateAccessTool 권한 검사를 연결한다 | 완료 기준: ValidateAccessTool: unauthorized access가 denied된다
+
+- [x] ATW-1649 | P0 | mcp/ValidateAccessTool | ValidateAccessTool audit를 연결한다 | 완료 기준: ValidateAccessTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1650 | P1 | mcp/ValidateAccessTool | ValidateAccessTool error output을 표준화한다 | 완료 기준: ValidateAccessTool: JSON error contract가 있다
+
+- [x] ATW-1651 | P1 | mcp/ValidateAccessTool | ValidateAccessTool golden snapshot을 추가한다 | 완료 기준: ValidateAccessTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1652 | P2 | mcp/ValidateAccessTool | ValidateAccessTool 문서화한다 | 완료 기준: ValidateAccessTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1653 | P0 | mcp/ProposeClaimTool | ProposeClaimTool contract를 정의한다 | 완료 기준: ProposeClaimTool: typed input/output이 있다
+
+- [x] ATW-1654 | P0 | mcp/ProposeClaimTool | ProposeClaimTool handler를 구현한다 | 완료 기준: ProposeClaimTool: smoke test가 통과한다
+
+- [x] ATW-1655 | P0 | mcp/ProposeClaimTool | ProposeClaimTool 권한 검사를 연결한다 | 완료 기준: ProposeClaimTool: unauthorized access가 denied된다
+
+- [x] ATW-1656 | P0 | mcp/ProposeClaimTool | ProposeClaimTool audit를 연결한다 | 완료 기준: ProposeClaimTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1657 | P1 | mcp/ProposeClaimTool | ProposeClaimTool error output을 표준화한다 | 완료 기준: ProposeClaimTool: JSON error contract가 있다
+
+- [x] ATW-1658 | P1 | mcp/ProposeClaimTool | ProposeClaimTool golden snapshot을 추가한다 | 완료 기준: ProposeClaimTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1659 | P2 | mcp/ProposeClaimTool | ProposeClaimTool 문서화한다 | 완료 기준: ProposeClaimTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1660 | P0 | mcp/ProposeUpdateTool | ProposeUpdateTool contract를 정의한다 | 완료 기준: ProposeUpdateTool: typed input/output이 있다
+
+- [x] ATW-1661 | P0 | mcp/ProposeUpdateTool | ProposeUpdateTool handler를 구현한다 | 완료 기준: ProposeUpdateTool: smoke test가 통과한다
+
+- [x] ATW-1662 | P0 | mcp/ProposeUpdateTool | ProposeUpdateTool 권한 검사를 연결한다 | 완료 기준: ProposeUpdateTool: unauthorized access가 denied된다
+
+- [x] ATW-1663 | P0 | mcp/ProposeUpdateTool | ProposeUpdateTool audit를 연결한다 | 완료 기준: ProposeUpdateTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1664 | P1 | mcp/ProposeUpdateTool | ProposeUpdateTool error output을 표준화한다 | 완료 기준: ProposeUpdateTool: JSON error contract가 있다
+
+- [x] ATW-1665 | P1 | mcp/ProposeUpdateTool | ProposeUpdateTool golden snapshot을 추가한다 | 완료 기준: ProposeUpdateTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1666 | P2 | mcp/ProposeUpdateTool | ProposeUpdateTool 문서화한다 | 완료 기준: ProposeUpdateTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1667 | P0 | mcp/ProposeDeprecateTool | ProposeDeprecateTool contract를 정의한다 | 완료 기준: ProposeDeprecateTool: typed input/output이 있다
+
+- [x] ATW-1668 | P0 | mcp/ProposeDeprecateTool | ProposeDeprecateTool handler를 구현한다 | 완료 기준: ProposeDeprecateTool: smoke test가 통과한다
+
+- [x] ATW-1669 | P0 | mcp/ProposeDeprecateTool | ProposeDeprecateTool 권한 검사를 연결한다 | 완료 기준: ProposeDeprecateTool: unauthorized access가 denied된다
+
+- [x] ATW-1670 | P0 | mcp/ProposeDeprecateTool | ProposeDeprecateTool audit를 연결한다 | 완료 기준: ProposeDeprecateTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1671 | P1 | mcp/ProposeDeprecateTool | ProposeDeprecateTool error output을 표준화한다 | 완료 기준: ProposeDeprecateTool: JSON error contract가 있다
+
+- [x] ATW-1672 | P1 | mcp/ProposeDeprecateTool | ProposeDeprecateTool golden snapshot을 추가한다 | 완료 기준: ProposeDeprecateTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1673 | P2 | mcp/ProposeDeprecateTool | ProposeDeprecateTool 문서화한다 | 완료 기준: ProposeDeprecateTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1674 | P0 | mcp/ReportConflictTool | ReportConflictTool contract를 정의한다 | 완료 기준: ReportConflictTool: typed input/output이 있다
+
+- [x] ATW-1675 | P0 | mcp/ReportConflictTool | ReportConflictTool handler를 구현한다 | 완료 기준: ReportConflictTool: smoke test가 통과한다
+
+- [x] ATW-1676 | P0 | mcp/ReportConflictTool | ReportConflictTool 권한 검사를 연결한다 | 완료 기준: ReportConflictTool: unauthorized access가 denied된다
+
+- [x] ATW-1677 | P0 | mcp/ReportConflictTool | ReportConflictTool audit를 연결한다 | 완료 기준: ReportConflictTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1678 | P1 | mcp/ReportConflictTool | ReportConflictTool error output을 표준화한다 | 완료 기준: ReportConflictTool: JSON error contract가 있다
+
+- [x] ATW-1679 | P1 | mcp/ReportConflictTool | ReportConflictTool golden snapshot을 추가한다 | 완료 기준: ReportConflictTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1680 | P2 | mcp/ReportConflictTool | ReportConflictTool 문서화한다 | 완료 기준: ReportConflictTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1681 | P0 | mcp/IngestTool | IngestTool contract를 정의한다 | 완료 기준: IngestTool: typed input/output이 있다
+
+- [x] ATW-1682 | P0 | mcp/IngestTool | IngestTool handler를 구현한다 | 완료 기준: IngestTool: smoke test가 통과한다
+
+- [x] ATW-1683 | P0 | mcp/IngestTool | IngestTool 권한 검사를 연결한다 | 완료 기준: IngestTool: unauthorized access가 denied된다
+
+- [x] ATW-1684 | P0 | mcp/IngestTool | IngestTool audit를 연결한다 | 완료 기준: IngestTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1685 | P1 | mcp/IngestTool | IngestTool error output을 표준화한다 | 완료 기준: IngestTool: JSON error contract가 있다
+
+- [x] ATW-1686 | P1 | mcp/IngestTool | IngestTool golden snapshot을 추가한다 | 완료 기준: IngestTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1687 | P2 | mcp/IngestTool | IngestTool 문서화한다 | 완료 기준: IngestTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1688 | P0 | mcp/RebuildIndexTool | RebuildIndexTool contract를 정의한다 | 완료 기준: RebuildIndexTool: typed input/output이 있다
+
+- [x] ATW-1689 | P0 | mcp/RebuildIndexTool | RebuildIndexTool handler를 구현한다 | 완료 기준: RebuildIndexTool: smoke test가 통과한다
+
+- [x] ATW-1690 | P0 | mcp/RebuildIndexTool | RebuildIndexTool 권한 검사를 연결한다 | 완료 기준: RebuildIndexTool: unauthorized access가 denied된다
+
+- [x] ATW-1691 | P0 | mcp/RebuildIndexTool | RebuildIndexTool audit를 연결한다 | 완료 기준: RebuildIndexTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1692 | P1 | mcp/RebuildIndexTool | RebuildIndexTool error output을 표준화한다 | 완료 기준: RebuildIndexTool: JSON error contract가 있다
+
+- [x] ATW-1693 | P1 | mcp/RebuildIndexTool | RebuildIndexTool golden snapshot을 추가한다 | 완료 기준: RebuildIndexTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1694 | P2 | mcp/RebuildIndexTool | RebuildIndexTool 문서화한다 | 완료 기준: RebuildIndexTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1695 | P0 | mcp/ValidateTool | ValidateTool contract를 정의한다 | 완료 기준: ValidateTool: typed input/output이 있다
+
+- [x] ATW-1696 | P0 | mcp/ValidateTool | ValidateTool handler를 구현한다 | 완료 기준: ValidateTool: smoke test가 통과한다
+
+- [x] ATW-1697 | P0 | mcp/ValidateTool | ValidateTool 권한 검사를 연결한다 | 완료 기준: ValidateTool: unauthorized access가 denied된다
+
+- [x] ATW-1698 | P0 | mcp/ValidateTool | ValidateTool audit를 연결한다 | 완료 기준: ValidateTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1699 | P1 | mcp/ValidateTool | ValidateTool error output을 표준화한다 | 완료 기준: ValidateTool: JSON error contract가 있다
+
+- [x] ATW-1700 | P1 | mcp/ValidateTool | ValidateTool golden snapshot을 추가한다 | 완료 기준: ValidateTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1701 | P2 | mcp/ValidateTool | ValidateTool 문서화한다 | 완료 기준: ValidateTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1702 | P0 | mcp/AuditReportTool | AuditReportTool contract를 정의한다 | 완료 기준: AuditReportTool: typed input/output이 있다
+
+- [x] ATW-1703 | P0 | mcp/AuditReportTool | AuditReportTool handler를 구현한다 | 완료 기준: AuditReportTool: smoke test가 통과한다
+
+- [x] ATW-1704 | P0 | mcp/AuditReportTool | AuditReportTool 권한 검사를 연결한다 | 완료 기준: AuditReportTool: unauthorized access가 denied된다
+
+- [x] ATW-1705 | P0 | mcp/AuditReportTool | AuditReportTool audit를 연결한다 | 완료 기준: AuditReportTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1706 | P1 | mcp/AuditReportTool | AuditReportTool error output을 표준화한다 | 완료 기준: AuditReportTool: JSON error contract가 있다
+
+- [x] ATW-1707 | P1 | mcp/AuditReportTool | AuditReportTool golden snapshot을 추가한다 | 완료 기준: AuditReportTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1708 | P2 | mcp/AuditReportTool | AuditReportTool 문서화한다 | 완료 기준: AuditReportTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1709 | P0 | mcp/BackupTool | BackupTool contract를 정의한다 | 완료 기준: BackupTool: typed input/output이 있다
+
+- [x] ATW-1710 | P0 | mcp/BackupTool | BackupTool handler를 구현한다 | 완료 기준: BackupTool: smoke test가 통과한다
+
+- [x] ATW-1711 | P0 | mcp/BackupTool | BackupTool 권한 검사를 연결한다 | 완료 기준: BackupTool: unauthorized access가 denied된다
+
+- [x] ATW-1712 | P0 | mcp/BackupTool | BackupTool audit를 연결한다 | 완료 기준: BackupTool: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1713 | P1 | mcp/BackupTool | BackupTool error output을 표준화한다 | 완료 기준: BackupTool: JSON error contract가 있다
+
+- [x] ATW-1714 | P1 | mcp/BackupTool | BackupTool golden snapshot을 추가한다 | 완료 기준: BackupTool: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1715 | P2 | mcp/BackupTool | BackupTool 문서화한다 | 완료 기준: BackupTool: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1716 | P0 | sdk/AtlasWikiClient | AtlasWikiClient contract를 정의한다 | 완료 기준: AtlasWikiClient: typed input/output이 있다
+
+- [x] ATW-1717 | P0 | sdk/AtlasWikiClient | AtlasWikiClient handler를 구현한다 | 완료 기준: AtlasWikiClient: smoke test가 통과한다
+
+- [x] ATW-1718 | P0 | sdk/AtlasWikiClient | AtlasWikiClient 권한 검사를 연결한다 | 완료 기준: AtlasWikiClient: unauthorized access가 denied된다
+
+- [x] ATW-1719 | P0 | sdk/AtlasWikiClient | AtlasWikiClient audit를 연결한다 | 완료 기준: AtlasWikiClient: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1720 | P1 | sdk/AtlasWikiClient | AtlasWikiClient error output을 표준화한다 | 완료 기준: AtlasWikiClient: JSON error contract가 있다
+
+- [x] ATW-1721 | P1 | sdk/AtlasWikiClient | AtlasWikiClient golden snapshot을 추가한다 | 완료 기준: AtlasWikiClient: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1722 | P2 | sdk/AtlasWikiClient | AtlasWikiClient 문서화한다 | 완료 기준: AtlasWikiClient: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1723 | P0 | sdk/RecordApi | RecordApi contract를 정의한다 | 완료 기준: RecordApi: typed input/output이 있다
+
+- [x] ATW-1724 | P0 | sdk/RecordApi | RecordApi handler를 구현한다 | 완료 기준: RecordApi: smoke test가 통과한다
+
+- [x] ATW-1725 | P0 | sdk/RecordApi | RecordApi 권한 검사를 연결한다 | 완료 기준: RecordApi: unauthorized access가 denied된다
+
+- [x] ATW-1726 | P0 | sdk/RecordApi | RecordApi audit를 연결한다 | 완료 기준: RecordApi: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1727 | P1 | sdk/RecordApi | RecordApi error output을 표준화한다 | 완료 기준: RecordApi: JSON error contract가 있다
+
+- [x] ATW-1728 | P1 | sdk/RecordApi | RecordApi golden snapshot을 추가한다 | 완료 기준: RecordApi: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1729 | P2 | sdk/RecordApi | RecordApi 문서화한다 | 완료 기준: RecordApi: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1730 | P0 | sdk/SearchApi | SearchApi contract를 정의한다 | 완료 기준: SearchApi: typed input/output이 있다
+
+- [x] ATW-1731 | P0 | sdk/SearchApi | SearchApi handler를 구현한다 | 완료 기준: SearchApi: smoke test가 통과한다
+
+- [x] ATW-1732 | P0 | sdk/SearchApi | SearchApi 권한 검사를 연결한다 | 완료 기준: SearchApi: unauthorized access가 denied된다
+
+- [x] ATW-1733 | P0 | sdk/SearchApi | SearchApi audit를 연결한다 | 완료 기준: SearchApi: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1734 | P1 | sdk/SearchApi | SearchApi error output을 표준화한다 | 완료 기준: SearchApi: JSON error contract가 있다
+
+- [x] ATW-1735 | P1 | sdk/SearchApi | SearchApi golden snapshot을 추가한다 | 완료 기준: SearchApi: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1736 | P2 | sdk/SearchApi | SearchApi 문서화한다 | 완료 기준: SearchApi: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1737 | P0 | sdk/ContextPackApi | ContextPackApi contract를 정의한다 | 완료 기준: ContextPackApi: typed input/output이 있다
+
+- [x] ATW-1738 | P0 | sdk/ContextPackApi | ContextPackApi handler를 구현한다 | 완료 기준: ContextPackApi: smoke test가 통과한다
+
+- [x] ATW-1739 | P0 | sdk/ContextPackApi | ContextPackApi 권한 검사를 연결한다 | 완료 기준: ContextPackApi: unauthorized access가 denied된다
+
+- [x] ATW-1740 | P0 | sdk/ContextPackApi | ContextPackApi audit를 연결한다 | 완료 기준: ContextPackApi: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1741 | P1 | sdk/ContextPackApi | ContextPackApi error output을 표준화한다 | 완료 기준: ContextPackApi: JSON error contract가 있다
+
+- [x] ATW-1742 | P1 | sdk/ContextPackApi | ContextPackApi golden snapshot을 추가한다 | 완료 기준: ContextPackApi: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1743 | P2 | sdk/ContextPackApi | ContextPackApi 문서화한다 | 완료 기준: ContextPackApi: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1744 | P0 | sdk/PolicyApi | PolicyApi contract를 정의한다 | 완료 기준: PolicyApi: typed input/output이 있다
+
+- [x] ATW-1745 | P0 | sdk/PolicyApi | PolicyApi handler를 구현한다 | 완료 기준: PolicyApi: smoke test가 통과한다
+
+- [x] ATW-1746 | P0 | sdk/PolicyApi | PolicyApi 권한 검사를 연결한다 | 완료 기준: PolicyApi: unauthorized access가 denied된다
+
+- [x] ATW-1747 | P0 | sdk/PolicyApi | PolicyApi audit를 연결한다 | 완료 기준: PolicyApi: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1748 | P1 | sdk/PolicyApi | PolicyApi error output을 표준화한다 | 완료 기준: PolicyApi: JSON error contract가 있다
+
+- [x] ATW-1749 | P1 | sdk/PolicyApi | PolicyApi golden snapshot을 추가한다 | 완료 기준: PolicyApi: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1750 | P2 | sdk/PolicyApi | PolicyApi 문서화한다 | 완료 기준: PolicyApi: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1751 | P0 | sdk/BackupApi | BackupApi contract를 정의한다 | 완료 기준: BackupApi: typed input/output이 있다
+
+- [x] ATW-1752 | P0 | sdk/BackupApi | BackupApi handler를 구현한다 | 완료 기준: BackupApi: smoke test가 통과한다
+
+- [x] ATW-1753 | P0 | sdk/BackupApi | BackupApi 권한 검사를 연결한다 | 완료 기준: BackupApi: unauthorized access가 denied된다
+
+- [x] ATW-1754 | P0 | sdk/BackupApi | BackupApi audit를 연결한다 | 완료 기준: BackupApi: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1755 | P1 | sdk/BackupApi | BackupApi error output을 표준화한다 | 완료 기준: BackupApi: JSON error contract가 있다
+
+- [x] ATW-1756 | P1 | sdk/BackupApi | BackupApi golden snapshot을 추가한다 | 완료 기준: BackupApi: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1757 | P2 | sdk/BackupApi | BackupApi 문서화한다 | 완료 기준: BackupApi: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1758 | P0 | api/HttpServer | HttpServer contract를 정의한다 | 완료 기준: HttpServer: typed input/output이 있다
+
+- [x] ATW-1759 | P0 | api/HttpServer | HttpServer handler를 구현한다 | 완료 기준: HttpServer: smoke test가 통과한다
+
+- [x] ATW-1760 | P0 | api/HttpServer | HttpServer 권한 검사를 연결한다 | 완료 기준: HttpServer: unauthorized access가 denied된다
+
+- [x] ATW-1761 | P0 | api/HttpServer | HttpServer audit를 연결한다 | 완료 기준: HttpServer: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1762 | P1 | api/HttpServer | HttpServer error output을 표준화한다 | 완료 기준: HttpServer: JSON error contract가 있다
+
+- [x] ATW-1763 | P1 | api/HttpServer | HttpServer golden snapshot을 추가한다 | 완료 기준: HttpServer: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1764 | P2 | api/HttpServer | HttpServer 문서화한다 | 완료 기준: HttpServer: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1765 | P0 | api/AuthMiddleware | AuthMiddleware contract를 정의한다 | 완료 기준: AuthMiddleware: typed input/output이 있다
+
+- [x] ATW-1766 | P0 | api/AuthMiddleware | AuthMiddleware handler를 구현한다 | 완료 기준: AuthMiddleware: smoke test가 통과한다
+
+- [x] ATW-1767 | P0 | api/AuthMiddleware | AuthMiddleware 권한 검사를 연결한다 | 완료 기준: AuthMiddleware: unauthorized access가 denied된다
+
+- [x] ATW-1768 | P0 | api/AuthMiddleware | AuthMiddleware audit를 연결한다 | 완료 기준: AuthMiddleware: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1769 | P1 | api/AuthMiddleware | AuthMiddleware error output을 표준화한다 | 완료 기준: AuthMiddleware: JSON error contract가 있다
+
+- [x] ATW-1770 | P1 | api/AuthMiddleware | AuthMiddleware golden snapshot을 추가한다 | 완료 기준: AuthMiddleware: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1771 | P2 | api/AuthMiddleware | AuthMiddleware 문서화한다 | 완료 기준: AuthMiddleware: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1772 | P0 | api/OpenApiSpec | OpenApiSpec contract를 정의한다 | 완료 기준: OpenApiSpec: typed input/output이 있다
+
+- [x] ATW-1773 | P0 | api/OpenApiSpec | OpenApiSpec handler를 구현한다 | 완료 기준: OpenApiSpec: smoke test가 통과한다
+
+- [x] ATW-1774 | P0 | api/OpenApiSpec | OpenApiSpec 권한 검사를 연결한다 | 완료 기준: OpenApiSpec: unauthorized access가 denied된다
+
+- [x] ATW-1775 | P0 | api/OpenApiSpec | OpenApiSpec audit를 연결한다 | 완료 기준: OpenApiSpec: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1776 | P1 | api/OpenApiSpec | OpenApiSpec error output을 표준화한다 | 완료 기준: OpenApiSpec: JSON error contract가 있다
+
+- [x] ATW-1777 | P1 | api/OpenApiSpec | OpenApiSpec golden snapshot을 추가한다 | 완료 기준: OpenApiSpec: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1778 | P2 | api/OpenApiSpec | OpenApiSpec 문서화한다 | 완료 기준: OpenApiSpec: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1779 | P0 | api/HealthRoute | HealthRoute contract를 정의한다 | 완료 기준: HealthRoute: typed input/output이 있다
+
+- [x] ATW-1780 | P0 | api/HealthRoute | HealthRoute handler를 구현한다 | 완료 기준: HealthRoute: smoke test가 통과한다
+
+- [x] ATW-1781 | P0 | api/HealthRoute | HealthRoute 권한 검사를 연결한다 | 완료 기준: HealthRoute: unauthorized access가 denied된다
+
+- [x] ATW-1782 | P0 | api/HealthRoute | HealthRoute audit를 연결한다 | 완료 기준: HealthRoute: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1783 | P1 | api/HealthRoute | HealthRoute error output을 표준화한다 | 완료 기준: HealthRoute: JSON error contract가 있다
+
+- [x] ATW-1784 | P1 | api/HealthRoute | HealthRoute golden snapshot을 추가한다 | 완료 기준: HealthRoute: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1785 | P2 | api/HealthRoute | HealthRoute 문서화한다 | 완료 기준: HealthRoute: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1786 | P0 | api/RecordsRoute | RecordsRoute contract를 정의한다 | 완료 기준: RecordsRoute: typed input/output이 있다
+
+- [x] ATW-1787 | P0 | api/RecordsRoute | RecordsRoute handler를 구현한다 | 완료 기준: RecordsRoute: smoke test가 통과한다
+
+- [x] ATW-1788 | P0 | api/RecordsRoute | RecordsRoute 권한 검사를 연결한다 | 완료 기준: RecordsRoute: unauthorized access가 denied된다
+
+- [x] ATW-1789 | P0 | api/RecordsRoute | RecordsRoute audit를 연결한다 | 완료 기준: RecordsRoute: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1790 | P1 | api/RecordsRoute | RecordsRoute error output을 표준화한다 | 완료 기준: RecordsRoute: JSON error contract가 있다
+
+- [x] ATW-1791 | P1 | api/RecordsRoute | RecordsRoute golden snapshot을 추가한다 | 완료 기준: RecordsRoute: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1792 | P2 | api/RecordsRoute | RecordsRoute 문서화한다 | 완료 기준: RecordsRoute: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1793 | P0 | api/SearchRoute | SearchRoute contract를 정의한다 | 완료 기준: SearchRoute: typed input/output이 있다
+
+- [x] ATW-1794 | P0 | api/SearchRoute | SearchRoute handler를 구현한다 | 완료 기준: SearchRoute: smoke test가 통과한다
+
+- [x] ATW-1795 | P0 | api/SearchRoute | SearchRoute 권한 검사를 연결한다 | 완료 기준: SearchRoute: unauthorized access가 denied된다
+
+- [x] ATW-1796 | P0 | api/SearchRoute | SearchRoute audit를 연결한다 | 완료 기준: SearchRoute: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1797 | P1 | api/SearchRoute | SearchRoute error output을 표준화한다 | 완료 기준: SearchRoute: JSON error contract가 있다
+
+- [x] ATW-1798 | P1 | api/SearchRoute | SearchRoute golden snapshot을 추가한다 | 완료 기준: SearchRoute: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1799 | P2 | api/SearchRoute | SearchRoute 문서화한다 | 완료 기준: SearchRoute: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1800 | P0 | api/ContextPackRoute | ContextPackRoute contract를 정의한다 | 완료 기준: ContextPackRoute: typed input/output이 있다
+
+- [x] ATW-1801 | P0 | api/ContextPackRoute | ContextPackRoute handler를 구현한다 | 완료 기준: ContextPackRoute: smoke test가 통과한다
+
+- [x] ATW-1802 | P0 | api/ContextPackRoute | ContextPackRoute 권한 검사를 연결한다 | 완료 기준: ContextPackRoute: unauthorized access가 denied된다
+
+- [x] ATW-1803 | P0 | api/ContextPackRoute | ContextPackRoute audit를 연결한다 | 완료 기준: ContextPackRoute: 조회/변경 이벤트가 기록된다
+
+- [x] ATW-1804 | P1 | api/ContextPackRoute | ContextPackRoute error output을 표준화한다 | 완료 기준: ContextPackRoute: JSON error contract가 있다
+
+- [x] ATW-1805 | P1 | api/ContextPackRoute | ContextPackRoute golden snapshot을 추가한다 | 완료 기준: ContextPackRoute: CLI/MCP/API 출력 snapshot이 안정적이다
+
+- [x] ATW-1806 | P2 | api/ContextPackRoute | ContextPackRoute 문서화한다 | 완료 기준: ContextPackRoute: docs/cli.md, docs/mcp.md, docs/sdk.md 중 관련 문서가 있다
+
+- [x] ATW-1807 | P0 | validation/SchemaValidator | SchemaValidator 초안을 작성한다 | 완료 기준: SchemaValidator: artifact가 존재한다
+
+- [x] ATW-1808 | P0 | validation/SchemaValidator | SchemaValidator core와 연결한다 | 완료 기준: SchemaValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1809 | P0 | validation/SchemaValidator | SchemaValidator 테스트를 작성한다 | 완료 기준: SchemaValidator: 테스트가 통과한다
+
+- [x] ATW-1810 | P1 | validation/SchemaValidator | SchemaValidator 보안 설정을 검토한다 | 완료 기준: SchemaValidator: default insecure setting이 없다
+
+- [x] ATW-1811 | P1 | validation/SchemaValidator | SchemaValidator golden fixture를 추가한다 | 완료 기준: SchemaValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1812 | P2 | validation/SchemaValidator | SchemaValidator 운영 문서를 작성한다 | 완료 기준: SchemaValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1813 | P0 | validation/DbIntegrityValidator | DbIntegrityValidator 초안을 작성한다 | 완료 기준: DbIntegrityValidator: artifact가 존재한다
+
+- [x] ATW-1814 | P0 | validation/DbIntegrityValidator | DbIntegrityValidator core와 연결한다 | 완료 기준: DbIntegrityValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1815 | P0 | validation/DbIntegrityValidator | DbIntegrityValidator 테스트를 작성한다 | 완료 기준: DbIntegrityValidator: 테스트가 통과한다
+
+- [x] ATW-1816 | P1 | validation/DbIntegrityValidator | DbIntegrityValidator 보안 설정을 검토한다 | 완료 기준: DbIntegrityValidator: default insecure setting이 없다
+
+- [x] ATW-1817 | P1 | validation/DbIntegrityValidator | DbIntegrityValidator golden fixture를 추가한다 | 완료 기준: DbIntegrityValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1818 | P2 | validation/DbIntegrityValidator | DbIntegrityValidator 운영 문서를 작성한다 | 완료 기준: DbIntegrityValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1819 | P0 | validation/SourceRefValidator | SourceRefValidator 초안을 작성한다 | 완료 기준: SourceRefValidator: artifact가 존재한다
+
+- [x] ATW-1820 | P0 | validation/SourceRefValidator | SourceRefValidator core와 연결한다 | 완료 기준: SourceRefValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1821 | P0 | validation/SourceRefValidator | SourceRefValidator 테스트를 작성한다 | 완료 기준: SourceRefValidator: 테스트가 통과한다
+
+- [x] ATW-1822 | P1 | validation/SourceRefValidator | SourceRefValidator 보안 설정을 검토한다 | 완료 기준: SourceRefValidator: default insecure setting이 없다
+
+- [x] ATW-1823 | P1 | validation/SourceRefValidator | SourceRefValidator golden fixture를 추가한다 | 완료 기준: SourceRefValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1824 | P2 | validation/SourceRefValidator | SourceRefValidator 운영 문서를 작성한다 | 완료 기준: SourceRefValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1825 | P0 | validation/AclValidator | AclValidator 초안을 작성한다 | 완료 기준: AclValidator: artifact가 존재한다
+
+- [x] ATW-1826 | P0 | validation/AclValidator | AclValidator core와 연결한다 | 완료 기준: AclValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1827 | P0 | validation/AclValidator | AclValidator 테스트를 작성한다 | 완료 기준: AclValidator: 테스트가 통과한다
+
+- [x] ATW-1828 | P1 | validation/AclValidator | AclValidator 보안 설정을 검토한다 | 완료 기준: AclValidator: default insecure setting이 없다
+
+- [x] ATW-1829 | P1 | validation/AclValidator | AclValidator golden fixture를 추가한다 | 완료 기준: AclValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1830 | P2 | validation/AclValidator | AclValidator 운영 문서를 작성한다 | 완료 기준: AclValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1831 | P0 | validation/FreshnessValidator | FreshnessValidator 초안을 작성한다 | 완료 기준: FreshnessValidator: artifact가 존재한다
+
+- [x] ATW-1832 | P0 | validation/FreshnessValidator | FreshnessValidator core와 연결한다 | 완료 기준: FreshnessValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1833 | P0 | validation/FreshnessValidator | FreshnessValidator 테스트를 작성한다 | 완료 기준: FreshnessValidator: 테스트가 통과한다
+
+- [x] ATW-1834 | P1 | validation/FreshnessValidator | FreshnessValidator 보안 설정을 검토한다 | 완료 기준: FreshnessValidator: default insecure setting이 없다
+
+- [x] ATW-1835 | P1 | validation/FreshnessValidator | FreshnessValidator golden fixture를 추가한다 | 완료 기준: FreshnessValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1836 | P2 | validation/FreshnessValidator | FreshnessValidator 운영 문서를 작성한다 | 완료 기준: FreshnessValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1837 | P0 | validation/ConflictValidator | ConflictValidator 초안을 작성한다 | 완료 기준: ConflictValidator: artifact가 존재한다
+
+- [x] ATW-1838 | P0 | validation/ConflictValidator | ConflictValidator core와 연결한다 | 완료 기준: ConflictValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1839 | P0 | validation/ConflictValidator | ConflictValidator 테스트를 작성한다 | 완료 기준: ConflictValidator: 테스트가 통과한다
+
+- [x] ATW-1840 | P1 | validation/ConflictValidator | ConflictValidator 보안 설정을 검토한다 | 완료 기준: ConflictValidator: default insecure setting이 없다
+
+- [x] ATW-1841 | P1 | validation/ConflictValidator | ConflictValidator golden fixture를 추가한다 | 완료 기준: ConflictValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1842 | P2 | validation/ConflictValidator | ConflictValidator 운영 문서를 작성한다 | 완료 기준: ConflictValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1843 | P0 | validation/SecretScanValidator | SecretScanValidator 초안을 작성한다 | 완료 기준: SecretScanValidator: artifact가 존재한다
+
+- [x] ATW-1844 | P0 | validation/SecretScanValidator | SecretScanValidator core와 연결한다 | 완료 기준: SecretScanValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1845 | P0 | validation/SecretScanValidator | SecretScanValidator 테스트를 작성한다 | 완료 기준: SecretScanValidator: 테스트가 통과한다
+
+- [x] ATW-1846 | P1 | validation/SecretScanValidator | SecretScanValidator 보안 설정을 검토한다 | 완료 기준: SecretScanValidator: default insecure setting이 없다
+
+- [x] ATW-1847 | P1 | validation/SecretScanValidator | SecretScanValidator golden fixture를 추가한다 | 완료 기준: SecretScanValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1848 | P2 | validation/SecretScanValidator | SecretScanValidator 운영 문서를 작성한다 | 완료 기준: SecretScanValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1849 | P0 | validation/AuditChainValidator | AuditChainValidator 초안을 작성한다 | 완료 기준: AuditChainValidator: artifact가 존재한다
+
+- [x] ATW-1850 | P0 | validation/AuditChainValidator | AuditChainValidator core와 연결한다 | 완료 기준: AuditChainValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1851 | P0 | validation/AuditChainValidator | AuditChainValidator 테스트를 작성한다 | 완료 기준: AuditChainValidator: 테스트가 통과한다
+
+- [x] ATW-1852 | P1 | validation/AuditChainValidator | AuditChainValidator 보안 설정을 검토한다 | 완료 기준: AuditChainValidator: default insecure setting이 없다
+
+- [x] ATW-1853 | P1 | validation/AuditChainValidator | AuditChainValidator golden fixture를 추가한다 | 완료 기준: AuditChainValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1854 | P2 | validation/AuditChainValidator | AuditChainValidator 운영 문서를 작성한다 | 완료 기준: AuditChainValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1855 | P0 | validation/MigrationValidator | MigrationValidator 초안을 작성한다 | 완료 기준: MigrationValidator: artifact가 존재한다
+
+- [x] ATW-1856 | P0 | validation/MigrationValidator | MigrationValidator core와 연결한다 | 완료 기준: MigrationValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1857 | P0 | validation/MigrationValidator | MigrationValidator 테스트를 작성한다 | 완료 기준: MigrationValidator: 테스트가 통과한다
+
+- [x] ATW-1858 | P1 | validation/MigrationValidator | MigrationValidator 보안 설정을 검토한다 | 완료 기준: MigrationValidator: default insecure setting이 없다
+
+- [x] ATW-1859 | P1 | validation/MigrationValidator | MigrationValidator golden fixture를 추가한다 | 완료 기준: MigrationValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1860 | P2 | validation/MigrationValidator | MigrationValidator 운영 문서를 작성한다 | 완료 기준: MigrationValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1861 | P0 | validation/BackupValidator | BackupValidator 초안을 작성한다 | 완료 기준: BackupValidator: artifact가 존재한다
+
+- [x] ATW-1862 | P0 | validation/BackupValidator | BackupValidator core와 연결한다 | 완료 기준: BackupValidator: 실행 가능한 integration이 있다
+
+- [x] ATW-1863 | P0 | validation/BackupValidator | BackupValidator 테스트를 작성한다 | 완료 기준: BackupValidator: 테스트가 통과한다
+
+- [x] ATW-1864 | P1 | validation/BackupValidator | BackupValidator 보안 설정을 검토한다 | 완료 기준: BackupValidator: default insecure setting이 없다
+
+- [x] ATW-1865 | P1 | validation/BackupValidator | BackupValidator golden fixture를 추가한다 | 완료 기준: BackupValidator: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1866 | P2 | validation/BackupValidator | BackupValidator 운영 문서를 작성한다 | 완료 기준: BackupValidator: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1867 | P0 | eval/RetrievalEvalHarness | RetrievalEvalHarness 초안을 작성한다 | 완료 기준: RetrievalEvalHarness: artifact가 존재한다
+
+- [x] ATW-1868 | P0 | eval/RetrievalEvalHarness | RetrievalEvalHarness core와 연결한다 | 완료 기준: RetrievalEvalHarness: 실행 가능한 integration이 있다
+
+- [x] ATW-1869 | P0 | eval/RetrievalEvalHarness | RetrievalEvalHarness 테스트를 작성한다 | 완료 기준: RetrievalEvalHarness: 테스트가 통과한다
+
+- [x] ATW-1870 | P1 | eval/RetrievalEvalHarness | RetrievalEvalHarness 보안 설정을 검토한다 | 완료 기준: RetrievalEvalHarness: default insecure setting이 없다
+
+- [x] ATW-1871 | P1 | eval/RetrievalEvalHarness | RetrievalEvalHarness golden fixture를 추가한다 | 완료 기준: RetrievalEvalHarness: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1872 | P2 | eval/RetrievalEvalHarness | RetrievalEvalHarness 운영 문서를 작성한다 | 완료 기준: RetrievalEvalHarness: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1873 | P0 | eval/RedactionEvalHarness | RedactionEvalHarness 초안을 작성한다 | 완료 기준: RedactionEvalHarness: artifact가 존재한다
+
+- [x] ATW-1874 | P0 | eval/RedactionEvalHarness | RedactionEvalHarness core와 연결한다 | 완료 기준: RedactionEvalHarness: 실행 가능한 integration이 있다
+
+- [x] ATW-1875 | P0 | eval/RedactionEvalHarness | RedactionEvalHarness 테스트를 작성한다 | 완료 기준: RedactionEvalHarness: 테스트가 통과한다
+
+- [x] ATW-1876 | P1 | eval/RedactionEvalHarness | RedactionEvalHarness 보안 설정을 검토한다 | 완료 기준: RedactionEvalHarness: default insecure setting이 없다
+
+- [x] ATW-1877 | P1 | eval/RedactionEvalHarness | RedactionEvalHarness golden fixture를 추가한다 | 완료 기준: RedactionEvalHarness: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1878 | P2 | eval/RedactionEvalHarness | RedactionEvalHarness 운영 문서를 작성한다 | 완료 기준: RedactionEvalHarness: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1879 | P0 | eval/PromptInjectionEvalHarness | PromptInjectionEvalHarness 초안을 작성한다 | 완료 기준: PromptInjectionEvalHarness: artifact가 존재한다
+
+- [x] ATW-1880 | P0 | eval/PromptInjectionEvalHarness | PromptInjectionEvalHarness core와 연결한다 | 완료 기준: PromptInjectionEvalHarness: 실행 가능한 integration이 있다
+
+- [x] ATW-1881 | P0 | eval/PromptInjectionEvalHarness | PromptInjectionEvalHarness 테스트를 작성한다 | 완료 기준: PromptInjectionEvalHarness: 테스트가 통과한다
+
+- [x] ATW-1882 | P1 | eval/PromptInjectionEvalHarness | PromptInjectionEvalHarness 보안 설정을 검토한다 | 완료 기준: PromptInjectionEvalHarness: default insecure setting이 없다
+
+- [x] ATW-1883 | P1 | eval/PromptInjectionEvalHarness | PromptInjectionEvalHarness golden fixture를 추가한다 | 완료 기준: PromptInjectionEvalHarness: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1884 | P2 | eval/PromptInjectionEvalHarness | PromptInjectionEvalHarness 운영 문서를 작성한다 | 완료 기준: PromptInjectionEvalHarness: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1885 | P0 | eval/FreshnessEvalHarness | FreshnessEvalHarness 초안을 작성한다 | 완료 기준: FreshnessEvalHarness: artifact가 존재한다
+
+- [x] ATW-1886 | P0 | eval/FreshnessEvalHarness | FreshnessEvalHarness core와 연결한다 | 완료 기준: FreshnessEvalHarness: 실행 가능한 integration이 있다
+
+- [x] ATW-1887 | P0 | eval/FreshnessEvalHarness | FreshnessEvalHarness 테스트를 작성한다 | 완료 기준: FreshnessEvalHarness: 테스트가 통과한다
+
+- [x] ATW-1888 | P1 | eval/FreshnessEvalHarness | FreshnessEvalHarness 보안 설정을 검토한다 | 완료 기준: FreshnessEvalHarness: default insecure setting이 없다
+
+- [x] ATW-1889 | P1 | eval/FreshnessEvalHarness | FreshnessEvalHarness golden fixture를 추가한다 | 완료 기준: FreshnessEvalHarness: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1890 | P2 | eval/FreshnessEvalHarness | FreshnessEvalHarness 운영 문서를 작성한다 | 완료 기준: FreshnessEvalHarness: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1891 | P0 | eval/ConflictEvalHarness | ConflictEvalHarness 초안을 작성한다 | 완료 기준: ConflictEvalHarness: artifact가 존재한다
+
+- [x] ATW-1892 | P0 | eval/ConflictEvalHarness | ConflictEvalHarness core와 연결한다 | 완료 기준: ConflictEvalHarness: 실행 가능한 integration이 있다
+
+- [x] ATW-1893 | P0 | eval/ConflictEvalHarness | ConflictEvalHarness 테스트를 작성한다 | 완료 기준: ConflictEvalHarness: 테스트가 통과한다
+
+- [x] ATW-1894 | P1 | eval/ConflictEvalHarness | ConflictEvalHarness 보안 설정을 검토한다 | 완료 기준: ConflictEvalHarness: default insecure setting이 없다
+
+- [x] ATW-1895 | P1 | eval/ConflictEvalHarness | ConflictEvalHarness golden fixture를 추가한다 | 완료 기준: ConflictEvalHarness: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1896 | P2 | eval/ConflictEvalHarness | ConflictEvalHarness 운영 문서를 작성한다 | 완료 기준: ConflictEvalHarness: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1897 | P0 | eval/PermissionLeakageEval | PermissionLeakageEval 초안을 작성한다 | 완료 기준: PermissionLeakageEval: artifact가 존재한다
+
+- [x] ATW-1898 | P0 | eval/PermissionLeakageEval | PermissionLeakageEval core와 연결한다 | 완료 기준: PermissionLeakageEval: 실행 가능한 integration이 있다
+
+- [x] ATW-1899 | P0 | eval/PermissionLeakageEval | PermissionLeakageEval 테스트를 작성한다 | 완료 기준: PermissionLeakageEval: 테스트가 통과한다
+
+- [x] ATW-1900 | P1 | eval/PermissionLeakageEval | PermissionLeakageEval 보안 설정을 검토한다 | 완료 기준: PermissionLeakageEval: default insecure setting이 없다
+
+- [x] ATW-1901 | P1 | eval/PermissionLeakageEval | PermissionLeakageEval golden fixture를 추가한다 | 완료 기준: PermissionLeakageEval: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1902 | P2 | eval/PermissionLeakageEval | PermissionLeakageEval 운영 문서를 작성한다 | 완료 기준: PermissionLeakageEval: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1903 | P0 | eval/GoldenDatasetBuilder | GoldenDatasetBuilder 초안을 작성한다 | 완료 기준: GoldenDatasetBuilder: artifact가 존재한다
+
+- [x] ATW-1904 | P0 | eval/GoldenDatasetBuilder | GoldenDatasetBuilder core와 연결한다 | 완료 기준: GoldenDatasetBuilder: 실행 가능한 integration이 있다
+
+- [x] ATW-1905 | P0 | eval/GoldenDatasetBuilder | GoldenDatasetBuilder 테스트를 작성한다 | 완료 기준: GoldenDatasetBuilder: 테스트가 통과한다
+
+- [x] ATW-1906 | P1 | eval/GoldenDatasetBuilder | GoldenDatasetBuilder 보안 설정을 검토한다 | 완료 기준: GoldenDatasetBuilder: default insecure setting이 없다
+
+- [x] ATW-1907 | P1 | eval/GoldenDatasetBuilder | GoldenDatasetBuilder golden fixture를 추가한다 | 완료 기준: GoldenDatasetBuilder: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1908 | P2 | eval/GoldenDatasetBuilder | GoldenDatasetBuilder 운영 문서를 작성한다 | 완료 기준: GoldenDatasetBuilder: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1909 | P0 | eval/MetricsReporter | MetricsReporter 초안을 작성한다 | 완료 기준: MetricsReporter: artifact가 존재한다
+
+- [x] ATW-1910 | P0 | eval/MetricsReporter | MetricsReporter core와 연결한다 | 완료 기준: MetricsReporter: 실행 가능한 integration이 있다
+
+- [x] ATW-1911 | P0 | eval/MetricsReporter | MetricsReporter 테스트를 작성한다 | 완료 기준: MetricsReporter: 테스트가 통과한다
+
+- [x] ATW-1912 | P1 | eval/MetricsReporter | MetricsReporter 보안 설정을 검토한다 | 완료 기준: MetricsReporter: default insecure setting이 없다
+
+- [x] ATW-1913 | P1 | eval/MetricsReporter | MetricsReporter golden fixture를 추가한다 | 완료 기준: MetricsReporter: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1914 | P2 | eval/MetricsReporter | MetricsReporter 운영 문서를 작성한다 | 완료 기준: MetricsReporter: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1915 | P0 | governance/ProposalApprovalFlow | ProposalApprovalFlow 초안을 작성한다 | 완료 기준: ProposalApprovalFlow: artifact가 존재한다
+
+- [x] ATW-1916 | P0 | governance/ProposalApprovalFlow | ProposalApprovalFlow core와 연결한다 | 완료 기준: ProposalApprovalFlow: 실행 가능한 integration이 있다
+
+- [x] ATW-1917 | P0 | governance/ProposalApprovalFlow | ProposalApprovalFlow 테스트를 작성한다 | 완료 기준: ProposalApprovalFlow: 테스트가 통과한다
+
+- [x] ATW-1918 | P1 | governance/ProposalApprovalFlow | ProposalApprovalFlow 보안 설정을 검토한다 | 완료 기준: ProposalApprovalFlow: default insecure setting이 없다
+
+- [x] ATW-1919 | P1 | governance/ProposalApprovalFlow | ProposalApprovalFlow golden fixture를 추가한다 | 완료 기준: ProposalApprovalFlow: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1920 | P2 | governance/ProposalApprovalFlow | ProposalApprovalFlow 운영 문서를 작성한다 | 완료 기준: ProposalApprovalFlow: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1921 | P0 | governance/OwnerNotification | OwnerNotification 초안을 작성한다 | 완료 기준: OwnerNotification: artifact가 존재한다
+
+- [x] ATW-1922 | P0 | governance/OwnerNotification | OwnerNotification core와 연결한다 | 완료 기준: OwnerNotification: 실행 가능한 integration이 있다
+
+- [x] ATW-1923 | P0 | governance/OwnerNotification | OwnerNotification 테스트를 작성한다 | 완료 기준: OwnerNotification: 테스트가 통과한다
+
+- [x] ATW-1924 | P1 | governance/OwnerNotification | OwnerNotification 보안 설정을 검토한다 | 완료 기준: OwnerNotification: default insecure setting이 없다
+
+- [x] ATW-1925 | P1 | governance/OwnerNotification | OwnerNotification golden fixture를 추가한다 | 완료 기준: OwnerNotification: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1926 | P2 | governance/OwnerNotification | OwnerNotification 운영 문서를 작성한다 | 완료 기준: OwnerNotification: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1927 | P0 | governance/ChangeHistoryBuilder | ChangeHistoryBuilder 초안을 작성한다 | 완료 기준: ChangeHistoryBuilder: artifact가 존재한다
+
+- [x] ATW-1928 | P0 | governance/ChangeHistoryBuilder | ChangeHistoryBuilder core와 연결한다 | 완료 기준: ChangeHistoryBuilder: 실행 가능한 integration이 있다
+
+- [x] ATW-1929 | P0 | governance/ChangeHistoryBuilder | ChangeHistoryBuilder 테스트를 작성한다 | 완료 기준: ChangeHistoryBuilder: 테스트가 통과한다
+
+- [x] ATW-1930 | P1 | governance/ChangeHistoryBuilder | ChangeHistoryBuilder 보안 설정을 검토한다 | 완료 기준: ChangeHistoryBuilder: default insecure setting이 없다
+
+- [x] ATW-1931 | P1 | governance/ChangeHistoryBuilder | ChangeHistoryBuilder golden fixture를 추가한다 | 완료 기준: ChangeHistoryBuilder: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1932 | P2 | governance/ChangeHistoryBuilder | ChangeHistoryBuilder 운영 문서를 작성한다 | 완료 기준: ChangeHistoryBuilder: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1933 | P0 | governance/ComplianceReport | ComplianceReport 초안을 작성한다 | 완료 기준: ComplianceReport: artifact가 존재한다
+
+- [x] ATW-1934 | P0 | governance/ComplianceReport | ComplianceReport core와 연결한다 | 완료 기준: ComplianceReport: 실행 가능한 integration이 있다
+
+- [x] ATW-1935 | P0 | governance/ComplianceReport | ComplianceReport 테스트를 작성한다 | 완료 기준: ComplianceReport: 테스트가 통과한다
+
+- [x] ATW-1936 | P1 | governance/ComplianceReport | ComplianceReport 보안 설정을 검토한다 | 완료 기준: ComplianceReport: default insecure setting이 없다
+
+- [x] ATW-1937 | P1 | governance/ComplianceReport | ComplianceReport golden fixture를 추가한다 | 완료 기준: ComplianceReport: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1938 | P2 | governance/ComplianceReport | ComplianceReport 운영 문서를 작성한다 | 완료 기준: ComplianceReport: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1939 | P0 | governance/RetentionSweep | RetentionSweep 초안을 작성한다 | 완료 기준: RetentionSweep: artifact가 존재한다
+
+- [x] ATW-1940 | P0 | governance/RetentionSweep | RetentionSweep core와 연결한다 | 완료 기준: RetentionSweep: 실행 가능한 integration이 있다
+
+- [x] ATW-1941 | P0 | governance/RetentionSweep | RetentionSweep 테스트를 작성한다 | 완료 기준: RetentionSweep: 테스트가 통과한다
+
+- [x] ATW-1942 | P1 | governance/RetentionSweep | RetentionSweep 보안 설정을 검토한다 | 완료 기준: RetentionSweep: default insecure setting이 없다
+
+- [x] ATW-1943 | P1 | governance/RetentionSweep | RetentionSweep golden fixture를 추가한다 | 완료 기준: RetentionSweep: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1944 | P2 | governance/RetentionSweep | RetentionSweep 운영 문서를 작성한다 | 완료 기준: RetentionSweep: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1945 | P0 | governance/LegalHold | LegalHold 초안을 작성한다 | 완료 기준: LegalHold: artifact가 존재한다
+
+- [x] ATW-1946 | P0 | governance/LegalHold | LegalHold core와 연결한다 | 완료 기준: LegalHold: 실행 가능한 integration이 있다
+
+- [x] ATW-1947 | P0 | governance/LegalHold | LegalHold 테스트를 작성한다 | 완료 기준: LegalHold: 테스트가 통과한다
+
+- [x] ATW-1948 | P1 | governance/LegalHold | LegalHold 보안 설정을 검토한다 | 완료 기준: LegalHold: default insecure setting이 없다
+
+- [x] ATW-1949 | P1 | governance/LegalHold | LegalHold golden fixture를 추가한다 | 완료 기준: LegalHold: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1950 | P2 | governance/LegalHold | LegalHold 운영 문서를 작성한다 | 완료 기준: LegalHold: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1951 | P0 | governance/DataExportRequest | DataExportRequest 초안을 작성한다 | 완료 기준: DataExportRequest: artifact가 존재한다
+
+- [x] ATW-1952 | P0 | governance/DataExportRequest | DataExportRequest core와 연결한다 | 완료 기준: DataExportRequest: 실행 가능한 integration이 있다
+
+- [x] ATW-1953 | P0 | governance/DataExportRequest | DataExportRequest 테스트를 작성한다 | 완료 기준: DataExportRequest: 테스트가 통과한다
+
+- [x] ATW-1954 | P1 | governance/DataExportRequest | DataExportRequest 보안 설정을 검토한다 | 완료 기준: DataExportRequest: default insecure setting이 없다
+
+- [x] ATW-1955 | P1 | governance/DataExportRequest | DataExportRequest golden fixture를 추가한다 | 완료 기준: DataExportRequest: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1956 | P2 | governance/DataExportRequest | DataExportRequest 운영 문서를 작성한다 | 완료 기준: DataExportRequest: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1957 | P0 | governance/DeletionRequest | DeletionRequest 초안을 작성한다 | 완료 기준: DeletionRequest: artifact가 존재한다
+
+- [x] ATW-1958 | P0 | governance/DeletionRequest | DeletionRequest core와 연결한다 | 완료 기준: DeletionRequest: 실행 가능한 integration이 있다
+
+- [x] ATW-1959 | P0 | governance/DeletionRequest | DeletionRequest 테스트를 작성한다 | 완료 기준: DeletionRequest: 테스트가 통과한다
+
+- [x] ATW-1960 | P1 | governance/DeletionRequest | DeletionRequest 보안 설정을 검토한다 | 완료 기준: DeletionRequest: default insecure setting이 없다
+
+- [x] ATW-1961 | P1 | governance/DeletionRequest | DeletionRequest golden fixture를 추가한다 | 완료 기준: DeletionRequest: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1962 | P2 | governance/DeletionRequest | DeletionRequest 운영 문서를 작성한다 | 완료 기준: DeletionRequest: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1963 | P0 | docs/ArchitectureDoc | ArchitectureDoc 초안을 작성한다 | 완료 기준: ArchitectureDoc: artifact가 존재한다
+
+- [x] ATW-1964 | P0 | docs/ArchitectureDoc | ArchitectureDoc core와 연결한다 | 완료 기준: ArchitectureDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-1965 | P0 | docs/ArchitectureDoc | ArchitectureDoc 테스트를 작성한다 | 완료 기준: ArchitectureDoc: 테스트가 통과한다
+
+- [x] ATW-1966 | P1 | docs/ArchitectureDoc | ArchitectureDoc 보안 설정을 검토한다 | 완료 기준: ArchitectureDoc: default insecure setting이 없다
+
+- [x] ATW-1967 | P1 | docs/ArchitectureDoc | ArchitectureDoc golden fixture를 추가한다 | 완료 기준: ArchitectureDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1968 | P2 | docs/ArchitectureDoc | ArchitectureDoc 운영 문서를 작성한다 | 완료 기준: ArchitectureDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1969 | P0 | docs/SQLiteStorageDoc | SQLiteStorageDoc 초안을 작성한다 | 완료 기준: SQLiteStorageDoc: artifact가 존재한다
+
+- [x] ATW-1970 | P0 | docs/SQLiteStorageDoc | SQLiteStorageDoc core와 연결한다 | 완료 기준: SQLiteStorageDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-1971 | P0 | docs/SQLiteStorageDoc | SQLiteStorageDoc 테스트를 작성한다 | 완료 기준: SQLiteStorageDoc: 테스트가 통과한다
+
+- [x] ATW-1972 | P1 | docs/SQLiteStorageDoc | SQLiteStorageDoc 보안 설정을 검토한다 | 완료 기준: SQLiteStorageDoc: default insecure setting이 없다
+
+- [x] ATW-1973 | P1 | docs/SQLiteStorageDoc | SQLiteStorageDoc golden fixture를 추가한다 | 완료 기준: SQLiteStorageDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1974 | P2 | docs/SQLiteStorageDoc | SQLiteStorageDoc 운영 문서를 작성한다 | 완료 기준: SQLiteStorageDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1975 | P0 | docs/SecurityModelDoc | SecurityModelDoc 초안을 작성한다 | 완료 기준: SecurityModelDoc: artifact가 존재한다
+
+- [x] ATW-1976 | P0 | docs/SecurityModelDoc | SecurityModelDoc core와 연결한다 | 완료 기준: SecurityModelDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-1977 | P0 | docs/SecurityModelDoc | SecurityModelDoc 테스트를 작성한다 | 완료 기준: SecurityModelDoc: 테스트가 통과한다
+
+- [x] ATW-1978 | P1 | docs/SecurityModelDoc | SecurityModelDoc 보안 설정을 검토한다 | 완료 기준: SecurityModelDoc: default insecure setting이 없다
+
+- [x] ATW-1979 | P1 | docs/SecurityModelDoc | SecurityModelDoc golden fixture를 추가한다 | 완료 기준: SecurityModelDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1980 | P2 | docs/SecurityModelDoc | SecurityModelDoc 운영 문서를 작성한다 | 완료 기준: SecurityModelDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1981 | P0 | docs/AclModelDoc | AclModelDoc 초안을 작성한다 | 완료 기준: AclModelDoc: artifact가 존재한다
+
+- [x] ATW-1982 | P0 | docs/AclModelDoc | AclModelDoc core와 연결한다 | 완료 기준: AclModelDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-1983 | P0 | docs/AclModelDoc | AclModelDoc 테스트를 작성한다 | 완료 기준: AclModelDoc: 테스트가 통과한다
+
+- [x] ATW-1984 | P1 | docs/AclModelDoc | AclModelDoc 보안 설정을 검토한다 | 완료 기준: AclModelDoc: default insecure setting이 없다
+
+- [x] ATW-1985 | P1 | docs/AclModelDoc | AclModelDoc golden fixture를 추가한다 | 완료 기준: AclModelDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1986 | P2 | docs/AclModelDoc | AclModelDoc 운영 문서를 작성한다 | 완료 기준: AclModelDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1987 | P0 | docs/SchemaDoc | SchemaDoc 초안을 작성한다 | 완료 기준: SchemaDoc: artifact가 존재한다
+
+- [x] ATW-1988 | P0 | docs/SchemaDoc | SchemaDoc core와 연결한다 | 완료 기준: SchemaDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-1989 | P0 | docs/SchemaDoc | SchemaDoc 테스트를 작성한다 | 완료 기준: SchemaDoc: 테스트가 통과한다
+
+- [x] ATW-1990 | P1 | docs/SchemaDoc | SchemaDoc 보안 설정을 검토한다 | 완료 기준: SchemaDoc: default insecure setting이 없다
+
+- [x] ATW-1991 | P1 | docs/SchemaDoc | SchemaDoc golden fixture를 추가한다 | 완료 기준: SchemaDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1992 | P2 | docs/SchemaDoc | SchemaDoc 운영 문서를 작성한다 | 완료 기준: SchemaDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1993 | P0 | docs/IngestionDoc | IngestionDoc 초안을 작성한다 | 완료 기준: IngestionDoc: artifact가 존재한다
+
+- [x] ATW-1994 | P0 | docs/IngestionDoc | IngestionDoc core와 연결한다 | 완료 기준: IngestionDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-1995 | P0 | docs/IngestionDoc | IngestionDoc 테스트를 작성한다 | 완료 기준: IngestionDoc: 테스트가 통과한다
+
+- [x] ATW-1996 | P1 | docs/IngestionDoc | IngestionDoc 보안 설정을 검토한다 | 완료 기준: IngestionDoc: default insecure setting이 없다
+
+- [x] ATW-1997 | P1 | docs/IngestionDoc | IngestionDoc golden fixture를 추가한다 | 완료 기준: IngestionDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-1998 | P2 | docs/IngestionDoc | IngestionDoc 운영 문서를 작성한다 | 완료 기준: IngestionDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-1999 | P0 | docs/RetrievalDoc | RetrievalDoc 초안을 작성한다 | 완료 기준: RetrievalDoc: artifact가 존재한다
+
+- [x] ATW-2000 | P0 | docs/RetrievalDoc | RetrievalDoc core와 연결한다 | 완료 기준: RetrievalDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2001 | P0 | docs/RetrievalDoc | RetrievalDoc 테스트를 작성한다 | 완료 기준: RetrievalDoc: 테스트가 통과한다
+
+- [x] ATW-2002 | P1 | docs/RetrievalDoc | RetrievalDoc 보안 설정을 검토한다 | 완료 기준: RetrievalDoc: default insecure setting이 없다
+
+- [x] ATW-2003 | P1 | docs/RetrievalDoc | RetrievalDoc golden fixture를 추가한다 | 완료 기준: RetrievalDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2004 | P2 | docs/RetrievalDoc | RetrievalDoc 운영 문서를 작성한다 | 완료 기준: RetrievalDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2005 | P0 | docs/McpDoc | McpDoc 초안을 작성한다 | 완료 기준: McpDoc: artifact가 존재한다
+
+- [x] ATW-2006 | P0 | docs/McpDoc | McpDoc core와 연결한다 | 완료 기준: McpDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2007 | P0 | docs/McpDoc | McpDoc 테스트를 작성한다 | 완료 기준: McpDoc: 테스트가 통과한다
+
+- [x] ATW-2008 | P1 | docs/McpDoc | McpDoc 보안 설정을 검토한다 | 완료 기준: McpDoc: default insecure setting이 없다
+
+- [x] ATW-2009 | P1 | docs/McpDoc | McpDoc golden fixture를 추가한다 | 완료 기준: McpDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2010 | P2 | docs/McpDoc | McpDoc 운영 문서를 작성한다 | 완료 기준: McpDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2011 | P0 | docs/SdkDoc | SdkDoc 초안을 작성한다 | 완료 기준: SdkDoc: artifact가 존재한다
+
+- [x] ATW-2012 | P0 | docs/SdkDoc | SdkDoc core와 연결한다 | 완료 기준: SdkDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2013 | P0 | docs/SdkDoc | SdkDoc 테스트를 작성한다 | 완료 기준: SdkDoc: 테스트가 통과한다
+
+- [x] ATW-2014 | P1 | docs/SdkDoc | SdkDoc 보안 설정을 검토한다 | 완료 기준: SdkDoc: default insecure setting이 없다
+
+- [x] ATW-2015 | P1 | docs/SdkDoc | SdkDoc golden fixture를 추가한다 | 완료 기준: SdkDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2016 | P2 | docs/SdkDoc | SdkDoc 운영 문서를 작성한다 | 완료 기준: SdkDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2017 | P0 | docs/CliDoc | CliDoc 초안을 작성한다 | 완료 기준: CliDoc: artifact가 존재한다
+
+- [x] ATW-2018 | P0 | docs/CliDoc | CliDoc core와 연결한다 | 완료 기준: CliDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2019 | P0 | docs/CliDoc | CliDoc 테스트를 작성한다 | 완료 기준: CliDoc: 테스트가 통과한다
+
+- [x] ATW-2020 | P1 | docs/CliDoc | CliDoc 보안 설정을 검토한다 | 완료 기준: CliDoc: default insecure setting이 없다
+
+- [x] ATW-2021 | P1 | docs/CliDoc | CliDoc golden fixture를 추가한다 | 완료 기준: CliDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2022 | P2 | docs/CliDoc | CliDoc 운영 문서를 작성한다 | 완료 기준: CliDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2023 | P0 | docs/ConnectorModelDoc | ConnectorModelDoc 초안을 작성한다 | 완료 기준: ConnectorModelDoc: artifact가 존재한다
+
+- [x] ATW-2024 | P0 | docs/ConnectorModelDoc | ConnectorModelDoc core와 연결한다 | 완료 기준: ConnectorModelDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2025 | P0 | docs/ConnectorModelDoc | ConnectorModelDoc 테스트를 작성한다 | 완료 기준: ConnectorModelDoc: 테스트가 통과한다
+
+- [x] ATW-2026 | P1 | docs/ConnectorModelDoc | ConnectorModelDoc 보안 설정을 검토한다 | 완료 기준: ConnectorModelDoc: default insecure setting이 없다
+
+- [x] ATW-2027 | P1 | docs/ConnectorModelDoc | ConnectorModelDoc golden fixture를 추가한다 | 완료 기준: ConnectorModelDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2028 | P2 | docs/ConnectorModelDoc | ConnectorModelDoc 운영 문서를 작성한다 | 완료 기준: ConnectorModelDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2029 | P0 | docs/AuditModelDoc | AuditModelDoc 초안을 작성한다 | 완료 기준: AuditModelDoc: artifact가 존재한다
+
+- [x] ATW-2030 | P0 | docs/AuditModelDoc | AuditModelDoc core와 연결한다 | 완료 기준: AuditModelDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2031 | P0 | docs/AuditModelDoc | AuditModelDoc 테스트를 작성한다 | 완료 기준: AuditModelDoc: 테스트가 통과한다
+
+- [x] ATW-2032 | P1 | docs/AuditModelDoc | AuditModelDoc 보안 설정을 검토한다 | 완료 기준: AuditModelDoc: default insecure setting이 없다
+
+- [x] ATW-2033 | P1 | docs/AuditModelDoc | AuditModelDoc golden fixture를 추가한다 | 완료 기준: AuditModelDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2034 | P2 | docs/AuditModelDoc | AuditModelDoc 운영 문서를 작성한다 | 완료 기준: AuditModelDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2035 | P0 | docs/BackupRestoreDoc | BackupRestoreDoc 초안을 작성한다 | 완료 기준: BackupRestoreDoc: artifact가 존재한다
+
+- [x] ATW-2036 | P0 | docs/BackupRestoreDoc | BackupRestoreDoc core와 연결한다 | 완료 기준: BackupRestoreDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2037 | P0 | docs/BackupRestoreDoc | BackupRestoreDoc 테스트를 작성한다 | 완료 기준: BackupRestoreDoc: 테스트가 통과한다
+
+- [x] ATW-2038 | P1 | docs/BackupRestoreDoc | BackupRestoreDoc 보안 설정을 검토한다 | 완료 기준: BackupRestoreDoc: default insecure setting이 없다
+
+- [x] ATW-2039 | P1 | docs/BackupRestoreDoc | BackupRestoreDoc golden fixture를 추가한다 | 완료 기준: BackupRestoreDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2040 | P2 | docs/BackupRestoreDoc | BackupRestoreDoc 운영 문서를 작성한다 | 완료 기준: BackupRestoreDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2041 | P0 | docs/DeploymentDoc | DeploymentDoc 초안을 작성한다 | 완료 기준: DeploymentDoc: artifact가 존재한다
+
+- [x] ATW-2042 | P0 | docs/DeploymentDoc | DeploymentDoc core와 연결한다 | 완료 기준: DeploymentDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2043 | P0 | docs/DeploymentDoc | DeploymentDoc 테스트를 작성한다 | 완료 기준: DeploymentDoc: 테스트가 통과한다
+
+- [x] ATW-2044 | P1 | docs/DeploymentDoc | DeploymentDoc 보안 설정을 검토한다 | 완료 기준: DeploymentDoc: default insecure setting이 없다
+
+- [x] ATW-2045 | P1 | docs/DeploymentDoc | DeploymentDoc golden fixture를 추가한다 | 완료 기준: DeploymentDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2046 | P2 | docs/DeploymentDoc | DeploymentDoc 운영 문서를 작성한다 | 완료 기준: DeploymentDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2047 | P0 | docs/AdapterBoundaryDoc | AdapterBoundaryDoc 초안을 작성한다 | 완료 기준: AdapterBoundaryDoc: artifact가 존재한다
+
+- [x] ATW-2048 | P0 | docs/AdapterBoundaryDoc | AdapterBoundaryDoc core와 연결한다 | 완료 기준: AdapterBoundaryDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2049 | P0 | docs/AdapterBoundaryDoc | AdapterBoundaryDoc 테스트를 작성한다 | 완료 기준: AdapterBoundaryDoc: 테스트가 통과한다
+
+- [x] ATW-2050 | P1 | docs/AdapterBoundaryDoc | AdapterBoundaryDoc 보안 설정을 검토한다 | 완료 기준: AdapterBoundaryDoc: default insecure setting이 없다
+
+- [x] ATW-2051 | P1 | docs/AdapterBoundaryDoc | AdapterBoundaryDoc golden fixture를 추가한다 | 완료 기준: AdapterBoundaryDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2052 | P2 | docs/AdapterBoundaryDoc | AdapterBoundaryDoc 운영 문서를 작성한다 | 완료 기준: AdapterBoundaryDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2053 | P0 | docs/MigrationFromSksDoc | MigrationFromSksDoc 초안을 작성한다 | 완료 기준: MigrationFromSksDoc: artifact가 존재한다
+
+- [x] ATW-2054 | P0 | docs/MigrationFromSksDoc | MigrationFromSksDoc core와 연결한다 | 완료 기준: MigrationFromSksDoc: 실행 가능한 integration이 있다
+
+- [x] ATW-2055 | P0 | docs/MigrationFromSksDoc | MigrationFromSksDoc 테스트를 작성한다 | 완료 기준: MigrationFromSksDoc: 테스트가 통과한다
+
+- [x] ATW-2056 | P1 | docs/MigrationFromSksDoc | MigrationFromSksDoc 보안 설정을 검토한다 | 완료 기준: MigrationFromSksDoc: default insecure setting이 없다
+
+- [x] ATW-2057 | P1 | docs/MigrationFromSksDoc | MigrationFromSksDoc golden fixture를 추가한다 | 완료 기준: MigrationFromSksDoc: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2058 | P2 | docs/MigrationFromSksDoc | MigrationFromSksDoc 운영 문서를 작성한다 | 완료 기준: MigrationFromSksDoc: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2059 | P0 | deploy/Dockerfile | Dockerfile 초안을 작성한다 | 완료 기준: Dockerfile: artifact가 존재한다
+
+- [x] ATW-2060 | P0 | deploy/Dockerfile | Dockerfile core와 연결한다 | 완료 기준: Dockerfile: 실행 가능한 integration이 있다
+
+- [x] ATW-2061 | P0 | deploy/Dockerfile | Dockerfile 테스트를 작성한다 | 완료 기준: Dockerfile: 테스트가 통과한다
+
+- [x] ATW-2062 | P1 | deploy/Dockerfile | Dockerfile 보안 설정을 검토한다 | 완료 기준: Dockerfile: default insecure setting이 없다
+
+- [x] ATW-2063 | P1 | deploy/Dockerfile | Dockerfile golden fixture를 추가한다 | 완료 기준: Dockerfile: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2064 | P2 | deploy/Dockerfile | Dockerfile 운영 문서를 작성한다 | 완료 기준: Dockerfile: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2065 | P0 | deploy/ComposeExample | ComposeExample 초안을 작성한다 | 완료 기준: ComposeExample: artifact가 존재한다
+
+- [x] ATW-2066 | P0 | deploy/ComposeExample | ComposeExample core와 연결한다 | 완료 기준: ComposeExample: 실행 가능한 integration이 있다
+
+- [x] ATW-2067 | P0 | deploy/ComposeExample | ComposeExample 테스트를 작성한다 | 완료 기준: ComposeExample: 테스트가 통과한다
+
+- [x] ATW-2068 | P1 | deploy/ComposeExample | ComposeExample 보안 설정을 검토한다 | 완료 기준: ComposeExample: default insecure setting이 없다
+
+- [x] ATW-2069 | P1 | deploy/ComposeExample | ComposeExample golden fixture를 추가한다 | 완료 기준: ComposeExample: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2070 | P2 | deploy/ComposeExample | ComposeExample 운영 문서를 작성한다 | 완료 기준: ComposeExample: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2071 | P0 | deploy/KubernetesExample | KubernetesExample 초안을 작성한다 | 완료 기준: KubernetesExample: artifact가 존재한다
+
+- [x] ATW-2072 | P0 | deploy/KubernetesExample | KubernetesExample core와 연결한다 | 완료 기준: KubernetesExample: 실행 가능한 integration이 있다
+
+- [x] ATW-2073 | P0 | deploy/KubernetesExample | KubernetesExample 테스트를 작성한다 | 완료 기준: KubernetesExample: 테스트가 통과한다
+
+- [x] ATW-2074 | P1 | deploy/KubernetesExample | KubernetesExample 보안 설정을 검토한다 | 완료 기준: KubernetesExample: default insecure setting이 없다
+
+- [x] ATW-2075 | P1 | deploy/KubernetesExample | KubernetesExample golden fixture를 추가한다 | 완료 기준: KubernetesExample: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2076 | P2 | deploy/KubernetesExample | KubernetesExample 운영 문서를 작성한다 | 완료 기준: KubernetesExample: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2077 | P0 | deploy/DesktopAppPlaceholder | DesktopAppPlaceholder 초안을 작성한다 | 완료 기준: DesktopAppPlaceholder: artifact가 존재한다
+
+- [x] ATW-2078 | P0 | deploy/DesktopAppPlaceholder | DesktopAppPlaceholder core와 연결한다 | 완료 기준: DesktopAppPlaceholder: 실행 가능한 integration이 있다
+
+- [x] ATW-2079 | P0 | deploy/DesktopAppPlaceholder | DesktopAppPlaceholder 테스트를 작성한다 | 완료 기준: DesktopAppPlaceholder: 테스트가 통과한다
+
+- [x] ATW-2080 | P1 | deploy/DesktopAppPlaceholder | DesktopAppPlaceholder 보안 설정을 검토한다 | 완료 기준: DesktopAppPlaceholder: default insecure setting이 없다
+
+- [x] ATW-2081 | P1 | deploy/DesktopAppPlaceholder | DesktopAppPlaceholder golden fixture를 추가한다 | 완료 기준: DesktopAppPlaceholder: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2082 | P2 | deploy/DesktopAppPlaceholder | DesktopAppPlaceholder 운영 문서를 작성한다 | 완료 기준: DesktopAppPlaceholder: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2083 | P0 | deploy/ServerConfig | ServerConfig 초안을 작성한다 | 완료 기준: ServerConfig: artifact가 존재한다
+
+- [x] ATW-2084 | P0 | deploy/ServerConfig | ServerConfig core와 연결한다 | 완료 기준: ServerConfig: 실행 가능한 integration이 있다
+
+- [x] ATW-2085 | P0 | deploy/ServerConfig | ServerConfig 테스트를 작성한다 | 완료 기준: ServerConfig: 테스트가 통과한다
+
+- [x] ATW-2086 | P1 | deploy/ServerConfig | ServerConfig 보안 설정을 검토한다 | 완료 기준: ServerConfig: default insecure setting이 없다
+
+- [x] ATW-2087 | P1 | deploy/ServerConfig | ServerConfig golden fixture를 추가한다 | 완료 기준: ServerConfig: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2088 | P2 | deploy/ServerConfig | ServerConfig 운영 문서를 작성한다 | 완료 기준: ServerConfig: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2089 | P0 | deploy/OAuthConfig | OAuthConfig 초안을 작성한다 | 완료 기준: OAuthConfig: artifact가 존재한다
+
+- [x] ATW-2090 | P0 | deploy/OAuthConfig | OAuthConfig core와 연결한다 | 완료 기준: OAuthConfig: 실행 가능한 integration이 있다
+
+- [x] ATW-2091 | P0 | deploy/OAuthConfig | OAuthConfig 테스트를 작성한다 | 완료 기준: OAuthConfig: 테스트가 통과한다
+
+- [x] ATW-2092 | P1 | deploy/OAuthConfig | OAuthConfig 보안 설정을 검토한다 | 완료 기준: OAuthConfig: default insecure setting이 없다
+
+- [x] ATW-2093 | P1 | deploy/OAuthConfig | OAuthConfig golden fixture를 추가한다 | 완료 기준: OAuthConfig: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2094 | P2 | deploy/OAuthConfig | OAuthConfig 운영 문서를 작성한다 | 완료 기준: OAuthConfig: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2095 | P0 | deploy/BackupCron | BackupCron 초안을 작성한다 | 완료 기준: BackupCron: artifact가 존재한다
+
+- [x] ATW-2096 | P0 | deploy/BackupCron | BackupCron core와 연결한다 | 완료 기준: BackupCron: 실행 가능한 integration이 있다
+
+- [x] ATW-2097 | P0 | deploy/BackupCron | BackupCron 테스트를 작성한다 | 완료 기준: BackupCron: 테스트가 통과한다
+
+- [x] ATW-2098 | P1 | deploy/BackupCron | BackupCron 보안 설정을 검토한다 | 완료 기준: BackupCron: default insecure setting이 없다
+
+- [x] ATW-2099 | P1 | deploy/BackupCron | BackupCron golden fixture를 추가한다 | 완료 기준: BackupCron: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2100 | P2 | deploy/BackupCron | BackupCron 운영 문서를 작성한다 | 완료 기준: BackupCron: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2101 | P0 | deploy/DisasterRecovery | DisasterRecovery 초안을 작성한다 | 완료 기준: DisasterRecovery: artifact가 존재한다
+
+- [x] ATW-2102 | P0 | deploy/DisasterRecovery | DisasterRecovery core와 연결한다 | 완료 기준: DisasterRecovery: 실행 가능한 integration이 있다
+
+- [x] ATW-2103 | P0 | deploy/DisasterRecovery | DisasterRecovery 테스트를 작성한다 | 완료 기준: DisasterRecovery: 테스트가 통과한다
+
+- [x] ATW-2104 | P1 | deploy/DisasterRecovery | DisasterRecovery 보안 설정을 검토한다 | 완료 기준: DisasterRecovery: default insecure setting이 없다
+
+- [x] ATW-2105 | P1 | deploy/DisasterRecovery | DisasterRecovery golden fixture를 추가한다 | 완료 기준: DisasterRecovery: snapshot 또는 fixture가 안정적이다
+
+- [x] ATW-2106 | P2 | deploy/DisasterRecovery | DisasterRecovery 운영 문서를 작성한다 | 완료 기준: DisasterRecovery: 운영자가 사용할 수 있는 설명이 있다
+
+- [x] ATW-2107 | P0 | release/Release | v0.1.0 release checklist를 작성한다 | 완료 기준: docs/release/v0.1.0.md가 있다
+
+- [x] ATW-2108 | P0 | release/Release | npm package dry-run을 수행한다 | 완료 기준: npm pack 결과가 검토된다
+
+- [x] ATW-2109 | P0 | release/Release | package export smoke test를 작성한다 | 완료 기준: 외부 fixture에서 import가 된다
+
+- [x] ATW-2110 | P0 | release/Release | CLI smoke test를 작성한다 | 완료 기준: npm-installed awiki가 실행된다
+
+- [x] ATW-2111 | P0 | release/Release | MCP smoke test를 작성한다 | 완료 기준: stdio MCP server가 도구 목록을 반환한다
+
+- [x] ATW-2112 | P0 | release/Release | SQLite doctor smoke test를 작성한다 | 완료 기준: fresh DB와 corrupted DB 모두 검증된다
+
+- [x] ATW-2113 | P0 | release/Release | security gate를 release에 연결한다 | 완료 기준: secret/ACL/prompt-injection tests가 release gate다
+
+- [x] ATW-2114 | P0 | release/Release | schema backwards compatibility policy를 작성한다 | 완료 기준: schema versioning 문서가 있다
+
+- [x] ATW-2115 | P1 | release/Release | post-release validation script를 만든다 | 완료 기준: 릴리즈 후 install/test 명령이 있다
+
+- [x] ATW-2116 | P1 | release/Release | changelog template을 작성한다 | 완료 기준: CHANGELOG.md에 섹션이 있다
+
+
+총 태스크 수: **2,296개** = 기존 SQLite-first 태스크 2,116개 + TypeScript/npm 추가 태스크 180개
+
+---
+
+
+
+## 21. TypeScript-first npm 배포 추가 태스크
+
+이 섹션은 Atlas WiKi를 npm에 배포 가능한 TypeScript-first 패키지로 만들기 위한 추가 필수 태스크다. 기존 태스크 2,116개에 아래 180개를 더해 총 2,296개 태스크로 관리한다.
+
+- [x] ATW-TS-0001 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata contract를 정의한다 | 완료 기준: PackageJsonMetadata: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0002 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata 구현 또는 설정을 추가한다 | 완료 기준: PackageJsonMetadata: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0003 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata happy path 테스트를 작성한다 | 완료 기준: PackageJsonMetadata: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0004 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata negative 테스트를 작성한다 | 완료 기준: PackageJsonMetadata: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0005 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata consumer fixture를 작성한다 | 완료 기준: PackageJsonMetadata: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0006 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata CI gate에 연결한다 | 완료 기준: PackageJsonMetadata: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0007 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata release gate에 연결한다 | 완료 기준: PackageJsonMetadata: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0008 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata 문서화한다 | 완료 기준: PackageJsonMetadata: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0009 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata snapshot을 추가한다 | 완료 기준: PackageJsonMetadata: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0010 | P0 | typescript-npm/PackageJsonMetadata | PackageJsonMetadata backward compatibility 기준을 정의한다 | 완료 기준: PackageJsonMetadata: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0011 | P0 | typescript-npm/PackageExports | PackageExports contract를 정의한다 | 완료 기준: PackageExports: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0012 | P0 | typescript-npm/PackageExports | PackageExports 구현 또는 설정을 추가한다 | 완료 기준: PackageExports: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0013 | P0 | typescript-npm/PackageExports | PackageExports happy path 테스트를 작성한다 | 완료 기준: PackageExports: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0014 | P0 | typescript-npm/PackageExports | PackageExports negative 테스트를 작성한다 | 완료 기준: PackageExports: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0015 | P0 | typescript-npm/PackageExports | PackageExports consumer fixture를 작성한다 | 완료 기준: PackageExports: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0016 | P0 | typescript-npm/PackageExports | PackageExports CI gate에 연결한다 | 완료 기준: PackageExports: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0017 | P0 | typescript-npm/PackageExports | PackageExports release gate에 연결한다 | 완료 기준: PackageExports: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0018 | P0 | typescript-npm/PackageExports | PackageExports 문서화한다 | 완료 기준: PackageExports: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0019 | P0 | typescript-npm/PackageExports | PackageExports snapshot을 추가한다 | 완료 기준: PackageExports: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0020 | P0 | typescript-npm/PackageExports | PackageExports backward compatibility 기준을 정의한다 | 완료 기준: PackageExports: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0021 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode contract를 정의한다 | 완료 기준: TsConfigStrictMode: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0022 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode 구현 또는 설정을 추가한다 | 완료 기준: TsConfigStrictMode: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0023 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode happy path 테스트를 작성한다 | 완료 기준: TsConfigStrictMode: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0024 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode negative 테스트를 작성한다 | 완료 기준: TsConfigStrictMode: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0025 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode consumer fixture를 작성한다 | 완료 기준: TsConfigStrictMode: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0026 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode CI gate에 연결한다 | 완료 기준: TsConfigStrictMode: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0027 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode release gate에 연결한다 | 완료 기준: TsConfigStrictMode: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0028 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode 문서화한다 | 완료 기준: TsConfigStrictMode: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0029 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode snapshot을 추가한다 | 완료 기준: TsConfigStrictMode: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0030 | P0 | typescript-npm/TsConfigStrictMode | TsConfigStrictMode backward compatibility 기준을 정의한다 | 완료 기준: TsConfigStrictMode: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0031 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit contract를 정의한다 | 완료 기준: DeclarationEmit: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0032 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit 구현 또는 설정을 추가한다 | 완료 기준: DeclarationEmit: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0033 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit happy path 테스트를 작성한다 | 완료 기준: DeclarationEmit: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0034 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit negative 테스트를 작성한다 | 완료 기준: DeclarationEmit: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0035 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit consumer fixture를 작성한다 | 완료 기준: DeclarationEmit: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0036 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit CI gate에 연결한다 | 완료 기준: DeclarationEmit: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0037 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit release gate에 연결한다 | 완료 기준: DeclarationEmit: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0038 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit 문서화한다 | 완료 기준: DeclarationEmit: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0039 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit snapshot을 추가한다 | 완료 기준: DeclarationEmit: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0040 | P0 | typescript-npm/DeclarationEmit | DeclarationEmit backward compatibility 기준을 정의한다 | 완료 기준: DeclarationEmit: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0041 | P0 | typescript-npm/BuildPipeline | BuildPipeline contract를 정의한다 | 완료 기준: BuildPipeline: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0042 | P0 | typescript-npm/BuildPipeline | BuildPipeline 구현 또는 설정을 추가한다 | 완료 기준: BuildPipeline: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0043 | P0 | typescript-npm/BuildPipeline | BuildPipeline happy path 테스트를 작성한다 | 완료 기준: BuildPipeline: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0044 | P0 | typescript-npm/BuildPipeline | BuildPipeline negative 테스트를 작성한다 | 완료 기준: BuildPipeline: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0045 | P0 | typescript-npm/BuildPipeline | BuildPipeline consumer fixture를 작성한다 | 완료 기준: BuildPipeline: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0046 | P0 | typescript-npm/BuildPipeline | BuildPipeline CI gate에 연결한다 | 완료 기준: BuildPipeline: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0047 | P0 | typescript-npm/BuildPipeline | BuildPipeline release gate에 연결한다 | 완료 기준: BuildPipeline: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0048 | P0 | typescript-npm/BuildPipeline | BuildPipeline 문서화한다 | 완료 기준: BuildPipeline: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0049 | P0 | typescript-npm/BuildPipeline | BuildPipeline snapshot을 추가한다 | 완료 기준: BuildPipeline: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0050 | P0 | typescript-npm/BuildPipeline | BuildPipeline backward compatibility 기준을 정의한다 | 완료 기준: BuildPipeline: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0051 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard contract를 정의한다 | 완료 기준: NoJsSourceGuard: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0052 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard 구현 또는 설정을 추가한다 | 완료 기준: NoJsSourceGuard: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0053 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard happy path 테스트를 작성한다 | 완료 기준: NoJsSourceGuard: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0054 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard negative 테스트를 작성한다 | 완료 기준: NoJsSourceGuard: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0055 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard consumer fixture를 작성한다 | 완료 기준: NoJsSourceGuard: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0056 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard CI gate에 연결한다 | 완료 기준: NoJsSourceGuard: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0057 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard release gate에 연결한다 | 완료 기준: NoJsSourceGuard: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0058 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard 문서화한다 | 완료 기준: NoJsSourceGuard: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0059 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard snapshot을 추가한다 | 완료 기준: NoJsSourceGuard: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0060 | P0 | typescript-npm/NoJsSourceGuard | NoJsSourceGuard backward compatibility 기준을 정의한다 | 완료 기준: NoJsSourceGuard: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0061 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface contract를 정의한다 | 완료 기준: PublicApiSurface: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0062 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface 구현 또는 설정을 추가한다 | 완료 기준: PublicApiSurface: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0063 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface happy path 테스트를 작성한다 | 완료 기준: PublicApiSurface: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0064 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface negative 테스트를 작성한다 | 완료 기준: PublicApiSurface: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0065 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface consumer fixture를 작성한다 | 완료 기준: PublicApiSurface: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0066 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface CI gate에 연결한다 | 완료 기준: PublicApiSurface: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0067 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface release gate에 연결한다 | 완료 기준: PublicApiSurface: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0068 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface 문서화한다 | 완료 기준: PublicApiSurface: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0069 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface snapshot을 추가한다 | 완료 기준: PublicApiSurface: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0070 | P1 | typescript-npm/PublicApiSurface | PublicApiSurface backward compatibility 기준을 정의한다 | 완료 기준: PublicApiSurface: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0071 | P1 | typescript-npm/TypeTests | TypeTests contract를 정의한다 | 완료 기준: TypeTests: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0072 | P1 | typescript-npm/TypeTests | TypeTests 구현 또는 설정을 추가한다 | 완료 기준: TypeTests: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0073 | P1 | typescript-npm/TypeTests | TypeTests happy path 테스트를 작성한다 | 완료 기준: TypeTests: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0074 | P1 | typescript-npm/TypeTests | TypeTests negative 테스트를 작성한다 | 완료 기준: TypeTests: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0075 | P1 | typescript-npm/TypeTests | TypeTests consumer fixture를 작성한다 | 완료 기준: TypeTests: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0076 | P1 | typescript-npm/TypeTests | TypeTests CI gate에 연결한다 | 완료 기준: TypeTests: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0077 | P1 | typescript-npm/TypeTests | TypeTests release gate에 연결한다 | 완료 기준: TypeTests: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0078 | P1 | typescript-npm/TypeTests | TypeTests 문서화한다 | 완료 기준: TypeTests: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0079 | P1 | typescript-npm/TypeTests | TypeTests snapshot을 추가한다 | 완료 기준: TypeTests: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0080 | P1 | typescript-npm/TypeTests | TypeTests backward compatibility 기준을 정의한다 | 완료 기준: TypeTests: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0081 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild contract를 정의한다 | 완료 기준: CliTypeScriptBuild: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0082 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild 구현 또는 설정을 추가한다 | 완료 기준: CliTypeScriptBuild: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0083 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild happy path 테스트를 작성한다 | 완료 기준: CliTypeScriptBuild: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0084 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild negative 테스트를 작성한다 | 완료 기준: CliTypeScriptBuild: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0085 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild consumer fixture를 작성한다 | 완료 기준: CliTypeScriptBuild: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0086 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild CI gate에 연결한다 | 완료 기준: CliTypeScriptBuild: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0087 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild release gate에 연결한다 | 완료 기준: CliTypeScriptBuild: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0088 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild 문서화한다 | 완료 기준: CliTypeScriptBuild: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0089 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild snapshot을 추가한다 | 완료 기준: CliTypeScriptBuild: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0090 | P1 | typescript-npm/CliTypeScriptBuild | CliTypeScriptBuild backward compatibility 기준을 정의한다 | 완료 기준: CliTypeScriptBuild: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0091 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture contract를 정의한다 | 완료 기준: EsmConsumerFixture: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0092 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture 구현 또는 설정을 추가한다 | 완료 기준: EsmConsumerFixture: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0093 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture happy path 테스트를 작성한다 | 완료 기준: EsmConsumerFixture: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0094 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture negative 테스트를 작성한다 | 완료 기준: EsmConsumerFixture: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0095 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture consumer fixture를 작성한다 | 완료 기준: EsmConsumerFixture: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0096 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture CI gate에 연결한다 | 완료 기준: EsmConsumerFixture: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0097 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture release gate에 연결한다 | 완료 기준: EsmConsumerFixture: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0098 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture 문서화한다 | 완료 기준: EsmConsumerFixture: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0099 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture snapshot을 추가한다 | 완료 기준: EsmConsumerFixture: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0100 | P1 | typescript-npm/EsmConsumerFixture | EsmConsumerFixture backward compatibility 기준을 정의한다 | 완료 기준: EsmConsumerFixture: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0101 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist contract를 정의한다 | 완료 기준: PackageFilesAllowlist: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0102 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist 구현 또는 설정을 추가한다 | 완료 기준: PackageFilesAllowlist: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0103 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist happy path 테스트를 작성한다 | 완료 기준: PackageFilesAllowlist: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0104 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist negative 테스트를 작성한다 | 완료 기준: PackageFilesAllowlist: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0105 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist consumer fixture를 작성한다 | 완료 기준: PackageFilesAllowlist: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0106 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist CI gate에 연결한다 | 완료 기준: PackageFilesAllowlist: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0107 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist release gate에 연결한다 | 완료 기준: PackageFilesAllowlist: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0108 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist 문서화한다 | 완료 기준: PackageFilesAllowlist: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0109 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist snapshot을 추가한다 | 완료 기준: PackageFilesAllowlist: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0110 | P1 | typescript-npm/PackageFilesAllowlist | PackageFilesAllowlist backward compatibility 기준을 정의한다 | 완료 기준: PackageFilesAllowlist: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0111 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke contract를 정의한다 | 완료 기준: NpmPackSmoke: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0112 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke 구현 또는 설정을 추가한다 | 완료 기준: NpmPackSmoke: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0113 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke happy path 테스트를 작성한다 | 완료 기준: NpmPackSmoke: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0114 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke negative 테스트를 작성한다 | 완료 기준: NpmPackSmoke: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0115 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke consumer fixture를 작성한다 | 완료 기준: NpmPackSmoke: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0116 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke CI gate에 연결한다 | 완료 기준: NpmPackSmoke: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0117 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke release gate에 연결한다 | 완료 기준: NpmPackSmoke: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0118 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke 문서화한다 | 완료 기준: NpmPackSmoke: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0119 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke snapshot을 추가한다 | 완료 기준: NpmPackSmoke: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0120 | P0 | typescript-npm/NpmPackSmoke | NpmPackSmoke backward compatibility 기준을 정의한다 | 완료 기준: NpmPackSmoke: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0121 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi contract를 정의한다 | 완료 기준: TrustedPublishingCi: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0122 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi 구현 또는 설정을 추가한다 | 완료 기준: TrustedPublishingCi: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0123 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi happy path 테스트를 작성한다 | 완료 기준: TrustedPublishingCi: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0124 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi negative 테스트를 작성한다 | 완료 기준: TrustedPublishingCi: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0125 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi consumer fixture를 작성한다 | 완료 기준: TrustedPublishingCi: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0126 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi CI gate에 연결한다 | 완료 기준: TrustedPublishingCi: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0127 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi release gate에 연결한다 | 완료 기준: TrustedPublishingCi: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0128 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi 문서화한다 | 완료 기준: TrustedPublishingCi: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0129 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi snapshot을 추가한다 | 완료 기준: TrustedPublishingCi: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0130 | P1 | typescript-npm/TrustedPublishingCi | TrustedPublishingCi backward compatibility 기준을 정의한다 | 완료 기준: TrustedPublishingCi: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0131 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy contract를 정의한다 | 완료 기준: ProvenancePolicy: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0132 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy 구현 또는 설정을 추가한다 | 완료 기준: ProvenancePolicy: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0133 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy happy path 테스트를 작성한다 | 완료 기준: ProvenancePolicy: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0134 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy negative 테스트를 작성한다 | 완료 기준: ProvenancePolicy: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0135 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy consumer fixture를 작성한다 | 완료 기준: ProvenancePolicy: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0136 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy CI gate에 연결한다 | 완료 기준: ProvenancePolicy: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0137 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy release gate에 연결한다 | 완료 기준: ProvenancePolicy: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0138 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy 문서화한다 | 완료 기준: ProvenancePolicy: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0139 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy snapshot을 추가한다 | 완료 기준: ProvenancePolicy: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0140 | P1 | typescript-npm/ProvenancePolicy | ProvenancePolicy backward compatibility 기준을 정의한다 | 완료 기준: ProvenancePolicy: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0141 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy contract를 정의한다 | 완료 기준: SemverReleasePolicy: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0142 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy 구현 또는 설정을 추가한다 | 완료 기준: SemverReleasePolicy: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0143 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy happy path 테스트를 작성한다 | 완료 기준: SemverReleasePolicy: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0144 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy negative 테스트를 작성한다 | 완료 기준: SemverReleasePolicy: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0145 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy consumer fixture를 작성한다 | 완료 기준: SemverReleasePolicy: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0146 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy CI gate에 연결한다 | 완료 기준: SemverReleasePolicy: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0147 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy release gate에 연결한다 | 완료 기준: SemverReleasePolicy: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0148 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy 문서화한다 | 완료 기준: SemverReleasePolicy: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0149 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy snapshot을 추가한다 | 완료 기준: SemverReleasePolicy: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0150 | P1 | typescript-npm/SemverReleasePolicy | SemverReleasePolicy backward compatibility 기준을 정의한다 | 완료 기준: SemverReleasePolicy: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0151 | P1 | typescript-npm/SdkTypes | SdkTypes contract를 정의한다 | 완료 기준: SdkTypes: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0152 | P1 | typescript-npm/SdkTypes | SdkTypes 구현 또는 설정을 추가한다 | 완료 기준: SdkTypes: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0153 | P1 | typescript-npm/SdkTypes | SdkTypes happy path 테스트를 작성한다 | 완료 기준: SdkTypes: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0154 | P1 | typescript-npm/SdkTypes | SdkTypes negative 테스트를 작성한다 | 완료 기준: SdkTypes: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0155 | P1 | typescript-npm/SdkTypes | SdkTypes consumer fixture를 작성한다 | 완료 기준: SdkTypes: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0156 | P1 | typescript-npm/SdkTypes | SdkTypes CI gate에 연결한다 | 완료 기준: SdkTypes: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0157 | P1 | typescript-npm/SdkTypes | SdkTypes release gate에 연결한다 | 완료 기준: SdkTypes: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0158 | P1 | typescript-npm/SdkTypes | SdkTypes 문서화한다 | 완료 기준: SdkTypes: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0159 | P1 | typescript-npm/SdkTypes | SdkTypes snapshot을 추가한다 | 완료 기준: SdkTypes: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0160 | P1 | typescript-npm/SdkTypes | SdkTypes backward compatibility 기준을 정의한다 | 완료 기준: SdkTypes: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0161 | P1 | typescript-npm/McpToolTypes | McpToolTypes contract를 정의한다 | 완료 기준: McpToolTypes: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0162 | P1 | typescript-npm/McpToolTypes | McpToolTypes 구현 또는 설정을 추가한다 | 완료 기준: McpToolTypes: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0163 | P1 | typescript-npm/McpToolTypes | McpToolTypes happy path 테스트를 작성한다 | 완료 기준: McpToolTypes: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0164 | P1 | typescript-npm/McpToolTypes | McpToolTypes negative 테스트를 작성한다 | 완료 기준: McpToolTypes: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0165 | P1 | typescript-npm/McpToolTypes | McpToolTypes consumer fixture를 작성한다 | 완료 기준: McpToolTypes: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0166 | P1 | typescript-npm/McpToolTypes | McpToolTypes CI gate에 연결한다 | 완료 기준: McpToolTypes: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0167 | P1 | typescript-npm/McpToolTypes | McpToolTypes release gate에 연결한다 | 완료 기준: McpToolTypes: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0168 | P1 | typescript-npm/McpToolTypes | McpToolTypes 문서화한다 | 완료 기준: McpToolTypes: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0169 | P1 | typescript-npm/McpToolTypes | McpToolTypes snapshot을 추가한다 | 완료 기준: McpToolTypes: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0170 | P1 | typescript-npm/McpToolTypes | McpToolTypes backward compatibility 기준을 정의한다 | 완료 기준: McpToolTypes: SemVer 영향 범위가 문서화된다
+
+- [x] ATW-TS-0171 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes contract를 정의한다 | 완료 기준: SqliteDriverTypes: public contract 문서와 타입이 존재한다
+
+- [x] ATW-TS-0172 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes 구현 또는 설정을 추가한다 | 완료 기준: SqliteDriverTypes: 구현/설정 파일이 repository에 존재한다
+
+- [x] ATW-TS-0173 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes happy path 테스트를 작성한다 | 완료 기준: SqliteDriverTypes: 기본 smoke test가 통과한다
+
+- [x] ATW-TS-0174 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes negative 테스트를 작성한다 | 완료 기준: SqliteDriverTypes: 잘못된 설정/타입/경로가 실패한다
+
+- [x] ATW-TS-0175 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes consumer fixture를 작성한다 | 완료 기준: SqliteDriverTypes: 별도 fixture에서 import/install이 검증된다
+
+- [x] ATW-TS-0176 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes CI gate에 연결한다 | 완료 기준: SqliteDriverTypes: pull request에서 자동 검증된다
+
+- [x] ATW-TS-0177 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes release gate에 연결한다 | 완료 기준: SqliteDriverTypes: publish 전 실패 시 차단된다
+
+- [x] ATW-TS-0178 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes 문서화한다 | 완료 기준: SqliteDriverTypes: docs/typescript-first.md 또는 docs/npm-publishing.md에 설명된다
+
+- [x] ATW-TS-0179 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes snapshot을 추가한다 | 완료 기준: SqliteDriverTypes: public API 또는 pack contents snapshot이 존재한다
+
+- [x] ATW-TS-0180 | P1 | typescript-npm/SqliteDriverTypes | SqliteDriverTypes backward compatibility 기준을 정의한다 | 완료 기준: SqliteDriverTypes: SemVer 영향 범위가 문서화된다
+
+## 18. v0.1 개발 순서 추천
+
+1. Repo/tooling/README/SECURITY 세팅
+2. SQLite connection, migration, transaction, WAL, doctor 완성
+3. BaseRecord, SourceRecord, ChunkRecord, ClaimRecord, AuditRecord schema 완성
+4. SQLiteStore와 projection table update 완성
+5. ACL deny-by-default, QueryTimePermissionFilter, PreContextRedaction 완성
+6. LocalFile/Markdown/Text/JSONL/CSV ingest 완성
+7. FTS search, CitationBuilder, ContextPackBuilder 완성
+8. CLI `init`, `doctor`, `ingest`, `search`, `fetch`, `context-pack`, `validate`, `backup` 완성
+9. MCP `atlas_wiki.search`, `atlas_wiki.fetch`, `atlas_wiki.context_pack`, `atlas_wiki.propose_update` 완성
+10. Audit mandatory policy와 hash chain 연결
+11. prompt injection / secret / ACL leakage regression fixture 작성
+12. docs와 examples 완성
+13. `@mandarange/atlas-wiki@0.1.0` release
+
+## 19. v0.1 Definition of Done
+
+```bash
+npm run typecheck
+npm run build
+npm run lint
+npm run test
+npm run test:security
+npm run test:integration
+npm run test:types
+npm run schemas:validate
+npm run package:verify
+npm run package:dry-run
+npm run package:smoke
+awiki init --root ./tmp/wiki
+awiki doctor --root ./tmp/wiki --json
+awiki ingest ./examples/team-handbook/handbook.md --root ./tmp/wiki --owner team:ops --visibility internal --json
+awiki validate --root ./tmp/wiki --json
+awiki search "원격근무" --root ./tmp/wiki --as user:alice@example.com --json
+awiki context-pack "원격근무 정책" --root ./tmp/wiki --as user:alice@example.com --json
+awiki backup create --root ./tmp/wiki --json
+awiki backup verify --root ./tmp/wiki --json
+awiki mcp smoke --root ./tmp/wiki --stdio --json
+```
+
+다음 조건이 모두 참이어야 한다.
+
+- 권한 없는 source는 검색 결과에 없다.
+- redacted field는 context pack에 원문으로 들어가지 않는다.
+- stale source는 stale marker를 가진다.
+- conflict source는 conflict marker를 가진다.
+- 모든 search/fetch/context_pack event가 AuditRecord로 남는다.
+- SQLite DB가 source of truth이고 JSON shard는 export/import 용도다.
+- TypeScript source가 source of truth이고 `src/**/*.js` hand-authored file이 없다.
+- `dist/**/*.d.ts` declaration이 생성되고 package exports smoke test가 통과한다.
+- packed tarball을 별도 consumer fixture에 설치해 ESM import와 CLI 실행이 검증된다.
+- core 코드에 SKS/Hermes/Codex hard dependency가 없다.
+- core 코드에 `.sneakoscope` 또는 `.hermes` literal이 없다.
+
+## 20. 참고 기준
+
+- SQLite-first local app architecture
+- MCP resources/tools/prompts surface
+- OWASP LLM/GenAI security threat model
+- NIST AI risk management and governance principles
+- synced/federated connector architecture
+- SKS에서 배운 출처·검증·freshness·conflict·audit 철학
+- npm package.json, scoped public publish, trusted publishing/provenance 기준
+- TypeScript declaration publishing and `types` field 기준
+- Node.js package `exports` and ESM package 기준
+
+### 20.1 npm/TypeScript 참고 링크
+
+- npm package.json: https://docs.npmjs.com/cli/v11/configuring-npm/package-json/
+- npm scoped public packages: https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/
+- npm trusted publishing: https://docs.npmjs.com/trusted-publishers/
+- npm provenance: https://docs.npmjs.com/generating-provenance-statements/
+- TypeScript declaration publishing: https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html
+- TypeScript modules reference: https://www.typescriptlang.org/docs/handbook/modules/reference.html
+- Node.js packages and exports: https://nodejs.org/api/packages.html
+- Node.js TypeScript package publishing: https://nodejs.org/learn/typescript/publishing-a-ts-package
+
+이 참고 기준은 설계 방향을 정하는 데만 사용한다. Atlas WiKi core는 어떤 특정 제품이나 Agent의 하위 모듈이 아니다.

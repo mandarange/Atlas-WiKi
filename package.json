@@ -1,0 +1,101 @@
+{
+  "name": "@mandarange/atlas-wiki",
+  "version": "0.1.0",
+  "description": "TypeScript-first, SQLite-first, source-backed, permission-aware knowledge wiki and ledger.",
+  "type": "module",
+  "license": "MIT",
+  "author": "mandarange",
+  "homepage": "https://github.com/mandarange/Atlas-WiKi#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mandarange/Atlas-WiKi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mandarange/Atlas-WiKi/issues"
+  },
+  "keywords": [
+    "wiki",
+    "knowledge-ledger",
+    "sqlite",
+    "mcp",
+    "rag",
+    "typescript",
+    "audit",
+    "acl"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "awiki": "./dist/cli/awiki.js",
+    "atlas-wiki": "./dist/cli/awiki.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/sdk/atlas-wiki.d.ts",
+      "import": "./dist/sdk/atlas-wiki.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/awiki.d.ts",
+      "import": "./dist/cli/awiki.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/server.d.ts",
+      "import": "./dist/mcp/server.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas/index.d.ts",
+      "import": "./dist/schemas/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "examples",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "clean": "rm -rf dist coverage .atlas-wiki tmp/wiki tmp/package-smoke tmp/type-consumer",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json && node scripts/chmod-bin.mjs",
+    "prepack": "npm run build",
+    "lint": "node scripts/lint.mjs",
+    "format": "node scripts/format-check.mjs",
+    "test": "vitest run",
+    "test:security": "vitest run tests/security.test.ts",
+    "test:integration": "vitest run tests/integration.test.ts",
+    "test:types": "npm run build && node scripts/type-consumer-smoke.mjs",
+    "schemas:validate": "node scripts/validate-schemas.mjs",
+    "package:verify": "npm run build && node scripts/package-verify.mjs",
+    "packcheck": "npm run package:verify && npm run package:dry-run && npm run package:smoke",
+    "package:dry-run": "npm run build && npm pack --dry-run",
+    "package:smoke": "npm run build && node scripts/package-smoke.mjs",
+    "selftest": "node scripts/selftest.mjs",
+    "goal:coverage": "node scripts/generate-task-coverage.mjs",
+    "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:integration && npm run test:types && npm run schemas:validate && npm run package:verify && npm run package:dry-run && npm run package:smoke"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
+  }
+}

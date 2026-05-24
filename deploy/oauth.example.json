@@ -1,0 +1,5 @@
+{
+  "schema": "atlas.wiki.oauth-config.v1",
+  "providers": [],
+  "notes": "Connector OAuth secrets stay outside Atlas WiKi records and outside this example file."
+}

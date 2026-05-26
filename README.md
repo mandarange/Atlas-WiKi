@@ -2,12 +2,12 @@
 
 Atlas WiKi is a general-purpose SQLite-first knowledge wiki and ledger for agents, applications, teams, and organizations: source-backed, permission-aware, freshness-scored, conflict-detecting, audit-friendly, and adapter-neutral.
 
-The npm package is `@mandarange/atlas-wiki`. The command line binaries are `awiki` and `atlas-wiki`.
+The npm package is `atlas-wiki`. The command line binaries are `awiki` and `atlas-wiki`.
 
 ## Install
 
 ```bash
-npm install @mandarange/atlas-wiki
+npm install atlas-wiki
 ```
 
 Node.js 24 or newer is required because the default SQLite driver uses `node:sqlite`.
@@ -26,7 +26,7 @@ awiki audit verify --root ./.atlas-wiki --json
 ## Public API
 
 ```ts
-import { AtlasWiki } from "@mandarange/atlas-wiki";
+import { AtlasWiki } from "atlas-wiki";
 const wiki = await AtlasWiki.open({ root: ".atlas-wiki" });
 await wiki.ingestText({ title: "Handbook", text: "Remote work is allowed with manager approval.", owner: "team:ops", visibility: "internal" });
 ```

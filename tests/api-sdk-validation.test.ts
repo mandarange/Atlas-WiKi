@@ -18,7 +18,7 @@ afterEach(() => {
 
 describe("public API, SDK, and validation", () => {
   it("exports the typed public surface expected by consumers", () => {
-    expect(api.packageInfo.name).toBe("@mandarange/atlas-wiki");
+    expect(api.packageInfo.name).toBe("atlas-wiki");
     expect(api.schemas).toHaveLength(24);
     expect(api.recordSchemaIds).toContain("atlas.wiki.source.v1");
     expect(api.schemaById.get("atlas.wiki.claim.v1")?.$id).toBe("atlas.wiki.claim.v1");

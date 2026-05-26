@@ -10,8 +10,8 @@ const dir = mkdtempSync(join(tmpdir(), "atlas-wiki-smoke-"));
 try {
   writeFileSync(join(dir, "package.json"), JSON.stringify({ type: "module" }, null, 2));
   execFileSync("npm", ["install", "--silent", join(process.cwd(), tarball)], { cwd: dir, stdio: "pipe" });
-  const imported = execFileSync("node", ["--input-type=module", "-e", "import { packageInfo } from '@mandarange/atlas-wiki'; console.log(packageInfo.name)"], { cwd: dir, encoding: "utf8" }).trim();
-  if (imported !== "@mandarange/atlas-wiki") throw new Error("ESM import smoke failed");
+  const imported = execFileSync("node", ["--input-type=module", "-e", "import { packageInfo } from 'atlas-wiki'; console.log(packageInfo.name)"], { cwd: dir, encoding: "utf8" }).trim();
+  if (imported !== "atlas-wiki") throw new Error("ESM import smoke failed");
   const cli = execFileSync("npx", ["awiki", "mcp", "smoke", "--root", join(dir, "wiki"), "--stdio", "--json"], { cwd: dir, encoding: "utf8" });
   const parsed = JSON.parse(cli);
   if (!parsed.tools.includes("atlas_wiki.search")) throw new Error("CLI smoke failed");

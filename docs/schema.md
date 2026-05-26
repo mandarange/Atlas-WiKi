@@ -52,7 +52,7 @@ Treat schema IDs as semver-like contracts. Add new schema versions instead of ch
 ## Example
 
 ```ts
-import { contentHash, defaultAccessPolicy, stableId, validateRecord } from "@mandarange/atlas-wiki";
+import { contentHash, defaultAccessPolicy, stableId, validateRecord } from "atlas-wiki";
 
 const now = new Date().toISOString();
 const source = validateRecord({

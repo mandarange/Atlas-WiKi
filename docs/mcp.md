@@ -6,7 +6,7 @@ Admin mode is explicit. `createAdminAtlasWikiServer()` adds proposal tools, trus
 
 ## Core Link
 
-`src/mcp/server.ts` adapts MCP calls onto `AtlasWiki` and the store contract. `@mandarange/atlas-wiki/mcp` exports the readonly default. `@mandarange/atlas-wiki/mcp/admin` exports the admin constructor.
+`src/mcp/server.ts` adapts MCP calls onto `AtlasWiki` and the store contract. `atlas-wiki/mcp` exports the readonly default. `atlas-wiki/mcp/admin` exports the admin constructor.
 
 ## Security
 

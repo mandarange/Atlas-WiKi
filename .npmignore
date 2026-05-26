@@ -4,4 +4,5 @@ scripts/
 .sneakoscope/
 tmp/
 .atlas-wiki/
+docs/goal/
 *.tgz

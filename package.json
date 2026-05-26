@@ -49,6 +49,10 @@
       "types": "./dist/mcp/server.d.ts",
       "import": "./dist/mcp/server.js"
     },
+    "./mcp/admin": {
+      "types": "./dist/mcp/admin.d.ts",
+      "import": "./dist/mcp/admin.js"
+    },
     "./schemas": {
       "types": "./dist/schemas/index.d.ts",
       "import": "./dist/schemas/index.js"
@@ -58,6 +62,7 @@
   "files": [
     "dist",
     "docs",
+    "!docs/goal",
     "examples",
     "README.md",
     "LICENSE",
@@ -76,17 +81,29 @@
     "lint": "node scripts/lint.mjs",
     "format": "node scripts/format-check.mjs",
     "test": "vitest run",
+    "test:db": "vitest run tests/migrations-hardening.test.ts tests/integration.test.ts",
+    "test:migrations": "vitest run tests/migrations-hardening.test.ts",
+    "test:integrity": "vitest run tests/migrations-hardening.test.ts tests/integration.test.ts",
     "test:security": "vitest run tests/security.test.ts",
+    "test:access": "vitest run tests/security.test.ts",
+    "test:context-leakage": "vitest run tests/security.test.ts tests/context-hardening.test.ts",
+    "test:mcp": "vitest run tests/mcp-hardening.test.ts",
+    "test:mcp:readonly": "vitest run tests/mcp-hardening.test.ts",
+    "test:mcp:admin": "vitest run tests/mcp-hardening.test.ts",
+    "test:mcp:root-safety": "vitest run tests/mcp-hardening.test.ts",
+    "test:audit": "vitest run tests/security.test.ts tests/audit-hardening.test.ts",
+    "test:hardening": "vitest run tests/production-hardening-completion.test.ts",
     "test:integration": "vitest run tests/integration.test.ts",
     "test:types": "npm run build && node scripts/type-consumer-smoke.mjs",
     "schemas:validate": "node scripts/validate-schemas.mjs",
+    "hardening:verify": "node scripts/verify-production-hardening.mjs",
     "package:verify": "npm run build && node scripts/package-verify.mjs",
     "packcheck": "npm run package:verify && npm run package:dry-run && npm run package:smoke",
     "package:dry-run": "npm run build && npm pack --dry-run",
     "package:smoke": "npm run build && node scripts/package-smoke.mjs",
     "selftest": "node scripts/selftest.mjs",
     "goal:coverage": "node scripts/generate-task-coverage.mjs",
-    "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:integration && npm run test:types && npm run schemas:validate && npm run package:verify && npm run package:dry-run && npm run package:smoke"
+    "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:integration && npm run test:hardening && npm run test:types && npm run schemas:validate && npm run hardening:verify && npm run package:verify && npm run package:dry-run && npm run package:smoke"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

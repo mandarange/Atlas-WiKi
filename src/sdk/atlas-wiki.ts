@@ -18,6 +18,8 @@ export class AtlasWiki {
   rebuildIndex() { return this.store.rebuildIndex(); }
   async backupCreate() { return this.store.backupCreate(); }
   backupVerify() { return this.store.backupVerify(); }
+  backupRestore(backupPath: string, overwrite = false) { return this.store.backupRestore(backupPath, overwrite); }
+  migrationReport() { return this.store.migrationReport(); }
   exportJsonShards(outDir?: string) { return this.store.exportJsonShards(outDir); }
   async validate() { return this.store.validate(); }
   async close() { await this.store.close(); }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AtlasRecord } from "../records/index.js";
-import { ValidationError } from "../errors/index.js";
+import { UnknownRecordSchemaError, ValidationError } from "../errors/index.js";
 
 const accessGrant = z.object({
   principal_type: z.enum(["user", "team", "role", "everyone", "authenticated"]),
@@ -116,7 +116,7 @@ export const recordValidators = {
   "atlas.wiki.proposal.v1": baseRecord.extend({ schema: z.literal("atlas.wiki.proposal.v1"), kind: z.literal("proposal"), proposal_type: z.enum(["claim", "update", "deprecate", "conflict"]), target_ref: recordRef.optional(), payload: z.record(z.string(), z.unknown()), requested_by: actor, approval_status: z.enum(["pending", "approved", "rejected"]) }).passthrough(),
   "atlas.wiki.approval.v1": baseRecord.extend({ schema: z.literal("atlas.wiki.approval.v1"), kind: z.literal("approval"), proposal_ref: recordRef, approver: actor, decision: z.enum(["approved", "rejected", "needs_changes"]), decided_at: z.string().min(1), comment: z.string().optional() }).passthrough(),
   "atlas.wiki.audit.v1": baseRecord.extend({ schema: z.literal("atlas.wiki.audit.v1"), kind: z.literal("audit"), event_type: z.string().min(1), actor, record_refs: z.array(recordRef), policy_decisions: z.array(policyDecision), outcome: z.enum(["success", "denied", "error"]), hash_prev: z.string().optional(), hash_self: z.string().min(1) }).passthrough(),
-  "atlas.wiki.context-pack.v1": baseRecord.extend({ schema: z.literal("atlas.wiki.context-pack.v1"), kind: z.literal("context_pack"), query: z.string(), actor, included_refs: z.array(recordRef), citations: z.array(z.object({ id: z.string(), source_ref: sourceRef, title: z.string() }).passthrough()), redactions: z.array(z.object({ record_ref: recordRef, field: z.string(), reason: z.string() }).passthrough()), freshness_markers: z.array(z.object({ record_ref: recordRef, stale: z.boolean() }).passthrough()), conflict_markers: z.array(z.object({ record_ref: recordRef, conflict_score: z.number(), reason: z.string() }).passthrough()), policy_decisions: z.array(policyDecision) }).passthrough(),
+  "atlas.wiki.context-pack.v1": baseRecord.extend({ schema: z.literal("atlas.wiki.context-pack.v1"), kind: z.literal("context_pack"), query: z.string(), actor, included_refs: z.array(recordRef), citations: z.array(z.object({ id: z.string(), source_ref: sourceRef, title: z.string() }).passthrough()), redactions: z.array(z.object({ record_ref: recordRef, field: z.string(), reason: z.string() }).passthrough()), freshness_markers: z.array(z.object({ record_ref: recordRef, stale: z.boolean() }).passthrough()), conflict_markers: z.array(z.object({ record_ref: recordRef, conflict_score: z.number(), reason: z.string() }).passthrough()), policy_decisions: z.array(policyDecision), denied_count: z.number().int().nonnegative(), redacted_count: z.number().int().nonnegative(), stale_count: z.number().int().nonnegative(), conflict_count: z.number().int().nonnegative(), candidate_count: z.number().int().nonnegative(), authorized_count: z.number().int().nonnegative(), query_backend: z.enum(["fts5", "like_fallback", "none"]), fallback_reason: z.string().nullable().optional() }).passthrough(),
   "atlas.wiki.connector.v1": baseRecord.extend({ schema: z.literal("atlas.wiki.connector.v1"), kind: z.literal("connector"), connector_type: z.string().min(1), display_name: z.string().min(1), connector_status: z.enum(["enabled", "disabled", "degraded"]), cursor: z.string().optional(), config_hash: z.string().optional() }).passthrough(),
   "atlas.wiki.owner.v1": baseRecord.extend({ schema: z.literal("atlas.wiki.owner.v1"), kind: z.literal("owner"), owner, display_name: z.string().min(1), escalation_refs: z.array(owner) }).passthrough(),
   "atlas.wiki.retention.v1": baseRecord.extend({ schema: z.literal("atlas.wiki.retention.v1"), kind: z.literal("retention"), record_ref: recordRef, retention_until: z.string().optional(), legal_hold: z.boolean(), action: z.enum(["keep", "redact", "delete", "archive"]) }).passthrough(),
@@ -131,8 +131,33 @@ export const recordValidators = {
 
 export type AtlasSchemaId = keyof typeof recordValidators;
 
-export function validateRecord(record: unknown): AtlasRecord {
+export interface ValidateRecordOptions {
+  unknownSchema?: "reject" | "quarantine" | "accept" | undefined;
+  production?: boolean | undefined;
+}
+
+export function validateRecord(record: unknown, options: ValidateRecordOptions = {}): AtlasRecord {
+  const unknownSchema = options.unknownSchema ?? "reject";
+  if (unknownSchema === "accept" && (options.production ?? process.env.NODE_ENV === "production")) {
+    throw new ValidationError("unknownSchema=accept is forbidden in production");
+  }
   const schema = typeof record === "object" && record ? (record as { schema?: unknown }).schema : undefined;
+  if (typeof schema !== "string" || !(schema in recordValidators)) {
+    if (unknownSchema === "reject") throw new UnknownRecordSchemaError(typeof schema === "string" ? schema : undefined);
+    if (unknownSchema === "quarantine") {
+      const parsed = baseRecord.safeParse(record);
+      if (!parsed.success) throw new ValidationError("Record validation failed", parsed.error.flatten());
+      return {
+        ...parsed.data,
+        status: "rejected",
+        metadata: {
+          ...parsed.data.metadata,
+          quarantine_reason: "unknown_schema",
+          original_schema: schema
+        }
+      } as unknown as AtlasRecord;
+    }
+  }
   const validator = typeof schema === "string" && schema in recordValidators ? recordValidators[schema as AtlasSchemaId] : baseRecord;
   const parsed = validator.safeParse(record);
   if (!parsed.success) throw new ValidationError("Record validation failed", parsed.error.flatten());

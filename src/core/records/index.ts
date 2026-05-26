@@ -44,7 +44,8 @@ export interface RedactionEvent { record_ref: RecordRef; field: string; reason: 
 export interface FreshnessMarker { record_ref: RecordRef; stale: boolean; stale_after?: string | undefined; reason?: string | undefined; }
 export interface ConflictMarker { record_ref: RecordRef; conflict_score: number; reason: string; }
 export interface PolicyDecision { record_ref?: RecordRef; allowed: boolean; reason: string; }
-export interface ContextPackRecord extends BaseRecord { schema: "atlas.wiki.context-pack.v1"; kind: "context_pack"; query: string; actor: ActorRef; included_refs: RecordRef[]; citations: Citation[]; redactions: RedactionEvent[]; freshness_markers: FreshnessMarker[]; conflict_markers: ConflictMarker[]; policy_decisions: PolicyDecision[]; }
+export type QueryBackend = "fts5" | "like_fallback" | "none";
+export interface ContextPackRecord extends BaseRecord { schema: "atlas.wiki.context-pack.v1"; kind: "context_pack"; query: string; actor: ActorRef; included_refs: RecordRef[]; citations: Citation[]; redactions: RedactionEvent[]; freshness_markers: FreshnessMarker[]; conflict_markers: ConflictMarker[]; policy_decisions: PolicyDecision[]; denied_count: number; redacted_count: number; stale_count: number; conflict_count: number; candidate_count: number; authorized_count: number; query_backend: QueryBackend; fallback_reason?: string | null | undefined; }
 export type AtlasRecord =
   | SourceRecord
   | ChunkRecord

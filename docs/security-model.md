@@ -8,11 +8,11 @@ Atlas WiKi uses query-time permission filtering before any answer or context-pac
 
 ## Security
 
-Defaults are private/internal, redaction runs before output, and audit validation detects row tampering.
+Defaults are private/internal, unknown schemas are rejected by default, redaction runs before output, and audit validation detects row tampering, deletion, and previous-hash mismatches.
 
 ## Verification
 
-`npm run test:security` covers private-result filtering, secret redaction, and audit-chain tamper detection.
+`npm run test:security`, `npm run test:context-leakage`, `npm run test:mcp`, and `npm run test:audit` cover private-result filtering, secret redaction, metadata counts, MCP surface separation, and audit-chain tamper detection.
 
 ## Operator Notes
 

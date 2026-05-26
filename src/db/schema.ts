@@ -1,10 +1,11 @@
 export const schemaSql = `
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS migrations (
   id TEXT PRIMARY KEY,
-  applied_at TEXT NOT NULL
+  checksum TEXT,
+  applied_at TEXT NOT NULL,
+  package_version TEXT,
+  node_version TEXT,
+  ordinal INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS records (
@@ -76,4 +77,9 @@ CREATE TABLE IF NOT EXISTS audit_events (
   hash_prev TEXT,
   hash_self TEXT NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_records_kind_status ON records(kind, status);
+CREATE INDEX IF NOT EXISTS idx_sources_title ON sources(title);
+CREATE INDEX IF NOT EXISTS idx_chunks_source_ordinal ON chunks(source_id, ordinal);
+CREATE INDEX IF NOT EXISTS idx_audit_events_created_at ON audit_events(created_at);
 `;

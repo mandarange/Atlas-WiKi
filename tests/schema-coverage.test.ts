@@ -50,7 +50,7 @@ function fixture(schema: string): Record<string, unknown> {
     case "atlas.wiki.audit.v1":
       return { ...base(schema, "audit"), event_type: "search", actor, record_refs: [ref], policy_decisions: [{ record_ref: ref, allowed: true, reason: "acl_allow" }], outcome: "success", hash_self: contentHash("audit") };
     case "atlas.wiki.context-pack.v1":
-      return { ...base(schema, "context_pack"), query: "remote work", actor, included_refs: [ref], citations: [{ id: "citation_remote", source_ref: sourceRef, title: "Remote policy" }], redactions: [], freshness_markers: [{ record_ref: ref, stale: false }], conflict_markers: [], policy_decisions: [{ record_ref: ref, allowed: true, reason: "acl_allow" }] };
+      return { ...base(schema, "context_pack"), query: "remote work", actor, included_refs: [ref], citations: [{ id: "citation_remote", source_ref: sourceRef, title: "Remote policy" }], redactions: [], freshness_markers: [{ record_ref: ref, stale: false }], conflict_markers: [], policy_decisions: [{ record_ref: ref, allowed: true, reason: "acl_allow" }], denied_count: 0, redacted_count: 0, stale_count: 0, conflict_count: 0, candidate_count: 1, authorized_count: 1, query_backend: "fts5", fallback_reason: null };
     case "atlas.wiki.connector.v1":
       return { ...base(schema, "connector"), connector_type: "local-file", display_name: "Local Files", connector_status: "enabled", cursor: "0" };
     case "atlas.wiki.owner.v1":

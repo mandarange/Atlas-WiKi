@@ -4,7 +4,7 @@ Atlas WiKi records read, write, search, context-pack, ingest, proposal, and back
 
 ## Core Link
 
-`SqliteStore.logAudit` writes `audit_events`. `SqliteStore.validate` recomputes each row hash and checks the previous-hash chain by SQLite row order.
+`SqliteStore` writes `audit_events` with crypto-safe ids and canonical JSON hashes. `SqliteStore.validate` recomputes each row hash and checks the previous-hash chain by SQLite row order.
 
 ## Security
 
@@ -16,4 +16,4 @@ Tampering with an audit row invalidates the recomputed hash. Tampering with orde
 
 ## Operator Notes
 
-Run `awiki validate` after migrations, restores, or manual inspection. Treat audit findings as blocking until the underlying database state is understood.
+Run `awiki audit verify` or `awiki validate` after migrations, restores, or manual inspection. Treat audit findings as blocking until the underlying database state is understood.

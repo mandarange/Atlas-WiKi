@@ -9,7 +9,18 @@ const patterns: Array<{ name: string; regex: RegExp }> = [
   { name: "credit_card", regex: /\b(?:\d[ -]*?){13,19}\b/g }
 ];
 export interface RedactionResult { text: string; events: RedactionEvent[]; }
-export function redactText(text: string, record_ref: RecordRef, field = "text"): RedactionResult {
+export interface RedactionOptions {
+  field?: string | undefined;
+  sensitivity?: "public" | "internal" | "confidential" | "restricted" | "secret" | undefined;
+  protectedFields?: readonly string[] | undefined;
+}
+
+export function redactText(text: string, record_ref: RecordRef, fieldOrOptions: string | RedactionOptions = "text"): RedactionResult {
+  const options = typeof fieldOrOptions === "string" ? { field: fieldOrOptions } : fieldOrOptions;
+  const field = options.field ?? "text";
+  if (options.sensitivity === "secret" || options.protectedFields?.includes(field)) {
+    return { text: "[REDACTED]", events: [{ record_ref, field, reason: options.sensitivity === "secret" ? "secret_sensitivity_policy" : "protected_field_policy" }] };
+  }
   let redacted = text; const events: RedactionEvent[] = [];
   for (const pattern of patterns) { pattern.regex.lastIndex = 0; if (pattern.regex.test(redacted)) { pattern.regex.lastIndex = 0; redacted = redacted.replace(pattern.regex, "[REDACTED]"); events.push({ record_ref, field, reason: pattern.name }); } }
   return { text: redacted, events };

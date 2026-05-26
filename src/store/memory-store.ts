@@ -56,6 +56,11 @@ export class MemoryStore implements AtlasWikiStore {
       return { id: stableId("citation", ref), source_ref: ref, title: result.source.title, uri: result.source.uri, quote: redactText(result.text, ref).text.slice(0, 500) };
     });
     const redactions = results.flatMap((result) => redactText(result.text, { id: result.source.id, schema: result.source.schema, kind: result.source.kind }).events);
+    const freshness_markers = results.map((result) => ({
+      record_ref: { id: result.source.id, schema: result.source.schema, kind: result.source.kind },
+      stale: isPastIso(result.source.freshness.stale_after),
+      stale_after: result.source.freshness.stale_after
+    }));
     return {
       schema: "atlas.wiki.context-pack.v1",
       kind: "context_pack",
@@ -70,13 +75,17 @@ export class MemoryStore implements AtlasWikiStore {
       included_refs: results.map((result) => ({ id: result.source.id, schema: result.source.schema, kind: result.source.kind })),
       citations,
       redactions,
-      freshness_markers: results.map((result) => ({
-        record_ref: { id: result.source.id, schema: result.source.schema, kind: result.source.kind },
-        stale: isPastIso(result.source.freshness.stale_after),
-        stale_after: result.source.freshness.stale_after
-      })),
+      freshness_markers,
       conflict_markers: [],
-      policy_decisions: results.map((result) => ({ record_ref: { id: result.source.id, schema: result.source.schema, kind: result.source.kind }, allowed: true, reason: "acl_allow" }))
+      policy_decisions: results.map((result) => ({ record_ref: { id: result.source.id, schema: result.source.schema, kind: result.source.kind }, allowed: true, reason: "acl_allow" })),
+      denied_count: 0,
+      redacted_count: redactions.length,
+      stale_count: freshness_markers.filter((marker) => marker.stale).length,
+      conflict_count: 0,
+      candidate_count: results.length,
+      authorized_count: results.length,
+      query_backend: "none",
+      fallback_reason: null
     };
   }
 

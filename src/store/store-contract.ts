@@ -1,4 +1,4 @@
-import type { ActorRef, ContextPackRecord, SourceRecord } from "../core/records/index.js";
+import type { ActorRef, ContextPackRecord, RedactionEvent, SourceRecord } from "../core/records/index.js";
 
 export interface IngestInput {
   title: string;
@@ -16,6 +16,7 @@ export interface SearchResult {
   chunk_id: string;
   text: string;
   redacted: boolean;
+  redactions?: RedactionEvent[] | undefined;
   score: number;
 }
 

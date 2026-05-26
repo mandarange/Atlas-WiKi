@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync } from "node:fs";
-import { basename, join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
 
 export async function createSqliteBackup(db: DatabaseSync, dbPath: string, outDir: string, stamp = new Date().toISOString().replace(/[:.]/g, "-")): Promise<string> {
@@ -19,4 +19,13 @@ export function verifySqliteBackup(path: string): boolean {
   } finally {
     db.close();
   }
+}
+
+export function restoreSqliteBackup(input: { backupPath: string; dbPath: string; overwrite?: boolean | undefined }): string {
+  if (!verifySqliteBackup(input.backupPath)) throw new Error("Backup verification failed before restore: " + input.backupPath);
+  if (existsSync(input.dbPath) && !input.overwrite) throw new Error("Refusing to overwrite existing database without --force: " + input.dbPath);
+  mkdirSync(dirname(input.dbPath), { recursive: true });
+  copyFileSync(input.backupPath, input.dbPath);
+  if (!verifySqliteBackup(input.dbPath)) throw new Error("Restored database failed verification: " + input.dbPath);
+  return input.dbPath;
 }

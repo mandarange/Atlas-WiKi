@@ -20,6 +20,7 @@ awiki ingest ./examples/team-handbook/handbook.md --root ./.atlas-wiki --owner t
 awiki search "remote work" --root ./.atlas-wiki --as user:alice@example.com --json
 awiki context-pack "remote work policy" --root ./.atlas-wiki --as user:alice@example.com --json
 awiki validate --root ./.atlas-wiki --json
+awiki audit verify --root ./.atlas-wiki --json
 ```
 
 ## Public API
@@ -33,5 +34,7 @@ await wiki.ingestText({ title: "Handbook", text: "Remote work is allowed with ma
 ## Security Model
 
 Atlas WiKi filters by identity and ACL before context assembly. Unauthorized records are removed before redaction, citation assembly, MCP output, or SDK/CLI JSON output. Write-capable surfaces create proposals unless an explicit approved administrative path is used.
+
+Production hardening includes idempotent checksum-verified migrations, unknown-schema rejection, context-pack safety counters, readonly-by-default MCP, normalized MCP root policy, and canonical audit-chain verification.
 
 Core code is adapter-neutral. Integrations for specific agents, IDEs, SaaS products, or deployment environments belong outside the core package.

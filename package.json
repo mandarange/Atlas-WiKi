@@ -29,8 +29,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "awiki": "./dist/cli/awiki.js",
-    "atlas-wiki": "./dist/cli/awiki.js"
+    "awiki": "dist/cli/awiki.js",
+    "atlas-wiki": "dist/cli/awiki.js"
   },
   "exports": {
     ".": {

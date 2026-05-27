@@ -8,15 +8,15 @@ Atlas WiKi MCP is read-only by default.
 
 ## Security
 
-Production mode rejects tool-supplied roots by default and keeps write-capable tools off the default server.
+Production mode rejects tool-supplied roots and actors by default, requires server-side actor injection, and keeps write-capable tools off the default server. Admin tools also require an explicit `authorizeTool` callback.
 
 ## Verification
 
-`npm run test:mcp` checks readonly/admin separation and MCP constructor availability.
+`npm run test:mcp` checks readonly/admin separation, production input schema hardening, admin authorization, and MCP constructor availability.
 
 ## Operator Notes
 
-Pass a server-side root and allowed root list in production. Use `--dev-allow-root-input` only for local development.
+Pass a server-side root, allowed root list, and `actor` or `actorProvider` in production. Use `--dev-allow-root-input` only for local development. Treat admin MCP as local-operator-only unless deployment authentication wraps it.
 
 ## Surfaces
 
@@ -28,11 +28,15 @@ Pass a server-side root and allowed root list in production. Use `--dev-allow-ro
 
 Production mode resolves the data root from server configuration. Tool input cannot override `root` unless `devAllowRootInput` is explicitly set.
 
-Allowed roots are normalized with `path.resolve`. A requested root must match or sit under an allowed root.
+Allowed roots are normalized with `path.resolve` and `realpathSync` when they exist. A requested root must match or sit under an allowed root after symlink resolution, so symlink traversal and platform separator drift are denied.
 
 ## Actor Policy
 
-Production mode rejects tool-supplied actor ids unless `allowActorInput` or `devAllowRootInput` is explicitly set. Deployments that need authenticated actors should inject actor context server-side.
+Production mode rejects tool-supplied actor ids unless `allowActorInput` or `devAllowRootInput` is explicitly set. Deployments that need authenticated actors must inject actor context server-side with `actor` or `actorProvider`.
+
+## Admin Authorization
+
+Admin MCP tools are denied unless `authorizeTool(toolName, input)` returns `true`. `atlas_wiki.ingest`, `atlas_wiki.rebuild_index`, and `atlas_wiki.backup_create` are only registered on the admin server constructor.
 
 ## Audit
 

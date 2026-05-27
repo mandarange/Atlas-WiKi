@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -10,6 +10,9 @@ const dir = mkdtempSync(join(tmpdir(), "atlas-wiki-smoke-"));
 try {
   writeFileSync(join(dir, "package.json"), JSON.stringify({ type: "module" }, null, 2));
   execFileSync("npm", ["install", "--silent", join(process.cwd(), tarball)], { cwd: dir, stdio: "pipe" });
+  const bin = join(dir, "node_modules", "atlas-wiki", "dist", "cli", "awiki.js");
+  if (!readFileSync(bin, "utf8").startsWith("#!/usr/bin/env node")) throw new Error("CLI bin shebang missing");
+  if ((statSync(bin).mode & 0o111) === 0) throw new Error("CLI bin is not executable");
   const imported = execFileSync("node", ["--input-type=module", "-e", "import { packageInfo } from 'atlas-wiki'; console.log(packageInfo.name)"], { cwd: dir, encoding: "utf8" }).trim();
   if (imported !== "atlas-wiki") throw new Error("ESM import smoke failed");
   const cli = execFileSync("npx", ["awiki", "mcp", "smoke", "--root", join(dir, "wiki"), "--stdio", "--json"], { cwd: dir, encoding: "utf8" });

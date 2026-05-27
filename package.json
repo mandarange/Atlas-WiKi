@@ -1,6 +1,6 @@
 {
   "name": "atlas-wiki",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript-first, SQLite-first, source-backed, permission-aware knowledge wiki and ledger.",
   "type": "module",
   "license": "MIT",
@@ -100,6 +100,8 @@
     "packcheck": "npm run package:verify && npm run package:dry-run && npm run package:smoke",
     "package:dry-run": "npm publish --dry-run",
     "package:smoke": "npm run build && node scripts/package-smoke.mjs",
+    "package:published-smoke": "node scripts/published-package-smoke.mjs",
+    "release:published-check": "npm run package:published-smoke",
     "selftest": "node scripts/selftest.mjs",
     "goal:coverage": "node scripts/generate-task-coverage.mjs",
     "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:integration && npm run test:hardening && npm run test:types && npm run schemas:validate && npm run hardening:verify && npm run package:verify && npm run package:dry-run && npm run package:smoke"

@@ -26,12 +26,14 @@ describe("migration hardening", () => {
     try {
       const report = applyMigrations(handle, { clock: { nowIso: () => "2026-05-26T00:00:00.000Z" }, packageVersion: "test", nodeVersion: "v24.test" });
       expect(report.ok).toBe(true);
-      expect(report.user_version).toBe(1);
+      expect(report.user_version).toBe(2);
       const row = handle.prepare("SELECT checksum, package_version, node_version, ordinal FROM migrations WHERE id = '0001_initial'").get() as { checksum: string; package_version: string; node_version: string; ordinal: number };
       expect(row.checksum).toMatch(/^[a-f0-9]{64}$/);
       expect(row.package_version).toBe("test");
       expect(row.node_version).toBe("v24.test");
       expect(row.ordinal).toBe(1);
+      const auditHead = handle.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'audit_head'").get();
+      expect(auditHead).toBeTruthy();
       expect(migrationDryRun(handle).entries[0]?.status).toBe("applied");
       expect(checkDatabaseIntegrity(handle)).toEqual({ ok: true, findings: [] });
     } finally {
@@ -43,9 +45,11 @@ describe("migration hardening", () => {
     const handle = db();
     try {
       handle.exec("CREATE TABLE migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL);");
+      handle.exec("CREATE TABLE audit_events (id TEXT PRIMARY KEY, event_type TEXT NOT NULL, actor_json TEXT NOT NULL, request_id TEXT NOT NULL, record_refs_json TEXT NOT NULL, policy_decisions_json TEXT NOT NULL, outcome TEXT NOT NULL, created_at TEXT NOT NULL, hash_prev TEXT, hash_self TEXT NOT NULL);");
       handle.prepare("INSERT INTO migrations (id, applied_at) VALUES (?, ?)").run("0001_initial", "2026-05-25T00:00:00.000Z");
       const report = applyMigrations(handle);
       expect(report.entries[0]?.status).toBe("legacy_metadata_backfill");
+      expect(report.entries[1]?.status).toBe("applied");
       const tables = handle.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'records'").get();
       expect(tables).toBeUndefined();
       const row = handle.prepare("SELECT checksum FROM migrations WHERE id = '0001_initial'").get() as { checksum: string };

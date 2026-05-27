@@ -1,7 +1,7 @@
 import { contentHash } from "../core/hash/index.js";
 import { stableId } from "../core/ids/index.js";
 import { defaultAccessPolicy, sourcePolicyDecision } from "../core/policy/index.js";
-import type { ActorRef, ContextPackRecord, SourceRecord } from "../core/records/index.js";
+import type { ActorRef, AtlasRecord, ContextPackRecord, SourceRecord } from "../core/records/index.js";
 import { isPastIso, nowIso } from "../core/time/index.js";
 import { redactText } from "../security/redaction.js";
 import type { AtlasWikiStore, IngestInput, SearchResult } from "./store-contract.js";
@@ -37,6 +37,7 @@ export class MemoryStore implements AtlasWikiStore {
   }
 
   async search(query: string, actor: ActorRef, limit = 10): Promise<SearchResult[]> {
+    if (!query.trim()) return [];
     const q = query.toLowerCase();
     return this.sources
       .filter(({ source }) => sourcePolicyDecision(source, actor).allowed)
@@ -46,6 +47,24 @@ export class MemoryStore implements AtlasWikiStore {
         const redacted = redactText(text, { id: source.id, schema: source.schema, kind: source.kind });
         return { source, chunk_id: `${source.id}_chunk`, text: redacted.text, redacted: redacted.events.length > 0, score: 1 };
       });
+  }
+
+  async listSources(query: string | undefined, actor: ActorRef, limit = 50): Promise<SourceRecord[]> {
+    if (query?.trim()) return (await this.search(query, actor, limit)).map((result) => result.source);
+    return this.sources
+      .filter(({ source }) => sourcePolicyDecision(source, actor).allowed)
+      .slice(0, limit)
+      .map(({ source }) => source);
+  }
+
+  async fetch(id: string, actor: ActorRef): Promise<AtlasRecord | undefined> {
+    const entry = this.sources.find(({ source }) => source.id === id);
+    if (!entry) return undefined;
+    return sourcePolicyDecision(entry.source, actor).allowed ? entry.source : undefined;
+  }
+
+  async validateAccess(id: string, actor: ActorRef): Promise<boolean> {
+    return Boolean(await this.fetch(id, actor));
   }
 
   async contextPack(query: string, actor: ActorRef, limit = 10): Promise<ContextPackRecord> {

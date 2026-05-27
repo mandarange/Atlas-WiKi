@@ -1,4 +1,4 @@
-import type { ActorRef, ContextPackRecord, RedactionEvent, SourceRecord } from "../core/records/index.js";
+import type { ActorRef, AtlasRecord, ContextPackRecord, RedactionEvent, SourceRecord } from "../core/records/index.js";
 
 export interface IngestInput {
   title: string;
@@ -24,6 +24,9 @@ export interface AtlasWikiStore {
   init(): Promise<void>;
   ingestText(input: IngestInput): Promise<SourceRecord>;
   search(query: string, actor: ActorRef, limit?: number): Promise<SearchResult[]>;
+  listSources(query: string | undefined, actor: ActorRef, limit?: number): Promise<SourceRecord[]>;
+  fetch(id: string, actor: ActorRef): Promise<AtlasRecord | undefined>;
+  validateAccess(id: string, actor: ActorRef): Promise<boolean>;
   contextPack(query: string, actor: ActorRef, limit?: number): Promise<ContextPackRecord>;
   validate(): Promise<{ ok: boolean; findings: string[] }>;
   close(): Promise<void>;

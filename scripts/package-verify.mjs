@@ -1,8 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+const { packageInfo } = await import(pathToFileURL(resolve("dist/package-info.js")).href);
 if (pkg.name !== "atlas-wiki") throw new Error("Package name mismatch");
+if (packageInfo.name !== pkg.name || packageInfo.version !== pkg.version) throw new Error("Package info drift");
 if (pkg.type !== "module") throw new Error("Package must be ESM");
 if (Object.hasOwn(pkg.publishConfig ?? {}, "provenance")) throw new Error("publishConfig.provenance must not block plain npm publish");
 if (pkg.scripts?.["publish:local"] || pkg.scripts?.["publish:local:dry-run"]) throw new Error("Use official npm publish, not publish:local wrappers");

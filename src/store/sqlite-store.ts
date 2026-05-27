@@ -25,6 +25,7 @@ interface SourceRow {
 
 interface AuditRow {
   id: string;
+  seq: number | null;
   event_type: string;
   actor_json: string;
   record_refs_json: string;
@@ -188,13 +189,49 @@ export class SqliteStore implements AtlasWikiStore {
     return this.searchWithDiagnostics(query, actor, limit).results;
   }
 
-  async fetch(id: string, actor: ActorRef): Promise<SourceRecord | undefined> {
+  async listSources(query: string | undefined, actor: ActorRef, limit = 50): Promise<SourceRecord[]> {
+    if (query?.trim()) return (await this.search(query, actor, limit)).map((result) => result.source);
+    const rows = this.requireDb().prepare(
+      `SELECT records.json
+       FROM sources
+       JOIN records ON records.id = sources.id
+       WHERE records.deleted_at IS NULL
+       ORDER BY sources.updated_at DESC
+       LIMIT ?`
+    ).all(limit * 4) as Array<{ json: string }>;
+    const sources: SourceRecord[] = [];
+    const decisions: PolicyDecision[] = [];
+    for (const row of rows) {
+      const record = validateRecord(JSON.parse(row.json));
+      if (record.kind !== "source") continue;
+      const decision = policyResolver.canRead({ record, actor, purpose: "list_sources" });
+      decisions.push({ record_ref: { id: record.id, schema: record.schema, kind: record.kind }, allowed: decision.allowed, reason: decision.reason });
+      if (decision.allowed) sources.push(record);
+      if (sources.length >= limit) break;
+    }
+    this.logAudit("list_sources", actor, sources.map((source) => ({ id: source.id, schema: source.schema, kind: source.kind })), decisions, "success");
+    return sources;
+  }
+
+  async fetch(id: string, actor: ActorRef): Promise<AtlasRecord | undefined> {
     const row = this.requireDb().prepare("SELECT json FROM records WHERE id = ? AND deleted_at IS NULL").get(id) as { json: string } | undefined;
     if (!row) return undefined;
-    const record = validateRecord(JSON.parse(row.json)) as SourceRecord;
+    const record = validateRecord(JSON.parse(row.json));
     const decision = policyResolver.canRead({ record, actor, purpose: "fetch" });
     this.logAudit("fetch", actor, [{ id, schema: record.schema, kind: record.kind }], [{ record_ref: { id, schema: record.schema, kind: record.kind }, allowed: decision.allowed, reason: decision.reason }], decision.allowed ? "success" : "denied");
     return decision.allowed ? record : undefined;
+  }
+
+  async validateAccess(id: string, actor: ActorRef): Promise<boolean> {
+    const row = this.requireDb().prepare("SELECT json FROM records WHERE id = ? AND deleted_at IS NULL").get(id) as { json: string } | undefined;
+    if (!row) {
+      this.logAudit("validate_access", actor, [{ id, schema: "unknown" }], [{ record_ref: { id, schema: "unknown" }, allowed: false, reason: "record_not_found" }], "denied");
+      return false;
+    }
+    const record = validateRecord(JSON.parse(row.json));
+    const decision = policyResolver.canRead({ record, actor, purpose: "validate_access" });
+    this.logAudit("validate_access", actor, [{ id, schema: record.schema, kind: record.kind }], [{ record_ref: { id, schema: record.schema, kind: record.kind }, allowed: decision.allowed, reason: decision.reason }], decision.allowed ? "success" : "denied");
+    return decision.allowed;
   }
 
   async contextPack(query: string, actor: ActorRef, limit = 10): Promise<ContextPackRecord> {
@@ -267,12 +304,21 @@ export class SqliteStore implements AtlasWikiStore {
         findings.push(`record_validation_failed:${String(error)}`);
       }
     }
-    const auditRows = db.prepare("SELECT id, event_type, actor_json, record_refs_json, policy_decisions_json, outcome, created_at, hash_prev, hash_self FROM audit_events ORDER BY rowid").all() as unknown as AuditRow[];
+    const auditRows = db.prepare("SELECT id, seq, event_type, actor_json, record_refs_json, policy_decisions_json, outcome, created_at, hash_prev, hash_self FROM audit_events ORDER BY COALESCE(seq, rowid)").all() as unknown as AuditRow[];
     let prev: string | undefined;
     const seen = new Set<string>();
+    const seenSeq = new Set<number>();
+    let expectedSeq = 1;
+    let lastRow: AuditRow | undefined;
     for (const row of auditRows) {
       if (seen.has(row.id)) findings.push(`audit_chain_replay_duplicate:${row.id}`);
       seen.add(row.id);
+      if (row.seq == null) findings.push(`audit_chain_seq_missing:${row.id}`);
+      else {
+        if (seenSeq.has(row.seq)) findings.push(`audit_chain_seq_duplicate:${row.id}`);
+        seenSeq.add(row.seq);
+        if (row.seq !== expectedSeq) findings.push(`audit_chain_seq_mismatch:${row.id}`);
+      }
       if ((row.hash_prev ?? undefined) !== prev) findings.push(`audit_chain_prev_mismatch:${row.id}`);
       const expected = auditHash({
         id: row.id,
@@ -286,6 +332,15 @@ export class SqliteStore implements AtlasWikiStore {
       });
       if (row.hash_self !== expected) findings.push(`audit_chain_hash_mismatch:${row.id}`);
       prev = row.hash_self;
+      expectedSeq += 1;
+      lastRow = row;
+    }
+    const head = db.prepare("SELECT last_seq, event_id, hash_self FROM audit_head WHERE singleton_id = 1").get() as { last_seq: number; event_id: string; hash_self: string } | undefined;
+    if (lastRow) {
+      if (!head) findings.push("audit_head_missing");
+      else if (head.last_seq !== lastRow.seq || head.event_id !== lastRow.id || head.hash_self !== lastRow.hash_self) findings.push("audit_head_mismatch");
+    } else if (head) {
+      findings.push("audit_head_orphan");
     }
     return { ok: findings.length === 0, findings };
   }
@@ -345,7 +400,9 @@ export class SqliteStore implements AtlasWikiStore {
     let rows: SourceRow[] = [];
     let queryBackend: "fts5" | "like_fallback" | "none" = "none";
     let fallbackReason = safeQuery.fallbackReason;
-    if (safeQuery.query) {
+    if (!query.trim()) {
+      fallbackReason = "empty_query_denied";
+    } else if (safeQuery.query) {
       try {
         rows = db.prepare(
           `SELECT records.json, chunks.text, chunks.id AS chunk_id
@@ -361,7 +418,7 @@ export class SqliteStore implements AtlasWikiStore {
         fallbackReason = "fts_error:" + (error instanceof Error ? error.message : String(error));
       }
     }
-    if (rows.length === 0) {
+    if (rows.length === 0 && query.trim()) {
       rows = this.likeFallbackRows(query, limit);
       queryBackend = rows.length > 0 ? "like_fallback" : "none";
       fallbackReason ??= safeQuery.query ? "fts_no_results" : "no_safe_fts_query";
@@ -456,11 +513,14 @@ export class SqliteStore implements AtlasWikiStore {
     const db = this.requireDb();
     const write = () => {
       const time = nowIso();
-      const prev = db.prepare("SELECT hash_self FROM audit_events ORDER BY rowid DESC LIMIT 1").get() as { hash_self: string } | undefined;
+      const prev = db.prepare("SELECT last_seq, hash_self FROM audit_head WHERE singleton_id = 1").get() as { last_seq: number; hash_self: string } | undefined;
+      const fallbackPrev = prev ?? db.prepare("SELECT seq AS last_seq, hash_self FROM audit_events ORDER BY COALESCE(seq, rowid) DESC LIMIT 1").get() as { last_seq: number | null; hash_self: string } | undefined;
+      const seq = (fallbackPrev?.last_seq ?? 0) + 1;
       const id = cryptoSafeId("audit");
-      const hash_self = auditHash({ id, event_type, actor, record_refs, policy_decisions, outcome, created_at: time, hash_prev: prev?.hash_self });
-      db.prepare("INSERT INTO audit_events (id, event_type, actor_json, request_id, record_refs_json, policy_decisions_json, outcome, created_at, hash_prev, hash_self) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      const hash_self = auditHash({ id, event_type, actor, record_refs, policy_decisions, outcome, created_at: time, hash_prev: fallbackPrev?.hash_self });
+      db.prepare("INSERT INTO audit_events (id, seq, event_type, actor_json, request_id, record_refs_json, policy_decisions_json, outcome, created_at, hash_prev, hash_self) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
         id,
+        seq,
         event_type,
         JSON.stringify(actor),
         cryptoSafeId("request"),
@@ -468,9 +528,18 @@ export class SqliteStore implements AtlasWikiStore {
         JSON.stringify(policy_decisions),
         outcome,
         time,
-        prev?.hash_self ?? null,
+        fallbackPrev?.hash_self ?? null,
         hash_self
       );
+      db.prepare(
+        `INSERT INTO audit_head (singleton_id, last_seq, event_id, hash_self, updated_at)
+         VALUES (1, ?, ?, ?, ?)
+         ON CONFLICT(singleton_id) DO UPDATE SET
+           last_seq = excluded.last_seq,
+           event_id = excluded.event_id,
+           hash_self = excluded.hash_self,
+           updated_at = excluded.updated_at`
+      ).run(seq, id, hash_self, time);
     };
     if (isInTransaction(db)) write();
     else transaction(db, write);

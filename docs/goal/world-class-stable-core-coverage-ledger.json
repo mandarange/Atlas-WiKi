@@ -1,0 +1,30 @@
+{
+  "source": "/Users/weklem/Desktop/atlas-wiki-world-class-stable-core-goal.md",
+  "originalSha256": "95f33b12acb963423c537d93dee95bfcedf311e1883f883819e13ee7200ba031",
+  "updatedSha256": "9970a2eb24f832129df269e96e88538d135a347986d2ed4216299f33739a7d8e",
+  "generatedAt": "2026-05-26T16:41:23.005Z",
+  "totalCheckboxes": 4180,
+  "checked": 4178,
+  "unchecked": 2,
+  "evidence": {
+    "localReleaseCheck": "npm run release:check passed for atlas-wiki@0.1.1",
+    "localPackcheck": "npm run packcheck passed for atlas-wiki@0.1.1",
+    "publishedSmoke": "npm run package:published-smoke passed for current published atlas-wiki (registry version 0.1.0)",
+    "npmRegistry": "npm view atlas-wiki name version => atlas-wiki 0.1.0; npm view atlas-wiki versions => [0.1.0]",
+    "mcpDocs": "https://github.com/modelcontextprotocol/typescript-sdk and https://modelcontextprotocol.io/docs/develop/build-server",
+    "githubActionsLatestMain": "failure at https://github.com/mandarange/Atlas-WiKi/actions/runs/26459787754",
+    "scopedRegistry": "npm view @mandarange/atlas-wiki name version => E404 Not Found"
+  },
+  "uncheckedItems": [
+    {
+      "line": 119,
+      "text": "latest main commit에서 GitHub Actions `release:check`가 green이다.",
+      "reason": "External latest-main GitHub Actions state is not green."
+    },
+    {
+      "line": 8501,
+      "text": "최신 main commit의 GitHub Actions가 green이다.",
+      "reason": "External latest-main GitHub Actions state is not green."
+    }
+  ]
+}

@@ -38,4 +38,24 @@ describe("audit chain hardening", () => {
     expect(validation.findings.some((finding) => finding.startsWith("audit_chain_prev_mismatch"))).toBe(true);
     await reopened.close();
   });
+
+  it("detects deletion of the last audit row through the head checkpoint", async () => {
+    const wiki = await AtlasWiki.open({ root });
+    await wiki.ingestText({ title: "Tail", text: "audit tail probe", visibility: "public" });
+    await wiki.search("tail", actorFromId("alice"));
+    await wiki.close();
+
+    const db = new DatabaseSync(join(root, "atlas-wiki.sqlite"));
+    try {
+      db.prepare("DELETE FROM audit_events WHERE seq = (SELECT MAX(seq) FROM audit_events)").run();
+    } finally {
+      db.close();
+    }
+
+    const reopened = await AtlasWiki.open({ root });
+    const validation = await reopened.validate();
+    expect(validation.ok).toBe(false);
+    expect(validation.findings).toContain("audit_head_mismatch");
+    await reopened.close();
+  });
 });

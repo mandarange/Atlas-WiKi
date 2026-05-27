@@ -11,7 +11,9 @@ export class AtlasWiki {
   async ingestText(input: IngestInput) { return this.store.ingestText(input); }
   async ingestFile(path: string, input: Omit<IngestInput, "title" | "text"> & { title?: string } = {}) { const parsed = parseFile(path); return this.store.ingestText({ ...input, title: input.title ?? parsed.title, text: parsed.text, uri: input.uri ?? path, metadata: { ...parsed.metadata, ...input.metadata } }); }
   async search(query: string, actor: ActorRef, limit?: number) { return this.store.search(query, actor, limit); }
+  async listSources(query: string | undefined, actor: ActorRef, limit?: number) { return this.store.listSources(query, actor, limit); }
   async fetch(id: string, actor: ActorRef) { return this.store.fetch(id, actor); }
+  async validateAccess(id: string, actor: ActorRef) { return this.store.validateAccess(id, actor); }
   async contextPack(query: string, actor: ActorRef, limit?: number) { return this.store.contextPack(query, actor, limit); }
   async proposeClaim(input: { text: string; source_id?: string | undefined; requested_by: ActorRef; owner?: string | undefined }) { return this.store.proposeClaim(input); }
   async proposeChange(type: "update" | "deprecate" | "conflict", input: { text: string; source_id?: string | undefined; requested_by: ActorRef; owner?: string | undefined }) { return this.store.proposeChange(type, input); }

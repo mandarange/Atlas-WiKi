@@ -40,7 +40,29 @@ export interface MigrationReport {
   entries: MigrationPlanEntry[];
 }
 
-export const migrations: readonly Migration[] = [{ id: "0001_initial", sql: schemaSql }];
+const auditHeadSql = `
+ALTER TABLE audit_events ADD COLUMN seq INTEGER;
+UPDATE audit_events SET seq = rowid WHERE seq IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_audit_events_seq ON audit_events(seq);
+CREATE TABLE IF NOT EXISTS audit_head (
+  singleton_id INTEGER PRIMARY KEY CHECK(singleton_id = 1),
+  last_seq INTEGER NOT NULL,
+  event_id TEXT NOT NULL,
+  hash_self TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+INSERT OR REPLACE INTO audit_head (singleton_id, last_seq, event_id, hash_self, updated_at)
+  SELECT 1, seq, id, hash_self, created_at
+  FROM audit_events
+  WHERE seq IS NOT NULL
+  ORDER BY seq DESC
+  LIMIT 1;
+`;
+
+export const migrations: readonly Migration[] = [
+  { id: "0001_initial", sql: schemaSql },
+  { id: "0002_audit_head_checkpoint", sql: auditHeadSql }
+];
 
 export function applyMigrations(db: DatabaseSync, options: MigrationOptions = {}): MigrationReport {
   return applyMigrationSet(db, migrations, options);

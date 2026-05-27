@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { actorFromId, AtlasWiki, DeterministicEmbeddingProvider, MemoryStore, RagVectorUnavailableError } from "../src/index.js";
+import { GeminiEmbeddingProvider } from "../src/rag/providers/gemini.js";
 
 const roots: string[] = [];
 
@@ -62,6 +63,21 @@ describe("RAG SDK", () => {
     await wiki.close();
   });
 
+  it("persists vector embeddings across SDK restarts", async () => {
+    const actor = actorFromId("alice");
+    const path = root();
+    const first = await AtlasWiki.open({ root: path, rag: { embeddingProvider: new DeterministicEmbeddingProvider() } });
+    await first.ingestText({ title: "Restart Safe", text: "Persistent vector indexes survive process restarts.", owner: actor.id, visibility: "private" });
+    expect((await first.ragIndex({ actor })).indexed).toBe(1);
+    await first.close();
+
+    const reopened = await AtlasWiki.open({ root: path, rag: { embeddingProvider: new DeterministicEmbeddingProvider() } });
+    const result = await reopened.ragSearch({ query: "process restarts", actor, mode: "vector" });
+    expect(result.items[0]?.citation.quote).toContain("Persistent vector indexes");
+    expect(result.metadata.rag).toMatchObject({ mode_used: "vector", vector_index_status: "available", degraded: false });
+    await reopened.close();
+  });
+
   it("attaches RAG metadata to context packs", async () => {
     const wiki = await AtlasWiki.open({ root: root() });
     const actor = actorFromId("alice");
@@ -71,5 +87,48 @@ describe("RAG SDK", () => {
 
     expect(result.pack.metadata?.rag).toMatchObject({ degraded: true, fallback_reason: "embedding_provider_missing" });
     await wiki.close();
+  });
+
+  it("builds Gemini embedding payloads by model without network access", async () => {
+    const requests: unknown[] = [];
+    const client = {
+      models: {
+        embedContent: async (input: unknown) => {
+          requests.push(input);
+          return { embedding: { values: [1, 2, 3] } };
+        }
+      }
+    };
+    const provider = new GeminiEmbeddingProvider({ apiKey: "test-key", model: "gemini-embedding-2", dimensions: 3, client });
+    await provider.embedQuery("policy lookup");
+    await provider.embedDocuments([{ id: "chunk_1", title: "Policy", text: "Use citations.", contentHash: "hash" }]);
+    expect(requests).toHaveLength(2);
+    expect(requests).toEqual([
+      expect.objectContaining({ config: { outputDimensionality: 3 } }),
+      expect.objectContaining({ config: { outputDimensionality: 3 } })
+    ]);
+  });
+
+  it("maps gemini-embedding-001 query and document task types explicitly", async () => {
+    const requests: Array<{ config?: Record<string, unknown> }> = [];
+    const client = {
+      models: {
+        embedContent: async (input: { config?: Record<string, unknown> }) => {
+          requests.push(input);
+          return { embeddings: [{ values: [1, 2, 3] }] };
+        }
+      }
+    };
+    const provider = new GeminiEmbeddingProvider({ apiKey: "test-key", model: "gemini-embedding-001", dimensions: 3, client });
+    await provider.embedQuery("policy lookup");
+    await provider.embedDocuments([{ id: "chunk_1", title: "Policy", text: "Use citations.", contentHash: "hash" }]);
+    expect(requests[0]?.config).toEqual({ taskType: "RETRIEVAL_QUERY" });
+    expect(requests[1]?.config).toEqual({ taskType: "RETRIEVAL_DOCUMENT", title: "Policy" });
+  });
+
+  it("wraps Gemini dimension mismatch as a provider error", async () => {
+    const client = { models: { embedContent: async () => ({ values: [1, 2] }) } };
+    const provider = new GeminiEmbeddingProvider({ apiKey: "test-key", model: "gemini-embedding-2", dimensions: 3, client });
+    await expect(provider.embedQuery("short vector")).rejects.toMatchObject({ code: "RAG_EMBEDDING_PROVIDER_ERROR", retryable: false });
   });
 });

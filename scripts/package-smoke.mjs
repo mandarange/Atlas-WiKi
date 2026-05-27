@@ -23,10 +23,13 @@ try {
     "import { createSupabaseStore } from 'atlas-wiki/supabase';",
     "import { extractStructured } from 'atlas-wiki/structured';",
     "import { builtInExtractors } from 'atlas-wiki/extractors';",
-    "console.log(JSON.stringify({ sqlite: !!SqliteStore, memory: !!MemoryStore, supabase: typeof createSupabaseStore, structured: typeof extractStructured, extractors: builtInExtractors.length }));"
+    "import { RagService } from 'atlas-wiki/rag';",
+    "import { GeminiEmbeddingProvider } from 'atlas-wiki/rag/gemini';",
+    "import { DeterministicEmbeddingProvider } from 'atlas-wiki/rag/testing';",
+    "console.log(JSON.stringify({ sqlite: !!SqliteStore, memory: !!MemoryStore, supabase: typeof createSupabaseStore, structured: typeof extractStructured, extractors: builtInExtractors.length, rag: typeof RagService, gemini: typeof GeminiEmbeddingProvider, testing: typeof DeterministicEmbeddingProvider }));"
   ].join(" ")], { cwd: dir, encoding: "utf8" }).trim();
   const parsedSubpaths = JSON.parse(subpaths);
-  if (!parsedSubpaths.sqlite || !parsedSubpaths.memory || parsedSubpaths.supabase !== "function" || parsedSubpaths.structured !== "function" || parsedSubpaths.extractors < 1) throw new Error("Subpath export smoke failed");
+  if (!parsedSubpaths.sqlite || !parsedSubpaths.memory || parsedSubpaths.supabase !== "function" || parsedSubpaths.structured !== "function" || parsedSubpaths.extractors < 1 || parsedSubpaths.rag !== "function" || parsedSubpaths.gemini !== "function" || parsedSubpaths.testing !== "function") throw new Error("Subpath export smoke failed");
   const cli = execFileSync("npx", ["awiki", "mcp", "smoke", "--root", join(dir, "wiki"), "--stdio", "--json"], { cwd: dir, encoding: "utf8" });
   const parsed = JSON.parse(cli);
   if (!parsed.tools.includes("atlas_wiki.search")) throw new Error("CLI smoke failed");

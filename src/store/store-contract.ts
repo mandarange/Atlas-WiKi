@@ -20,6 +20,42 @@ export interface SearchResult {
   score: number;
 }
 
+export interface RagIndexChunk {
+  source: SourceRecord;
+  chunk_id: string;
+  text: string;
+  content_hash: string;
+}
+
+export interface RagEmbeddingProfile {
+  id: string;
+  provider_id: string;
+  model: string;
+  dimensions: number;
+  prompt_policy: string;
+  metadata?: Record<string, unknown> | undefined;
+}
+
+export interface RagChunkEmbedding {
+  chunk_id: string;
+  profile_id: string;
+  provider_id: string;
+  model: string;
+  dimensions: number;
+  content_hash: string;
+  vector: number[];
+}
+
+export interface RagStoredEmbedding extends RagChunkEmbedding {
+  source: SourceRecord;
+  text: string;
+}
+
+export interface RagVectorStats {
+  indexed_chunks: number;
+  stale_chunks: number;
+}
+
 export interface StructuredIngestInput extends IngestInput {
   schemas?: string[] | undefined;
   mode?: "proposal" | "commit" | undefined;
@@ -58,6 +94,11 @@ export interface AtlasWikiStore {
   upsertRecord(record: AtlasRecord, options?: WriteOptions): Promise<WriteResult>;
   validate(): Promise<ValidationReport>;
   migrationReport(): MigrationReport | Promise<MigrationReport>;
+  listRagIndexChunks(actor: ActorRef, limit?: number): Promise<RagIndexChunk[]>;
+  upsertRagEmbeddingProfile(profile: RagEmbeddingProfile): Promise<void>;
+  upsertRagChunkEmbedding(embedding: RagChunkEmbedding): Promise<void>;
+  listRagChunkEmbeddings(profile: RagEmbeddingProfile, actor: ActorRef, limit?: number): Promise<RagStoredEmbedding[]>;
+  ragVectorStats(profile: RagEmbeddingProfile): Promise<RagVectorStats> | RagVectorStats;
   backupCreate?(): Promise<string>;
   backupVerify?(): BackupVerifyResult;
   backupRestore?(backupPath: string, overwrite?: boolean): string;

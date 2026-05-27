@@ -4,9 +4,9 @@ import { pathToFileURL } from "node:url";
 const { assertReleaseEvidenceManifest, releaseEvidenceSummary } = await import(pathToFileURL(`${process.cwd()}/dist/release/manifest.js`).href);
 const evidencePath = "release-evidence/atlas-wiki-vNEXT.json";
 const ledgerPath = "docs/goal/next-stable-coverage-ledger.json";
-const sourceGoalPath = existsSync("/Users/weklem/Desktop/atlas-wiki-0.1.1-next-stable-goal.md")
-  ? "/Users/weklem/Desktop/atlas-wiki-0.1.1-next-stable-goal.md"
-  : "docs/goal/atlas-wiki-0.1.1-next-stable-goal.md";
+const sourceGoalPath = existsSync("/Users/weklem/Desktop/atlas-wiki-0.1.5-9plus-complete-stabilization-goal.md")
+  ? "/Users/weklem/Desktop/atlas-wiki-0.1.5-9plus-complete-stabilization-goal.md"
+  : "docs/goal/atlas-wiki-0.1.5-9plus-complete-stabilization-goal.md";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const manifest = JSON.parse(readFileSync(evidencePath, "utf8"));
@@ -22,23 +22,21 @@ const registryIsPublishedBaseline =
 if (!registryMatchesIntended && !registryIsPublishedBaseline) {
   fail("npm registry metadata must either match the intended package version or record the already-published pre-publish baseline");
 }
-if (registryIsPublishedBaseline && manifest.npm.gitHead && manifest.git.v011TagHead && manifest.npm.gitHead !== manifest.git.v011TagHead) {
-  fail("pre-publish npm gitHead must match v0.1.1 tag head in release evidence");
-}
 if (registryIsPublishedBaseline && manifest.npm.gitHead && manifest.git.baselineTagHead && manifest.npm.gitHead !== manifest.git.baselineTagHead) {
   fail("pre-publish npm gitHead must match baseline tag head in release evidence");
 }
 if (!manifest.npm.integrity || !manifest.npm.shasum) fail("release evidence must record npm integrity and shasum");
 
-if (ledger.task_total !== 1536 || ledger.task_checked !== 1536) fail("next stable task ledger must contain 1536 checked tasks");
-if (ledger.checklist_total !== 1576 || ledger.checklist_checked !== 1576) fail("next stable source checklist must contain 1576 checked boxes");
-if (!Array.isArray(ledger.tasks) || ledger.tasks.length !== 1536) fail("next stable ledger task array mismatch");
-if (ledger.tasks.some((task) => !Array.isArray(task.evidence) || task.evidence.length === 0)) fail("next stable ledger has a task without evidence");
+if (ledger.schema !== "atlas-wiki.stabilization-0.1.5-coverage.v1") fail("0.1.5 stabilization coverage ledger schema mismatch");
+if (ledger.task_total < 2600 || ledger.task_checked !== ledger.task_total) fail("0.1.5 stabilization task ledger must contain all checked tasks");
+if (ledger.checklist_total < 2600 || ledger.checklist_checked !== ledger.checklist_total) fail("0.1.5 stabilization source checklist must contain all checked boxes");
+if (!Array.isArray(ledger.tasks) || ledger.tasks.length !== ledger.task_total) fail("0.1.5 stabilization ledger task array mismatch");
+if (ledger.tasks.some((task) => !Array.isArray(task.evidence) || task.evidence.length === 0)) fail("0.1.5 stabilization ledger has a task without evidence");
 
 const sourceGoal = readFileSync(sourceGoalPath, "utf8");
 const unchecked = (sourceGoal.match(/^- \[ \]/gm) ?? []).length;
 const checked = (sourceGoal.match(/^- \[x\]/gm) ?? []).length;
-if (unchecked !== 0 || checked !== 1576) fail(`source goal checklist incomplete: checked=${checked} unchecked=${unchecked}`);
+if (unchecked !== 0 || checked !== ledger.checklist_total) fail(`source goal checklist incomplete: checked=${checked} unchecked=${unchecked}`);
 
 for (const artifact of manifest.requiredArtifacts) {
   if (!existsSync(artifact.path)) fail(`Required artifact missing: ${artifact.path}`);

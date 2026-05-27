@@ -5,14 +5,17 @@ import { defaultAccessPolicy, policyResolver, sourcePolicyDecision } from "../co
 import type { ActorRef, AtlasRecord, ContextPackRecord, PolicyDecision, ProposalRecord, RecordRef, SourceRecord, StructuredObjectRecord } from "../core/records/index.js";
 import { isPastIso, nowIso } from "../core/time/index.js";
 import { validateRecord } from "../core/validation/index.js";
+import { chunkText } from "../ingest/chunker.js";
 import { redactText } from "../security/redaction.js";
 import { candidateSourceRefs, extractStructured, structuredContentHash, structuredStableId } from "../structured/index.js";
-import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, SearchResult, StructuredIngestInput, StructuredIngestResult, WriteOptions, WriteResult } from "./store-contract.js";
+import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, WriteOptions, WriteResult } from "./store-contract.js";
 
 export class MemoryStore implements AtlasWikiStore {
   private sources: Array<{ source: SourceRecord; text: string }> = [];
   private records = new Map<string, AtlasRecord>();
   private auditEvents: Array<{ event_type: string; actor: ActorRef; refs: RecordRef[]; decisions: PolicyDecision[]; outcome: "success" | "denied" | "error" }> = [];
+  private embeddingProfiles = new Map<string, RagEmbeddingProfile>();
+  private chunkEmbeddings = new Map<string, RagChunkEmbedding>();
 
   async init(): Promise<void> {}
 
@@ -206,6 +209,64 @@ export class MemoryStore implements AtlasWikiStore {
 
   migrationReport() {
     return { ok: true, backend: "memory", applied_count: 0, pending_count: 0 };
+  }
+
+  async listRagIndexChunks(actor: ActorRef, limit = 100): Promise<RagIndexChunk[]> {
+    const chunks: RagIndexChunk[] = [];
+    for (const { source, text } of this.sources) {
+      if (!sourcePolicyDecision(source, actor).allowed) continue;
+      for (const chunk of chunkText(text)) {
+        chunks.push({
+          source,
+          chunk_id: stableId("chunk", { source_id: source.id, ordinal: chunk.ordinal, text_hash: chunk.text_hash }),
+          text: chunk.text,
+          content_hash: chunk.text_hash
+        });
+        if (chunks.length >= limit) return chunks;
+      }
+    }
+    return chunks;
+  }
+
+  async upsertRagEmbeddingProfile(profile: RagEmbeddingProfile): Promise<void> {
+    this.embeddingProfiles.set(profile.id, profile);
+  }
+
+  async upsertRagChunkEmbedding(embedding: RagChunkEmbedding): Promise<void> {
+    this.chunkEmbeddings.set(`${embedding.profile_id}:${embedding.chunk_id}`, embedding);
+  }
+
+  async listRagChunkEmbeddings(profile: RagEmbeddingProfile, actor: ActorRef, limit = 100): Promise<RagStoredEmbedding[]> {
+    const chunkMap = new Map<string, RagIndexChunk>();
+    for (const chunk of await this.listRagIndexChunks(actor, Number.MAX_SAFE_INTEGER)) chunkMap.set(chunk.chunk_id, chunk);
+    const entries: RagStoredEmbedding[] = [];
+    for (const embedding of this.chunkEmbeddings.values()) {
+      if (embedding.profile_id !== profile.id) continue;
+      const chunk = chunkMap.get(embedding.chunk_id);
+      if (!chunk || chunk.content_hash !== embedding.content_hash) continue;
+      const redaction = redactText(chunk.text, { id: chunk.source.id, schema: chunk.source.schema, kind: chunk.source.kind });
+      entries.push({ ...embedding, source: chunk.source, text: redaction.text });
+      if (entries.length >= limit) break;
+    }
+    return entries;
+  }
+
+  ragVectorStats(profile: RagEmbeddingProfile): RagVectorStats {
+    const currentChunks = new Map<string, string>();
+    for (const { source, text } of this.sources) {
+      for (const chunk of chunkText(text)) {
+        currentChunks.set(stableId("chunk", { source_id: source.id, ordinal: chunk.ordinal, text_hash: chunk.text_hash }), chunk.text_hash);
+      }
+    }
+    let indexed = 0;
+    let stale = 0;
+    for (const embedding of this.chunkEmbeddings.values()) {
+      if (embedding.profile_id !== profile.id) continue;
+      const currentHash = currentChunks.get(embedding.chunk_id);
+      if (currentHash === embedding.content_hash) indexed += 1;
+      else stale += 1;
+    }
+    return { indexed_chunks: indexed, stale_chunks: stale };
   }
 
   audit(event_type: string, actor: ActorRef, refs: RecordRef[], decisions: PolicyDecision[], outcome: "success" | "denied" | "error"): void {

@@ -15,16 +15,19 @@ try {
   if ((statSync(bin).mode & 0o111) === 0) throw new Error("Published CLI bin is not executable");
   const installedPkg = JSON.parse(readFileSync(join(dir, "node_modules", "atlas-wiki", "package.json"), "utf8"));
   const hasBackendExports = Boolean(installedPkg.exports?.["./supabase"] && installedPkg.exports?.["./structured"] && installedPkg.exports?.["./store"] && installedPkg.exports?.["./sqlite"]);
+  const hasRagExports = Boolean(installedPkg.exports?.["./rag"] && installedPkg.exports?.["./rag/gemini"] && installedPkg.exports?.["./rag/testing"]);
   const imported = execFileSync("node", ["--input-type=module", "-e", [
     "import { AtlasWiki, packageInfo } from 'atlas-wiki';",
     "import { createReadonlyAtlasWikiServer } from 'atlas-wiki/mcp';",
     "import { createAdminAtlasWikiServer } from 'atlas-wiki/mcp/admin';",
     hasBackendExports ? "import { createSupabaseStore } from 'atlas-wiki/supabase'; import { extractStructured } from 'atlas-wiki/structured'; import { MemoryStore } from 'atlas-wiki/store'; import { SqliteStore } from 'atlas-wiki/sqlite';" : "",
-    "console.log(JSON.stringify({ name: packageInfo.name, sdk: typeof AtlasWiki.open, readonly: !!createReadonlyAtlasWikiServer, admin: !!createAdminAtlasWikiServer, supabase: typeof createSupabaseStore === 'undefined' ? 'baseline-missing' : typeof createSupabaseStore, structured: typeof extractStructured === 'undefined' ? 'baseline-missing' : typeof extractStructured, memory: typeof MemoryStore === 'undefined' ? false : !!MemoryStore, sqlite: typeof SqliteStore === 'undefined' ? false : !!SqliteStore }));"
+    hasRagExports ? "import { RagService } from 'atlas-wiki/rag'; import { GeminiEmbeddingProvider } from 'atlas-wiki/rag/gemini'; import { DeterministicEmbeddingProvider } from 'atlas-wiki/rag/testing';" : "",
+    "console.log(JSON.stringify({ name: packageInfo.name, sdk: typeof AtlasWiki.open, readonly: !!createReadonlyAtlasWikiServer, admin: !!createAdminAtlasWikiServer, supabase: typeof createSupabaseStore === 'undefined' ? 'baseline-missing' : typeof createSupabaseStore, structured: typeof extractStructured === 'undefined' ? 'baseline-missing' : typeof extractStructured, memory: typeof MemoryStore === 'undefined' ? false : !!MemoryStore, sqlite: typeof SqliteStore === 'undefined' ? false : !!SqliteStore, rag: typeof RagService === 'undefined' ? 'baseline-missing' : typeof RagService, gemini: typeof GeminiEmbeddingProvider === 'undefined' ? 'baseline-missing' : typeof GeminiEmbeddingProvider, testing: typeof DeterministicEmbeddingProvider === 'undefined' ? 'baseline-missing' : typeof DeterministicEmbeddingProvider }));"
   ].join(" ")], { cwd: dir, encoding: "utf8" }).trim();
   const parsed = JSON.parse(imported);
   if (parsed.name !== "atlas-wiki" || parsed.sdk !== "function" || !parsed.readonly || !parsed.admin) throw new Error("Published package import smoke failed");
   if (hasBackendExports && (parsed.supabase !== "function" || parsed.structured !== "function" || !parsed.memory || !parsed.sqlite)) throw new Error("Published backend subpath import smoke failed");
+  if (hasRagExports && (parsed.rag !== "function" || parsed.gemini !== "function" || parsed.testing !== "function")) throw new Error("Published RAG subpath import smoke failed");
   let releaseExport = "not_published_in_baseline";
   if (installedPkg.exports?.["./release"]) {
     releaseExport = execFileSync("node", ["--input-type=module", "-e", "import { releaseEvidenceSchema } from 'atlas-wiki/release'; console.log(releaseEvidenceSchema)"], { cwd: dir, encoding: "utf8" }).trim();

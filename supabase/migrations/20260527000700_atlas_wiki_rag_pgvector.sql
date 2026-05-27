@@ -11,7 +11,7 @@ create table if not exists atlas_wiki.embedding_profiles (
 );
 
 create table if not exists atlas_wiki.embeddings (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   chunk_id text not null references atlas_wiki.chunks(id) on delete cascade,
   profile_id text not null references atlas_wiki.embedding_profiles(id),
   provider_id text not null,
@@ -19,9 +19,12 @@ create table if not exists atlas_wiki.embeddings (
   dimensions integer not null,
   content_hash text not null,
   embedding extensions.vector(1536),
+  vector_json jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   stale_at timestamptz
 );
+
+create unique index if not exists idx_atlas_embeddings_profile_chunk on atlas_wiki.embeddings(profile_id, chunk_id);
 
 alter table atlas_wiki.embedding_profiles enable row level security;
 alter table atlas_wiki.embedding_profiles force row level security;

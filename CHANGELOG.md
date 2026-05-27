@@ -1,8 +1,42 @@
 # Changelog
 
+All notable version changes should be recorded in this file before release.
 
 ## [Unreleased]
 
+- Keep this section for changes that have landed but are not published yet.
+
+## [0.1.5] - 2026-05-27
+
+### Added
+
+- Add store-backed persistent RAG embeddings for SQLite, MemoryStore contract parity, and Supabase mock adapter coverage.
+- Add Gemini embedding mock payload tests for `gemini-embedding-2` and `gemini-embedding-001` model-specific request compatibility.
+- Add actor-aware MCP admin authorization context with resolved actor, canonical root, mode, and admin flag.
+- Add 0.1.5 stabilization release evidence generation bound to the ATW-95 checklist.
+
+### Changed
+
+- Persist RAG vector indexes across SDK/CLI restarts instead of relying on a per-process in-memory map.
+- Store Supabase source chunks and use chunk text for Supabase adapter search citations.
+- Enforce built-in structured extraction schema contracts before creating structured objects or proposals.
+- Expand local and published package smoke coverage for RAG, Gemini, and deterministic embedding subpath exports.
+
+## [0.1.4] - 2026-05-27
+
+### Added
+
+- Add Supabase store adapters, SQL migrations, RLS policy surfaces, and offline Supabase mock coverage.
+- Add structured extraction contracts, deterministic extractors, schemas, and ingestion tests.
+- Add RAG search, context-pack support, Gemini embedding adapter, deterministic test embeddings, MCP RAG tools, and RAG release checks.
+- Add interactive and non-interactive CLI setup through `awiki setup`, `awiki configure`, `awiki rag enable`, and `awiki rag disable`.
+- Add a short README LLM init prompt for Hermess, OpenClaw, and similar agent-building tools.
+
+### Changed
+
+- Document global `npm i -g atlas-wiki` usage for Hermess/OpenCalw-style agent tooling.
+- Allow local authenticated `npm publish` while preserving dry-run and GitHub Actions OIDC publish context detection.
+- Expand package exports, release evidence, smoke checks, and release gates for the 0.1.4 package.
 
 ## [0.1.2] - 2026-05-27
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createAdminAtlasWikiServer, createReadonlyAtlasWikiServer } from "../src/index.js";
+import type { AtlasWikiToolAuthorizationContext } from "../src/index.js";
 
 describe("MCP production authorization", () => {
   it("keeps production actor and root server-side and denies admin tools without authorizeTool", async () => {
@@ -15,13 +16,24 @@ describe("MCP production authorization", () => {
   });
 
   it("allows explicitly authorized admin tools only through the admin server", async () => {
+    let seenContext: AtlasWikiToolAuthorizationContext | undefined;
     const admin = createAdminAtlasWikiServer({
       root: ".atlas-wiki",
       actor: "user:admin@example.com",
-      authorizeTool: (name) => name === "atlas_wiki.rebuild_index"
+      authorizeTool: (context: AtlasWikiToolAuthorizationContext) => {
+        seenContext = context;
+        return context.toolName === "atlas_wiki.rebuild_index" && context.actor.id === "user:admin@example.com";
+      }
     });
     expect(registeredToolNames(admin)).toContain("atlas_wiki.rebuild_index");
     await expect(handler(admin, "atlas_wiki.ingest")({ title: "Denied", text: "blocked" })).rejects.toThrow(/authorizeTool/);
+    expect(seenContext).toMatchObject({
+      toolName: "atlas_wiki.ingest",
+      actor: { id: "user:admin@example.com" },
+      mode: "production",
+      admin: true
+    });
+    expect(seenContext?.input).toMatchObject({ title: "Denied", text: "blocked" });
   });
 });
 

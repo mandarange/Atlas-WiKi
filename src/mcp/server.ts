@@ -54,11 +54,25 @@ export interface AtlasWikiMcpServerOptions {
   allowActorInput?: boolean | undefined;
   actor?: ActorRef | string | undefined;
   actorProvider?: (() => ActorRef | string | Promise<ActorRef | string>) | undefined;
-  authorizeTool?: ((toolName: string, input: Record<string, unknown>) => boolean | Promise<boolean>) | undefined;
+  authorizeTool?: AtlasWikiAuthorizeTool | undefined;
   admin?: boolean | undefined;
 }
 
 type ToolInput = { root?: string | undefined; as?: string | undefined };
+type ResolvedActor = ReturnType<typeof actorFromId>;
+
+export interface AtlasWikiToolAuthorizationContext {
+  toolName: string;
+  input: Record<string, unknown>;
+  actor: ResolvedActor;
+  root: string | undefined;
+  mode: "development" | "production";
+  admin: boolean;
+}
+
+export type AtlasWikiAuthorizeTool =
+  | ((context: AtlasWikiToolAuthorizationContext) => boolean | Promise<boolean>)
+  | ((toolName: string, input: Record<string, unknown>) => boolean | Promise<boolean>);
 
 function jsonResult(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> };
@@ -138,30 +152,56 @@ function registerAdminTools(server: McpServer, options: AtlasWikiMcpServerOption
   server.registerTool("atlas_wiki.backup_create", { title: "Atlas WiKi Backup Create", description: "Admin-only WAL-safe SQLite backup.", inputSchema: commonSchema({}, options) }, async (input) => withAdminWiki("backup_create", input, options, async (wiki) => ({ ok: true, path: await wiki.backupCreate() })));
 }
 
-async function withWiki<T extends ToolInput>(toolName: string, input: T, options: AtlasWikiMcpServerOptions, fn: (wiki: AtlasWiki, actor: ReturnType<typeof actorFromId>) => Promise<unknown> | unknown) {
-  const root = resolveMcpRoot(input.root, options);
-  const actor = await resolveMcpActor(input.as, options);
-  const wiki = await AtlasWiki.open({ root });
+async function withWiki<T extends ToolInput>(toolName: string, input: T, options: AtlasWikiMcpServerOptions, fn: (wiki: AtlasWiki, actor: ResolvedActor) => Promise<unknown> | unknown) {
+  const context = await resolveMcpContext(toolName, input, options, false);
+  const wiki = await AtlasWiki.open({ root: context.root });
   try {
-    const value = await fn(wiki, actor);
-    wiki.store.audit(`mcp.${toolName}`, actor, [], [{ allowed: true, reason: "mcp_tool_call" }], "success");
+    const value = await fn(wiki, context.actor);
+    wiki.store.audit(`mcp.${toolName}`, context.actor, [], [{ allowed: true, reason: "mcp_tool_call" }], "success");
     return jsonResult(value ?? null);
   } catch (error) {
-    wiki.store.audit(`mcp.${toolName}`, actor, [], [{ allowed: false, reason: error instanceof Error ? error.message : String(error) }], "error");
+    wiki.store.audit(`mcp.${toolName}`, context.actor, [], [{ allowed: false, reason: error instanceof Error ? error.message : String(error) }], "error");
     throw error;
   } finally {
     await wiki.close();
   }
 }
 
-async function withAdminWiki<T extends ToolInput>(toolName: string, input: T, options: AtlasWikiMcpServerOptions, fn: (wiki: AtlasWiki, actor: ReturnType<typeof actorFromId>) => Promise<unknown> | unknown) {
-  await authorizeAdminTool(toolName, input, options);
-  return withWiki(toolName, input, options, fn);
+async function withAdminWiki<T extends ToolInput>(toolName: string, input: T, options: AtlasWikiMcpServerOptions, fn: (wiki: AtlasWiki, actor: ResolvedActor) => Promise<unknown> | unknown) {
+  const context = await resolveMcpContext(toolName, input, options, true);
+  await authorizeAdminTool(context, options);
+  const wiki = await AtlasWiki.open({ root: context.root });
+  try {
+    const value = await fn(wiki, context.actor);
+    wiki.store.audit(`mcp.${toolName}`, context.actor, [], [{ allowed: true, reason: "mcp_admin_tool_call" }], "success");
+    return jsonResult(value ?? null);
+  } catch (error) {
+    wiki.store.audit(`mcp.${toolName}`, context.actor, [], [{ allowed: false, reason: error instanceof Error ? error.message : String(error) }], "error");
+    throw error;
+  } finally {
+    await wiki.close();
+  }
 }
 
-async function authorizeAdminTool(toolName: string, input: Record<string, unknown>, options: AtlasWikiMcpServerOptions): Promise<void> {
+async function authorizeAdminTool(context: AtlasWikiToolAuthorizationContext, options: AtlasWikiMcpServerOptions): Promise<void> {
   if (!options.authorizeTool) throw new Error("MCP admin tool denied: configure authorizeTool");
-  if (!(await options.authorizeTool(`atlas_wiki.${toolName.replace(/^atlas_wiki\./, "")}`, input))) throw new Error("MCP admin tool denied by authorizeTool");
+  const legacyToolName = `atlas_wiki.${context.toolName.replace(/^atlas_wiki\./, "")}`;
+  const authorized = options.authorizeTool.length >= 2
+    ? await (options.authorizeTool as (toolName: string, input: Record<string, unknown>) => boolean | Promise<boolean>)(legacyToolName, context.input)
+    : await (options.authorizeTool as (context: AtlasWikiToolAuthorizationContext) => boolean | Promise<boolean>)({ ...context, toolName: legacyToolName });
+  if (!authorized) throw new Error("MCP admin tool denied by authorizeTool");
+}
+
+async function resolveMcpContext<T extends ToolInput>(toolName: string, input: T, options: AtlasWikiMcpServerOptions, admin: boolean): Promise<AtlasWikiToolAuthorizationContext> {
+  const mode = options.mode ?? "production";
+  return {
+    toolName,
+    input,
+    actor: await resolveMcpActor(input.as, options),
+    root: resolveMcpRoot(input.root, options),
+    mode,
+    admin
+  };
 }
 
 function commonSchema<T extends z.ZodRawShape>(shape: T, options: AtlasWikiMcpServerOptions): T & Partial<{ root: z.ZodOptional<z.ZodString>; as: z.ZodOptional<z.ZodString> }> {

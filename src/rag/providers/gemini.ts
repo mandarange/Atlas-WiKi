@@ -1,7 +1,7 @@
 import type { RagEmbeddingDocument, RagEmbeddingProvider } from "../index.js";
 import { RagEmbeddingProviderError } from "../index.js";
 
-export type GeminiQueryTask = "question_answering" | "search_result";
+export type GeminiQueryTask = "retrieval_query" | "question_answering" | "search_result";
 
 export interface GeminiEmbeddingProviderOptions {
   apiKey?: string | undefined;
@@ -9,6 +9,7 @@ export interface GeminiEmbeddingProviderOptions {
   dimensions?: number | undefined;
   queryTask?: GeminiQueryTask | undefined;
   promptPolicy?: string | undefined;
+  client?: InstanceType<GoogleGenAIConstructor> | undefined;
 }
 
 type GoogleGenAIConstructor = new (options: { apiKey: string }) => {
@@ -34,13 +35,15 @@ export class GeminiEmbeddingProvider implements RagEmbeddingProvider {
     this.apiKey = apiKey;
     this.model = options.model ?? "gemini-embedding-2";
     this.dimensions = options.dimensions ?? 1536;
-    this.queryTask = options.queryTask ?? "question_answering";
+    this.queryTask = options.queryTask ?? "retrieval_query";
     this.promptPolicy = options.promptPolicy ?? `gemini.${this.model}.query_document.v1`;
+    this.client = options.client;
   }
 
   async embedQuery(text: string): Promise<number[]> {
-    const formatted = `task: ${this.queryTask === "question_answering" ? "question answering" : "search result"} | query: ${text}`;
-    return this.embedOne(formatted, this.queryTask.toUpperCase());
+    const taskType = this.queryTask === "question_answering" ? "QUESTION_ANSWERING" : "RETRIEVAL_QUERY";
+    const formatted = `task: ${this.queryTask === "question_answering" ? "question answering" : "retrieval query"} | query: ${text}`;
+    return this.embedOne(formatted, taskType);
   }
 
   async embedDocuments(documents: RagEmbeddingDocument[]): Promise<number[][]> {
@@ -52,16 +55,19 @@ export class GeminiEmbeddingProvider implements RagEmbeddingProvider {
     return vectors;
   }
 
-  private async embedOne(text: string, taskType: string, title?: string | undefined): Promise<number[]> {
+  private async embedOne(text: string, taskType: "RETRIEVAL_QUERY" | "QUESTION_ANSWERING" | "RETRIEVAL_DOCUMENT", title?: string | undefined): Promise<number[]> {
     try {
       const client = await this.getClient();
       const response = await client.models.embedContent({
         model: this.model,
         contents: [text],
-        config: { outputDimensionality: this.dimensions, taskType, title }
+        config: this.buildConfig(taskType, title)
       });
       const vector = extractVector(response);
       if (!vector) throw new Error("Gemini embedding response did not contain a numeric vector");
+      if (vector.length !== this.dimensions) {
+        throw new RagEmbeddingProviderError(`Gemini embedding dimension mismatch: expected ${this.dimensions}, received ${vector.length}`, { retryable: false });
+      }
       return vector;
     } catch (error) {
       if (error instanceof RagEmbeddingProviderError) throw error;
@@ -71,11 +77,30 @@ export class GeminiEmbeddingProvider implements RagEmbeddingProvider {
 
   private async getClient(): Promise<InstanceType<GoogleGenAIConstructor>> {
     if (this.client) return this.client;
-    const mod = await importDynamic("@google/genai");
+    let mod: Record<string, unknown>;
+    try {
+      mod = await importDynamic("@google/genai");
+    } catch (error) {
+      throw new RagEmbeddingProviderError("@google/genai optional peer dependency is required for GeminiEmbeddingProvider", { cause: error, retryable: false });
+    }
     const GoogleGenAI = mod.GoogleGenAI as GoogleGenAIConstructor | undefined;
     if (!GoogleGenAI) throw new RagEmbeddingProviderError("@google/genai did not export GoogleGenAI", { retryable: false });
     this.client = new GoogleGenAI({ apiKey: this.apiKey });
     return this.client;
+  }
+
+  private buildConfig(taskType: "RETRIEVAL_QUERY" | "QUESTION_ANSWERING" | "RETRIEVAL_DOCUMENT", title?: string | undefined): { outputDimensionality?: number | undefined; taskType?: string | undefined; title?: string | undefined } {
+    if (this.isGeminiEmbedding2()) return { outputDimensionality: this.dimensions };
+    if (this.isGeminiEmbedding001()) return taskType === "RETRIEVAL_DOCUMENT" ? { taskType, title } : { taskType };
+    return { outputDimensionality: this.dimensions };
+  }
+
+  private isGeminiEmbedding2(): boolean {
+    return /(^|\/)gemini-embedding-2$/.test(this.model);
+  }
+
+  private isGeminiEmbedding001(): boolean {
+    return /(^|\/)gemini-embedding-001$/.test(this.model);
   }
 }
 
@@ -83,7 +108,9 @@ function extractVector(response: unknown): number[] | undefined {
   const root = response as Record<string, unknown>;
   const embeddings = root.embeddings as unknown[] | undefined;
   const first = embeddings?.[0] as Record<string, unknown> | undefined;
-  const values = first?.values ?? first?.embedding ?? root.values;
+  const firstEmbedding = first?.embedding as Record<string, unknown> | undefined;
+  const rootEmbedding = root.embedding as Record<string, unknown> | undefined;
+  const values = first?.values ?? firstEmbedding?.values ?? rootEmbedding?.values ?? root.values;
   return Array.isArray(values) && values.every((value) => typeof value === "number") ? values : undefined;
 }
 

@@ -41,21 +41,21 @@ as $$
       and acl.permission in ('write', 'admin')
       and (
         (acl.principal_type = 'user' and acl.principal_id = atlas_wiki.current_actor_id())
-        or (acl.principal_type = 'team' and acl.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'teams', '[]'::jsonb))))
-        or (acl.principal_type = 'role' and acl.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'roles', '[]'::jsonb))))
+        or (acl.principal_type = 'team' and acl.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'teams', auth.jwt() -> 'atlas_actor_groups', '[]'::jsonb))))
+        or (acl.principal_type = 'role' and acl.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'roles', auth.jwt() -> 'atlas_actor_roles', '[]'::jsonb))))
       )
   )
   or exists (
     select 1
     from atlas_wiki.records r,
-      jsonb_to_recordset(coalesce(r.json -> 'acl' -> 'grants', '[]'::jsonb)) as grant(principal_type text, principal_id text, permission text, effect text)
+      jsonb_to_recordset(coalesce(r.json -> 'acl' -> 'grants', '[]'::jsonb)) as acl_grant(principal_type text, principal_id text, permission text, effect text)
     where r.id = target_record_id
-      and grant.effect = 'allow'
-      and grant.permission in ('write', 'admin')
+      and acl_grant.effect = 'allow'
+      and acl_grant.permission in ('write', 'admin')
       and (
-        (grant.principal_type = 'user' and grant.principal_id = atlas_wiki.current_actor_id())
-        or (grant.principal_type = 'team' and grant.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'teams', '[]'::jsonb))))
-        or (grant.principal_type = 'role' and grant.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'roles', '[]'::jsonb))))
+        (acl_grant.principal_type = 'user' and acl_grant.principal_id = atlas_wiki.current_actor_id())
+        or (acl_grant.principal_type = 'team' and acl_grant.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'teams', auth.jwt() -> 'atlas_actor_groups', '[]'::jsonb))))
+        or (acl_grant.principal_type = 'role' and acl_grant.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'roles', auth.jwt() -> 'atlas_actor_roles', '[]'::jsonb))))
       )
   )
 $$;
@@ -66,6 +66,19 @@ to anon, authenticated
 using (
   json -> 'acl' ->> 'visibility' = 'public'
   or exists (
+    select 1
+    from jsonb_to_recordset(coalesce(records.json -> 'acl' -> 'grants', '[]'::jsonb)) as embedded_grant(principal_type text, principal_id text, permission text, effect text)
+    where embedded_grant.effect = 'allow'
+      and embedded_grant.permission in ('read', 'admin')
+      and (
+        embedded_grant.principal_type = 'everyone'
+        or (embedded_grant.principal_type = 'authenticated' and auth.role() = 'authenticated')
+        or (embedded_grant.principal_type = 'user' and embedded_grant.principal_id = atlas_wiki.current_actor_id())
+        or (embedded_grant.principal_type = 'team' and embedded_grant.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'teams', auth.jwt() -> 'atlas_actor_groups', '[]'::jsonb))))
+        or (embedded_grant.principal_type = 'role' and embedded_grant.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'roles', auth.jwt() -> 'atlas_actor_roles', '[]'::jsonb))))
+      )
+  )
+  or exists (
     select 1 from atlas_wiki.record_acl acl
     where acl.record_id = records.id
       and acl.effect = 'allow'
@@ -74,8 +87,8 @@ using (
         acl.principal_type = 'everyone'
         or (acl.principal_type = 'authenticated' and auth.role() = 'authenticated')
         or (acl.principal_type = 'user' and acl.principal_id = atlas_wiki.current_actor_id())
-        or (acl.principal_type = 'team' and acl.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'teams', '[]'::jsonb))))
-        or (acl.principal_type = 'role' and acl.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'roles', '[]'::jsonb))))
+        or (acl.principal_type = 'team' and acl.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'teams', auth.jwt() -> 'atlas_actor_groups', '[]'::jsonb))))
+        or (acl.principal_type = 'role' and acl.principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'roles', auth.jwt() -> 'atlas_actor_roles', '[]'::jsonb))))
       )
   )
 );
@@ -90,11 +103,11 @@ with check (
     or json -> 'acl' ->> 'visibility' in ('public', 'internal')
     or exists (
       select 1
-      from jsonb_to_recordset(coalesce(json -> 'acl' -> 'grants', '[]'::jsonb)) as grant(principal_type text, principal_id text, permission text, effect text)
-      where grant.effect = 'allow'
-        and grant.permission in ('write', 'admin')
-        and grant.principal_type = 'user'
-        and grant.principal_id = atlas_wiki.current_actor_id()
+      from jsonb_to_recordset(coalesce(json -> 'acl' -> 'grants', '[]'::jsonb)) as acl_grant(principal_type text, principal_id text, permission text, effect text)
+      where acl_grant.effect = 'allow'
+        and acl_grant.permission in ('write', 'admin')
+        and acl_grant.principal_type = 'user'
+        and acl_grant.principal_id = atlas_wiki.current_actor_id()
     )
   )
 );
@@ -141,7 +154,11 @@ create policy "acl authenticated visible"
 on atlas_wiki.record_acl for select
 to authenticated
 using (
-  exists (select 1 from atlas_wiki.records r where r.id = record_acl.record_id)
+  principal_type = 'everyone'
+  or (principal_type = 'authenticated' and auth.role() = 'authenticated')
+  or (principal_type = 'user' and principal_id = atlas_wiki.current_actor_id())
+  or (principal_type = 'team' and principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'teams', auth.jwt() -> 'atlas_actor_groups', '[]'::jsonb))))
+  or (principal_type = 'role' and principal_id = any (select jsonb_array_elements_text(coalesce(auth.jwt() -> 'app_metadata' -> 'roles', auth.jwt() -> 'atlas_actor_roles', '[]'::jsonb))))
 );
 
 create policy "acl authenticated write"

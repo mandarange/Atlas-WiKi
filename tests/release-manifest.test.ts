@@ -3,12 +3,13 @@ import { describe, expect, it } from "vitest";
 import { assertReleaseEvidenceManifest, releaseEvidenceSummary } from "../src/index.js";
 
 describe("release evidence manifest", () => {
-  it("keeps the next stable task ledger machine-readable and complete", () => {
+  it("keeps the stabilization task ledger machine-readable and complete", () => {
     const manifest = assertReleaseEvidenceManifest(JSON.parse(readFileSync("release-evidence/atlas-wiki-vNEXT.json", "utf8")));
-    expect(manifest.sourceGoal.taskTotal).toBe(1536);
-    expect(manifest.sourceGoal.taskChecked).toBe(1536);
-    expect(manifest.tasks).toHaveLength(1536);
-    expect(new Set(manifest.tasks.map((task) => task.area))).toHaveLength(24);
-    expect(releaseEvidenceSummary(manifest)).toContain("1536/1536");
+    expect(manifest.package.version).toBe("0.1.5");
+    expect(manifest.sourceGoal.taskTotal).toBeGreaterThanOrEqual(2600);
+    expect(manifest.sourceGoal.taskChecked).toBe(manifest.sourceGoal.taskTotal);
+    expect(manifest.tasks).toHaveLength(manifest.sourceGoal.taskTotal);
+    expect(new Set(manifest.tasks.map((task) => task.area))).toHaveLength(31);
+    expect(releaseEvidenceSummary(manifest)).toContain(`${manifest.sourceGoal.taskTotal}/${manifest.sourceGoal.taskTotal}`);
   });
 });

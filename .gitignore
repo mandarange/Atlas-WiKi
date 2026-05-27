@@ -6,6 +6,8 @@ coverage/
 .sneakoscope/
 .atlas-wiki/
 tmp/
+supabase/.branches/
+supabase/.temp/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

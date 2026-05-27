@@ -4,9 +4,10 @@ import { defaultAccessPolicy, policyResolver } from "../../core/policy/index.js"
 import type { ActorRef, AtlasRecord, ContextPackRecord, PolicyDecision, ProposalRecord, RecordRef, SourceRecord, StructuredObjectRecord } from "../../core/records/index.js";
 import { nowIso } from "../../core/time/index.js";
 import { validateRecord } from "../../core/validation/index.js";
+import { chunkText } from "../../ingest/chunker.js";
 import { redactText } from "../../security/redaction.js";
 import { candidateSourceRefs, extractStructured, structuredContentHash, structuredStableId } from "../../structured/index.js";
-import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, SearchResult, StructuredIngestInput, StructuredIngestResult, ValidationReport, WriteOptions, WriteResult } from "../store-contract.js";
+import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, ValidationReport, WriteOptions, WriteResult } from "../store-contract.js";
 import { createSupabaseClient } from "./client.js";
 import { SupabaseStoreError } from "./errors.js";
 import { recordToRow, rowToRecord } from "./mappers.js";
@@ -65,6 +66,17 @@ export class SupabaseStore implements AtlasWikiStore {
     }), "supabase sources upsert");
     const aclRows = sourceAclRows(source);
     if (aclRows.length > 0) await checked(client.from("record_acl").upsert(aclRows), "supabase acl upsert");
+    const chunkRows = chunkText(input.text).map((chunk) => ({
+      id: stableId("chunk", { source_id: source.id, ordinal: chunk.ordinal, text_hash: chunk.text_hash }),
+      source_id: source.id,
+      ordinal: chunk.ordinal,
+      text: chunk.text,
+      text_hash: chunk.text_hash,
+      locator_json: null,
+      created_at: time,
+      metadata: {}
+    }));
+    if (chunkRows.length > 0) await checked(client.from("chunks").upsert(chunkRows), "supabase chunks upsert");
     await this.audit("ingest", this.options.actor ?? { id: "service:ingest", type: "service" }, [{ id: source.id, schema: source.schema, kind: source.kind }], [{ record_ref: { id: source.id, schema: source.schema, kind: source.kind }, allowed: true, reason: "ingest_committed" }], "success");
     return source;
   }
@@ -105,18 +117,18 @@ export class SupabaseStore implements AtlasWikiStore {
 
   async search(query: string, actor: ActorRef, limit = 10): Promise<SearchResult[]> {
     if (!query.trim()) return [];
-    const rows = await checked(this.requireClient().from("records").select("json").eq("kind", "source").is("deleted_at", null).limit(limit * 4), "supabase search select") as Array<{ json: unknown }>;
+    const rows = await checked(this.requireClient().from("chunks").select("*").limit(limit * 8), "supabase chunk search select") as Array<{ id: string; source_id: string; text: string; text_hash?: string | undefined }>;
     const q = query.toLowerCase();
-    return rows.map(rowToRecord)
-      .filter((record): record is SourceRecord => record.kind === "source")
-      .filter((source) => policyResolver.canRead({ record: source, actor, purpose: "supabase_search" }).allowed)
-      .filter((source) => source.title.toLowerCase().includes(q) || JSON.stringify(source.metadata ?? {}).toLowerCase().includes(q))
-      .slice(0, limit)
-      .map((source) => {
-      const text = String(source.metadata?.text ?? source.title);
-      const redaction = redactText(text, { id: source.id, schema: source.schema, kind: source.kind }, { sensitivity: source.sensitivity });
-      return { source, chunk_id: `${source.id}_chunk`, text: redaction.text, redacted: redaction.events.length > 0, redactions: redaction.events, score: 1 };
-    });
+    const results: SearchResult[] = [];
+    for (const row of rows.filter((candidate) => candidate.text.toLowerCase().includes(q))) {
+      const record = await this.fetch(row.source_id, actor);
+      if (!record || record.kind !== "source") continue;
+      const source = record as SourceRecord;
+      const redaction = redactText(row.text, { id: source.id, schema: source.schema, kind: source.kind }, { field: "text", sensitivity: source.sensitivity });
+      results.push({ source, chunk_id: row.id, text: redaction.text, redacted: redaction.events.length > 0, redactions: redaction.events, score: 1 });
+      if (results.length >= limit) break;
+    }
+    return results;
   }
 
   async listSources(query: string | undefined, actor: ActorRef, limit = 50): Promise<SourceRecord[]> {
@@ -192,6 +204,88 @@ export class SupabaseStore implements AtlasWikiStore {
     return { ok: true, backend: "supabase", applied_count: 0, pending_count: 0 };
   }
 
+  async listRagIndexChunks(actor: ActorRef, limit = 100): Promise<RagIndexChunk[]> {
+    const rows = await checked(this.requireClient().from("chunks").select("*").limit(limit * 4), "supabase rag chunks select") as Array<{ id: string; source_id: string; text: string; text_hash: string }>;
+    const chunks: RagIndexChunk[] = [];
+    for (const row of rows) {
+      const record = await this.fetch(row.source_id, actor);
+      if (!record || record.kind !== "source") continue;
+      chunks.push({ source: record as SourceRecord, chunk_id: row.id, text: row.text, content_hash: row.text_hash });
+      if (chunks.length >= limit) break;
+    }
+    return chunks;
+  }
+
+  async upsertRagEmbeddingProfile(profile: RagEmbeddingProfile): Promise<void> {
+    await checked(this.requireClient().from("embedding_profiles").upsert({
+      id: profile.id,
+      provider_id: profile.provider_id,
+      model: profile.model,
+      dimensions: profile.dimensions,
+      prompt_policy: profile.prompt_policy,
+      metadata: profile.metadata ?? {}
+    }), "supabase embedding profile upsert");
+  }
+
+  async upsertRagChunkEmbedding(embedding: RagChunkEmbedding): Promise<void> {
+    await checked(this.requireClient().from("embeddings").upsert({
+      id: stableId("embedding", { profile_id: embedding.profile_id, chunk_id: embedding.chunk_id }),
+      chunk_id: embedding.chunk_id,
+      profile_id: embedding.profile_id,
+      provider_id: embedding.provider_id,
+      model: embedding.model,
+      dimensions: embedding.dimensions,
+      content_hash: embedding.content_hash,
+      embedding: embedding.vector,
+      vector_json: embedding.vector,
+      created_at: nowIso(),
+      stale_at: null
+    }), "supabase embedding upsert");
+  }
+
+  async listRagChunkEmbeddings(profile: RagEmbeddingProfile, actor: ActorRef, limit = 100): Promise<RagStoredEmbedding[]> {
+    const rows = await checked(this.requireClient().from("embeddings").select("*").eq("profile_id", profile.id).is("stale_at", null).limit(limit * 4), "supabase embeddings select") as Array<{ chunk_id: string; profile_id: string; provider_id: string; model: string; dimensions: number; content_hash: string; embedding?: unknown; vector_json?: unknown }>;
+    const chunkRows = await checked(this.requireClient().from("chunks").select("*").limit(limit * 8), "supabase vector chunks select") as Array<{ id: string; source_id: string; text: string; text_hash: string }>;
+    const chunksById = new Map(chunkRows.map((row) => [row.id, row]));
+    const stored: RagStoredEmbedding[] = [];
+    for (const row of rows) {
+      const chunk = chunksById.get(row.chunk_id);
+      if (!chunk || chunk.text_hash !== row.content_hash) continue;
+      const record = await this.fetch(chunk.source_id, actor);
+      if (!record || record.kind !== "source") continue;
+      const source = record as SourceRecord;
+      const vector = normalizeVector(row.embedding ?? row.vector_json);
+      if (!vector) continue;
+      const redaction = redactText(chunk.text, { id: source.id, schema: source.schema, kind: source.kind }, { field: "text", sensitivity: source.sensitivity });
+      stored.push({
+        source,
+        text: redaction.text,
+        chunk_id: row.chunk_id,
+        profile_id: row.profile_id,
+        provider_id: row.provider_id,
+        model: row.model,
+        dimensions: row.dimensions,
+        content_hash: row.content_hash,
+        vector
+      });
+      if (stored.length >= limit) break;
+    }
+    return stored;
+  }
+
+  async ragVectorStats(profile: RagEmbeddingProfile): Promise<RagVectorStats> {
+    const rows = await checked(this.requireClient().from("embeddings").select("chunk_id,content_hash,stale_at").eq("profile_id", profile.id).limit(10000), "supabase embedding stats select") as Array<{ chunk_id: string; content_hash: string; stale_at?: string | null | undefined }>;
+    const chunkRows = await checked(this.requireClient().from("chunks").select("id,text_hash").limit(10000), "supabase chunk stats select") as Array<{ id: string; text_hash: string }>;
+    const hashes = new Map(chunkRows.map((row) => [row.id, row.text_hash]));
+    let indexed = 0;
+    let stale = 0;
+    for (const row of rows) {
+      if (!row.stale_at && hashes.get(row.chunk_id) === row.content_hash) indexed += 1;
+      else stale += 1;
+    }
+    return { indexed_chunks: indexed, stale_chunks: stale };
+  }
+
   async audit(event_type: string, actor: ActorRef, refs: RecordRef[], decisions: PolicyDecision[], outcome: "success" | "denied" | "error"): Promise<void> {
     await checked(this.requireClient().from("audit_events").insert({
       id: stableId("audit", { event_type, actor, refs, decisions, outcome, at: nowIso() }),
@@ -230,6 +324,20 @@ export class SupabaseStore implements AtlasWikiStore {
     if (!this.client) throw new SupabaseStoreError("SupabaseStore.init() has not completed");
     return this.client;
   }
+}
+
+function normalizeVector(value: unknown): number[] | undefined {
+  if (Array.isArray(value) && value.every((item) => typeof item === "number")) return value;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed) && parsed.every((item) => typeof item === "number")) return parsed;
+  } catch {
+    const csv = trimmed.replace(/^\[|\]$/g, "").split(",").map((item) => Number(item.trim()));
+    if (csv.length > 0 && csv.every(Number.isFinite)) return csv;
+  }
+  return undefined;
 }
 
 async function checked(query: PromiseLike<{ data: unknown; error: { message: string } | null }>, context: string): Promise<unknown> {

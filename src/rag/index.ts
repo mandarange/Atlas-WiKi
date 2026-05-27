@@ -1,7 +1,7 @@
 import { contentHash, sha256 } from "../core/hash/index.js";
 import { stableId } from "../core/ids/index.js";
 import type { ActorRef } from "../core/records/index.js";
-import type { AtlasWikiStore, SearchResult } from "../store/store-contract.js";
+import type { AtlasWikiStore, RagEmbeddingProfile, RagStoredEmbedding, SearchResult } from "../store/store-contract.js";
 
 export type RagMode = "lexical" | "structured" | "vector" | "hybrid";
 export type RagModeUsed = "lexical" | "structured" | "vector" | "hybrid" | "lexical_structured";
@@ -102,15 +102,6 @@ export interface RagIndexResponse extends RagStatus {
   warnings: string[];
 }
 
-interface VectorEntry {
-  item: RagSearchItem;
-  vector: number[];
-  provider: string;
-  model: string;
-  promptPolicy: string;
-  contentHash: string;
-}
-
 export class RagVectorUnavailableError extends Error {
   readonly code = "RAG_VECTOR_UNAVAILABLE";
   constructor(message: string, readonly reason: Exclude<RagFallbackReason, null>) {
@@ -130,15 +121,13 @@ export class RagEmbeddingProviderError extends Error {
 }
 
 export class RagService {
-  private readonly vectorIndex = new Map<string, VectorEntry>();
-
   constructor(private readonly store: AtlasWikiStore, private readonly embeddingProvider?: RagEmbeddingProvider | undefined) {}
 
   async search(options: RagSearchOptions): Promise<RagSearchResponse> {
     const mode = options.mode ?? "hybrid";
     const fallbackPolicy = options.fallbackPolicy ?? (mode === "vector" ? "error" : "degrade");
     const limit = options.limit ?? 10;
-    const vectorState = this.vectorIndexStatus();
+    const vectorState = await this.vectorIndexStatus();
     if (mode === "vector" && (!this.embeddingProvider || vectorState !== "available")) {
       throw vectorUnavailable(this.embeddingProvider ? "vector_index_unavailable" : "embedding_provider_missing");
     }
@@ -166,10 +155,13 @@ export class RagService {
     }
 
     if (vectorAllowed && this.embeddingProvider) {
+      const profile = this.embeddingProfile();
       const queryVector = await safeEmbedQuery(this.embeddingProvider, options.query);
-      for (const entry of this.vectorIndex.values()) {
+      assertVectorDimensions(queryVector, this.embeddingProvider.dimensions);
+      for (const entry of await this.store.listRagChunkEmbeddings(profile, options.actor, limit * 4)) {
         const vectorScore = cosineSimilarity(queryVector, entry.vector);
-        const existing = byChunk.get(entry.item.chunk_id) ?? { ...entry.item, score_breakdown: { ...entry.item.score_breakdown } };
+        const baseItem = toRagItem(storedEmbeddingToSearchResult(entry), options.query);
+        const existing = byChunk.get(entry.chunk_id) ?? baseItem;
         existing.score_breakdown.vector = Math.max(existing.score_breakdown.vector, vectorScore);
         existing.score_breakdown.total = totalScore(existing.score_breakdown);
         existing.score = existing.score_breakdown.total;
@@ -183,15 +175,34 @@ export class RagService {
     return {
       query: options.query,
       items,
-      metadata: { rag: this.metadata(mode, modeUsed, Boolean(fallbackReason), fallbackReason) }
+      metadata: { rag: this.metadata(mode, modeUsed, Boolean(fallbackReason), fallbackReason, vectorState) }
     };
   }
 
   async contextPack(options: RagSearchOptions): Promise<RagContextPackResponse> {
     const response = await this.search(options);
     const pack = await this.store.contextPack(options.query, options.actor, options.limit);
+    const included_refs = response.items.map((item) => ({ id: item.source_id, schema: "atlas.wiki.source.v1", kind: "source" }));
+    const citations = response.items.map((item) => ({
+      id: item.citation.id,
+      source_ref: { id: item.source_id, schema: "atlas.wiki.source.v1", kind: "source" },
+      title: item.citation.title,
+      uri: item.citation.uri,
+      quote: item.citation.quote
+    }));
     const metadata = { ...(pack.metadata ?? {}), rag: response.metadata.rag };
-    return { query: options.query, pack: { ...pack, metadata }, rag: response.metadata.rag };
+    return {
+      query: options.query,
+      pack: {
+        ...pack,
+        included_refs,
+        citations,
+        candidate_count: response.items.length,
+        authorized_count: response.items.length,
+        metadata
+      },
+      rag: response.metadata.rag
+    };
   }
 
   async index(options: { actor: ActorRef; query?: string | undefined; limit?: number | undefined; fallbackPolicy?: RagFallbackPolicy | undefined }): Promise<RagIndexResponse> {
@@ -199,51 +210,72 @@ export class RagService {
       if (options.fallbackPolicy === "testing_deterministic_embeddings") throw vectorUnavailable("embedding_provider_missing");
       throw vectorUnavailable("embedding_provider_missing");
     }
-    const query = options.query ?? "";
-    const sources = await this.store.listSources(undefined, options.actor, options.limit ?? 100);
+    const chunks = await this.store.listRagIndexChunks(options.actor, options.limit ?? 100);
+    const profile = this.embeddingProfile();
+    await this.store.upsertRagEmbeddingProfile(profile);
     let indexed = 0;
     let skipped = 0;
     const warnings: string[] = [];
-    for (const source of sources) {
-      const hits = await this.store.search(source.title || query, options.actor, 1);
-      const hit = hits[0];
-      if (!hit) {
+    for (const chunk of chunks) {
+      if (!chunk.text.trim()) {
         skipped += 1;
-        warnings.push(`no_indexable_chunk:${source.id}`);
+        warnings.push(`empty_chunk:${chunk.chunk_id}`);
         continue;
       }
-      const document: RagEmbeddingDocument = { id: hit.chunk_id, title: source.title, text: hit.text, contentHash: contentHash({ source: source.id, chunk: hit.chunk_id, text: hit.text }) };
+      const document: RagEmbeddingDocument = { id: chunk.chunk_id, title: chunk.source.title, text: chunk.text, contentHash: chunk.content_hash };
       const [vector] = await safeEmbedDocuments(this.embeddingProvider, [document]);
       if (!vector) {
         skipped += 1;
         continue;
       }
-      const item = toRagItem(hit, query || source.title);
-      this.vectorIndex.set(hit.chunk_id, { item, vector, provider: this.embeddingProvider.id, model: this.embeddingProvider.model, promptPolicy: this.embeddingProvider.promptPolicy, contentHash: document.contentHash });
+      assertVectorDimensions(vector, this.embeddingProvider.dimensions);
+      await this.store.upsertRagChunkEmbedding({
+        chunk_id: chunk.chunk_id,
+        profile_id: profile.id,
+        provider_id: profile.provider_id,
+        model: profile.model,
+        dimensions: profile.dimensions,
+        content_hash: document.contentHash,
+        vector
+      });
       indexed += 1;
     }
-    return { ...this.status(), ok: true, indexed, skipped, warnings };
+    const stats = await this.store.ragVectorStats(profile);
+    return {
+      ...this.status(),
+      vector_index_status: stats.indexed_chunks > 0 ? "available" : "empty",
+      indexed_chunks: stats.indexed_chunks,
+      stale_chunks: stats.stale_chunks,
+      ok: true,
+      indexed,
+      skipped,
+      warnings
+    };
   }
 
   status(): RagStatus {
+    const profile = this.embeddingProvider ? this.embeddingProfile() : undefined;
+    const stats = profile ? this.store.ragVectorStats(profile) : { indexed_chunks: 0, stale_chunks: 0 };
+    const syncStats = isPromiseLike(stats) ? { indexed_chunks: 0, stale_chunks: 0 } : stats;
     return {
       enabled: Boolean(this.embeddingProvider),
       embedding_provider: this.embeddingProvider?.id ?? null,
       embedding_model: this.embeddingProvider?.model ?? null,
       embedding_dimensions: this.embeddingProvider?.dimensions ?? null,
       embedding_prompt_policy: this.embeddingProvider?.promptPolicy ?? null,
-      vector_index_status: this.vectorIndexStatus(),
-      indexed_chunks: this.vectorIndex.size,
-      stale_chunks: 0
+      vector_index_status: !this.embeddingProvider ? "unavailable" : syncStats.indexed_chunks > 0 ? "available" : "empty",
+      indexed_chunks: syncStats.indexed_chunks,
+      stale_chunks: syncStats.stale_chunks
     };
   }
 
-  private vectorIndexStatus(): "available" | "unavailable" | "empty" {
+  private async vectorIndexStatus(): Promise<"available" | "unavailable" | "empty"> {
     if (!this.embeddingProvider) return "unavailable";
-    return this.vectorIndex.size > 0 ? "available" : "empty";
+    const stats = await this.store.ragVectorStats(this.embeddingProfile());
+    return stats.indexed_chunks > 0 ? "available" : "empty";
   }
 
-  private metadata(modeRequested: RagMode, modeUsed: RagModeUsed, degraded: boolean, fallbackReason: RagFallbackReason): RagMetadata {
+  private metadata(modeRequested: RagMode, modeUsed: RagModeUsed, degraded: boolean, fallbackReason: RagFallbackReason, vectorState: "available" | "unavailable" | "empty"): RagMetadata {
     return {
       mode_requested: modeRequested,
       mode_used: modeUsed,
@@ -252,8 +284,24 @@ export class RagService {
       embedding_provider: this.embeddingProvider?.id ?? null,
       embedding_model: this.embeddingProvider?.model ?? null,
       embedding_prompt_policy: this.embeddingProvider?.promptPolicy ?? null,
-      vector_index_status: this.vectorIndexStatus(),
+      vector_index_status: vectorState,
       warnings: degraded && fallbackReason ? [`rag_degraded:${fallbackReason}`] : []
+    };
+  }
+
+  private embeddingProfile(): RagEmbeddingProfile {
+    if (!this.embeddingProvider) throw vectorUnavailable("embedding_provider_missing");
+    return {
+      id: stableId("embedding_profile", {
+        provider: this.embeddingProvider.id,
+        model: this.embeddingProvider.model,
+        dimensions: this.embeddingProvider.dimensions,
+        prompt_policy: this.embeddingProvider.promptPolicy
+      }),
+      provider_id: this.embeddingProvider.id,
+      model: this.embeddingProvider.model,
+      dimensions: this.embeddingProvider.dimensions,
+      prompt_policy: this.embeddingProvider.promptPolicy
     };
   }
 }
@@ -315,6 +363,26 @@ function cosineSimilarity(a: number[], b: number[]): number {
   }
   if (normA === 0 || normB === 0) return 0;
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+function assertVectorDimensions(vector: number[], dimensions: number): void {
+  if (vector.length !== dimensions) {
+    throw new RagEmbeddingProviderError(`Embedding dimension mismatch: expected ${dimensions}, received ${vector.length}`, { retryable: false });
+  }
+}
+
+function storedEmbeddingToSearchResult(entry: RagStoredEmbedding): SearchResult {
+  return {
+    source: entry.source,
+    chunk_id: entry.chunk_id,
+    text: entry.text,
+    redacted: false,
+    score: 0
+  };
+}
+
+function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
+  return typeof (value as Promise<T>).then === "function";
 }
 
 function deterministicVector(input: string, dimensions: number): number[] {

@@ -1,0 +1,2891 @@
+# Atlas WiKi 0.1.5 9+ 완전 안정화 /goal 지시서
+
+**목표:** RAG · Gemini Embeddings · Persistent Vector Index · Supabase pgvector · Structured Data · Release Reproducibility 완전 폐쇄
+
+생성일: 2026-05-27 07:09:14Z
+
+## 0. 절대 원칙
+
+- [x] `ATW-95-PRINCIPLE-001` 이번 목표의 모든 미비점은 “후속 과제”가 아니라 **이번 안정화 릴리즈에서 닫아야 할 release blocker**로 취급한다.
+- [x] `ATW-95-PRINCIPLE-002` RAG는 단순 API 표면이 아니라 **persistent, restart-safe, citation-first retrieval system**이어야 한다.
+- [x] `ATW-95-PRINCIPLE-003` Gemini embedding provider는 optional peer dependency로 유지하되, 켜는 순간 API 호환성·fallback·error taxonomy·audit를 완성해야 한다.
+- [x] `ATW-95-PRINCIPLE-004` Supabase는 이름만 adapter가 아니라 **RLS + chunks + structured records + embeddings + vector RPC + policy re-check**까지 동작해야 한다.
+- [x] `ATW-95-PRINCIPLE-005` README는 구현보다 앞서면 안 된다. 구현된 것, experimental인 것, planned인 것을 명확히 나눈다.
+- [x] `ATW-95-PRINCIPLE-006` 0.1.4에서 지적된 모든 미비점은 체크리스트상 P0/P1/P2로 재분류하지 말고, **P0-equivalent closure**로 처리한다.
+- [x] `ATW-95-PRINCIPLE-007` 모든 public claim은 테스트, 문서, release evidence 중 최소 2개 이상의 증거를 가져야 한다.
+
+## 1. 최종 점수 목표
+
+| 영역 | 목표 점수 | 증거 |
+| --- | ---: | --- |
+| 패키징 / exports | >= 9.3 | npm install, subpath exports, bin, published smoke, optional peer deps |
+| README / Docs | >= 9.2 | SQLite/Supabase/RAG/Gemini/Structured/CLI/MCP가 실제 구현과 일치 |
+| SQLite store | >= 9.2 | CAS, audit, persistent vector, chunk-level RAG, migration |
+| RAG API | >= 9.2 | lexical/structured/vector/hybrid, persistent index, score breakdown, citation fidelity |
+| RAG 실제 검색 품질 | >= 9.0 | eval dataset, recall@k/MRR/citation precision, chunk coverage |
+| Gemini provider | >= 9.1 | gemini-embedding-2/001 호환, retries, dimensions, task mapping |
+| Structured extraction | >= 9.0 | schema contracts, provenance, review workflow, conflict detection |
+| Supabase adapter | >= 9.0 | chunks, ACL, audit, structured, embeddings, RLS, RPC |
+| Supabase pgvector/RAG | >= 9.0 | vector column, RPC similarity, hybrid ranking, RLS re-check |
+| Release reproducibility | >= 9.3 | tag/main/npm gitHead/evidence/CI/published smoke 일치 |
+
+- [x] `ATW-95-SCORE-001` `패키징 / exports` 점수가 `>= 9.3` 미만이면 release 금지. 증거: npm install, subpath exports, bin, published smoke, optional peer deps.
+- [x] `ATW-95-SCORE-002` `README / Docs` 점수가 `>= 9.2` 미만이면 release 금지. 증거: SQLite/Supabase/RAG/Gemini/Structured/CLI/MCP가 실제 구현과 일치.
+- [x] `ATW-95-SCORE-003` `SQLite store` 점수가 `>= 9.2` 미만이면 release 금지. 증거: CAS, audit, persistent vector, chunk-level RAG, migration.
+- [x] `ATW-95-SCORE-004` `RAG API` 점수가 `>= 9.2` 미만이면 release 금지. 증거: lexical/structured/vector/hybrid, persistent index, score breakdown, citation fidelity.
+- [x] `ATW-95-SCORE-005` `RAG 실제 검색 품질` 점수가 `>= 9.0` 미만이면 release 금지. 증거: eval dataset, recall@k/MRR/citation precision, chunk coverage.
+- [x] `ATW-95-SCORE-006` `Gemini provider` 점수가 `>= 9.1` 미만이면 release 금지. 증거: gemini-embedding-2/001 호환, retries, dimensions, task mapping.
+- [x] `ATW-95-SCORE-007` `Structured extraction` 점수가 `>= 9.0` 미만이면 release 금지. 증거: schema contracts, provenance, review workflow, conflict detection.
+- [x] `ATW-95-SCORE-008` `Supabase adapter` 점수가 `>= 9.0` 미만이면 release 금지. 증거: chunks, ACL, audit, structured, embeddings, RLS, RPC.
+- [x] `ATW-95-SCORE-009` `Supabase pgvector/RAG` 점수가 `>= 9.0` 미만이면 release 금지. 증거: vector column, RPC similarity, hybrid ranking, RLS re-check.
+- [x] `ATW-95-SCORE-010` `Release reproducibility` 점수가 `>= 9.3` 미만이면 release 금지. 증거: tag/main/npm gitHead/evidence/CI/published smoke 일치.
+
+## 2. Version / Release Target
+
+- [x] `ATW-95-VER-001` `package.json`, `src/package-info.ts`, `CHANGELOG.md`, README, release evidence 모두 같은 version을 가리키게 한다.
+- [x] `ATW-95-VER-002` API breaking change가 없으면 `0.1.5`, breaking change가 있으면 `0.2.0`으로 release한다.
+- [x] `ATW-95-VER-003` 이번 목표에서는 기능을 절반만 구현하고 문서에 planned로 남기는 방식 금지. experimental이면 README에 명확히 experimental이라고 표시한다.
+- [x] `ATW-95-VER-004` main commit, `v<version>` tag, npm `gitHead`, GitHub Release target, release evidence `git.localHead`가 모두 같아야 한다.
+- [x] `ATW-95-VER-005` `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@<version> npm run release:published-check`가 publish 후 반드시 통과해야 한다.
+
+## 3. 아키텍처 완성 정의
+
+```txt
+AtlasWiki
+  ├─ StoreContract
+  │   ├─ SQLiteStore
+  │   ├─ SupabaseStore
+  │   └─ MemoryStore
+  ├─ Structured Ingestion
+  │   ├─ deterministic extractors
+  │   ├─ schema contracts
+  │   ├─ extraction runs
+  │   └─ review/proposal workflow
+  ├─ RAG
+  │   ├─ lexical retrieval
+  │   ├─ structured retrieval
+  │   ├─ persistent vector retrieval
+  │   ├─ hybrid ranking
+  │   └─ citation-first context pack
+  ├─ Embedding Providers
+  │   ├─ GeminiEmbeddingProvider
+  │   └─ DeterministicEmbeddingProvider
+  └─ MCP / CLI / SDK
+```
+
+## 4. P0 미비점 완전 폐쇄 체크리스트
+
+- [x] `ATW-95-P0-001-GEMINI_API_COMPAT` Gemini `gemini-embedding-2`에는 `taskType`을 전송하지 않고 prefix prompt만 사용한다.
+- [x] `ATW-95-P0-002-GEMINI_001_MAPPING` `gemini-embedding-001` task mapping을 `RETRIEVAL_QUERY`, `QUESTION_ANSWERING`, `RETRIEVAL_DOCUMENT`로 정확히 분리한다.
+- [x] `ATW-95-P0-003-PERSISTENT_VECTOR` RagService의 in-memory Map만 의존하는 vector index를 제거하고 store-backed persistent vector index를 구현한다.
+- [x] `ATW-95-P0-004-CLI_RAG_RESTART_SAFE` `awiki rag index` 후 별도 프로세스의 `awiki rag search --mode vector`가 성공해야 한다.
+- [x] `ATW-95-P0-005-SUPABASE_CHUNKS` SupabaseStore.ingestText가 chunks table에 본문 chunk를 저장해야 한다.
+- [x] `ATW-95-P0-006-SUPABASE_FTS` Supabase search가 source title/metadata가 아니라 chunk text 기반 citation을 반환해야 한다.
+- [x] `ATW-95-P0-007-SUPABASE_PGVECTOR` Supabase vector migration이 실제 `vector(n)` column과 similarity RPC를 가져야 한다.
+- [x] `ATW-95-P0-008-RAG_CONTEXT_ORDER` ragContextPack이 RAG-ranked items를 citation selection/order에 반영해야 한다.
+- [x] `ATW-95-P0-009-ACTOR_AWARE_MCP` MCP authorizeTool이 actor-aware context object를 받게 바꾼다.
+- [x] `ATW-95-P0-010-SCHEMA_CONTRACT` Structured extraction에 schema contract validation을 강제한다.
+- [x] `ATW-95-P0-011-RELEASE_EVIDENCE` release evidence를 현재 version 기준으로 regenerate하고 npm latest/gitHead/tag를 일치시킨다.
+- [x] `ATW-95-P0-012-DOC_TRUTH` README의 Supabase RAG/Gemini/vector claim이 실제 구현과 100% 일치해야 한다.
+
+## REL. Release 재현성/증거
+
+**완료 정의:** 0.1.4 npm/main/tag/evidence drift를 완전히 제거하고 release artifact가 immutable하게 검증되어야 한다.
+
+- [x] `ATW-95-REL-0001` 0.1.4 evidence drift를 제거한다.
+- [x] `ATW-95-REL-0002` release-evidence가 현재 package version, npm latest, npm gitHead, tag head를 기록하게 한다.
+- [x] `ATW-95-REL-0003` publish workflow 후 post-publish smoke가 반드시 실행되게 한다.
+- [x] `ATW-95-REL-0004` CI workflow run green evidence를 README badge와 release notes에 연결한다.
+- [x] `ATW-95-REL-0005` local publish policy와 trusted publishing policy의 모순을 제거한다.
+- [x] `ATW-95-REL-0006` package:dry-run은 already-published baseline과 new version을 모두 안전하게 처리한다.
+- [x] `ATW-95-REL-0007` CHANGELOG에 RAG/Supabase/Gemini/Structured 안정화 변경을 분리 기록한다.
+- [x] `ATW-95-REL-0008` GitHub release note에는 known limits와 upgrade/migration notes를 포함한다.
+- [x] `ATW-95-REL-0009` npm dist-tag latest가 target version인지 확인한다.
+- [x] `ATW-95-REL-0010` release blocker 실패 시 publish 금지한다.
+- [x] `ATW-95-REL-0011` Release 재현성/증거를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-REL-0012` Release 재현성/증거 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-REL-0013` Release 재현성/증거의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-REL-0014` Release 재현성/증거의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-REL-0015` Release 재현성/증거의 happy path unit test를 추가한다.
+- [x] `ATW-95-REL-0016` Release 재현성/증거의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-REL-0017` Release 재현성/증거를 SQLite backend에서 검증한다.
+- [x] `ATW-95-REL-0018` Release 재현성/증거를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-REL-0019` Release 재현성/증거의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-REL-0020` Release 재현성/증거의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-REL-0021` Release 재현성/증거의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-REL-0022` Release 재현성/증거의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-REL-0023` Release 재현성/증거를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-REL-0024` Release 재현성/증거 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-REL-0025` Release 재현성/증거의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-REL-0026` Release 재현성/증거의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-REL-0027` Release 재현성/증거의 happy path unit test를 추가한다.
+- [x] `ATW-95-REL-0028` Release 재현성/증거의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-REL-0029` Release 재현성/증거를 SQLite backend에서 검증한다.
+- [x] `ATW-95-REL-0030` Release 재현성/증거를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-REL-0031` Release 재현성/증거의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-REL-0032` Release 재현성/증거의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-REL-0033` Release 재현성/증거의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-REL-0034` Release 재현성/증거의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-REL-0035` Release 재현성/증거를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-REL-0036` Release 재현성/증거 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-REL-0037` Release 재현성/증거의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-REL-0038` Release 재현성/증거의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-REL-0039` Release 재현성/증거의 happy path unit test를 추가한다.
+- [x] `ATW-95-REL-0040` Release 재현성/증거의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-REL-0041` Release 재현성/증거를 SQLite backend에서 검증한다.
+- [x] `ATW-95-REL-0042` Release 재현성/증거를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-REL-0043` Release 재현성/증거의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-REL-0044` Release 재현성/증거의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-REL-0045` Release 재현성/증거의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-REL-0046` Release 재현성/증거의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-REL-0047` Release 재현성/증거를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-REL-0048` Release 재현성/증거 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-REL-0049` Release 재현성/증거의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-REL-0050` Release 재현성/증거의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-REL-0051` Release 재현성/증거의 happy path unit test를 추가한다.
+- [x] `ATW-95-REL-0052` Release 재현성/증거의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-REL-0053` Release 재현성/증거를 SQLite backend에서 검증한다.
+- [x] `ATW-95-REL-0054` Release 재현성/증거를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-REL-0055` Release 재현성/증거의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-REL-0056` Release 재현성/증거의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-REL-0057` Release 재현성/증거의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-REL-0058` Release 재현성/증거의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-REL-0059` Release 재현성/증거를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-REL-0060` Release 재현성/증거 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-REL-0061` Release 재현성/증거의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-REL-0062` Release 재현성/증거의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-REL-0063` Release 재현성/증거의 happy path unit test를 추가한다.
+- [x] `ATW-95-REL-0064` Release 재현성/증거의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-REL-0065` Release 재현성/증거를 SQLite backend에서 검증한다.
+- [x] `ATW-95-REL-0066` Release 재현성/증거를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-REL-0067` Release 재현성/증거의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-REL-0068` Release 재현성/증거의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-REL-0069` Release 재현성/증거의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-REL-0070` Release 재현성/증거의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-REL-0071` Release 재현성/증거를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-REL-0072` Release 재현성/증거 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-REL-0073` Release 재현성/증거의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-REL-0074` Release 재현성/증거의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-REL-0075` Release 재현성/증거의 happy path unit test를 추가한다.
+- [x] `ATW-95-REL-0076` Release 재현성/증거의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-REL-0077` Release 재현성/증거를 SQLite backend에서 검증한다.
+- [x] `ATW-95-REL-0078` Release 재현성/증거를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-REL-0079` Release 재현성/증거의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-REL-0080` Release 재현성/증거의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-REL-0081` Release 재현성/증거의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-REL-0082` Release 재현성/증거의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-REL-0083` Release 재현성/증거를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-REL-0084` Release 재현성/증거 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-REL-0085` Release 재현성/증거의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-REL-0086` Release 재현성/증거의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-REL-0087` Release 재현성/증거의 happy path unit test를 추가한다.
+- [x] `ATW-95-REL-0088` Release 재현성/증거의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-REL-0089` Release 재현성/증거를 SQLite backend에서 검증한다.
+- [x] `ATW-95-REL-0090` Release 재현성/증거를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-REL-0091` Release 재현성/증거의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-REL-0092` Release 재현성/증거의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-REL-0093` Release 재현성/증거의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-REL-0094` Release 재현성/증거의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-REL-0095` Release 재현성/증거를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-REL-0096` Release 재현성/증거 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## GEM. Gemini Embeddings Provider
+
+**완료 정의:** gemini-embedding-2/001 API 차이를 정확히 반영하고, provider 실패·quota·dimension mismatch를 안전하게 처리한다.
+
+- [x] `ATW-95-GEM-0001` GeminiEmbeddingProvider 모델별 config builder를 분리한다.
+- [x] `ATW-95-GEM-0002` `gemini-embedding-2`에서 `taskType`과 `title` config를 제거하고 `outputDimensionality`만 보낸다.
+- [x] `ATW-95-GEM-0003` `gemini-embedding-001`에서 query task를 `RETRIEVAL_QUERY` 또는 `QUESTION_ANSWERING`으로만 보낸다.
+- [x] `ATW-95-GEM-0004` document embedding은 `RETRIEVAL_DOCUMENT`로만 보낸다.
+- [x] `ATW-95-GEM-0005` `@google/genai` 미설치 시 명확한 optional peer dependency error를 던진다.
+- [x] `ATW-95-GEM-0006` API key가 없으면 provider constructor가 fail-fast하고 CLI hybrid degrade path는 provider를 만들지 않는다.
+- [x] `ATW-95-GEM-0007` Gemini response parser가 `embeddings[0].values`, `embedding.values`, `values`를 모두 안전하게 처리한다.
+- [x] `ATW-95-GEM-0008` dimension mismatch를 `RagEmbeddingProviderError`로 감싼다.
+- [x] `ATW-95-GEM-0009` Gemini mock client 테스트를 추가해 실제 네트워크 없이 request payload를 검증한다.
+- [x] `ATW-95-GEM-0010` README에 `gemini-embedding-2`와 `gemini-embedding-001`의 taskType 차이를 명확히 문서화한다.
+- [x] `ATW-95-GEM-0011` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0012` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-GEM-0013` Gemini Embeddings Provider의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-GEM-0014` Gemini Embeddings Provider의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-GEM-0015` Gemini Embeddings Provider의 happy path unit test를 추가한다.
+- [x] `ATW-95-GEM-0016` Gemini Embeddings Provider의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-GEM-0017` Gemini Embeddings Provider를 SQLite backend에서 검증한다.
+- [x] `ATW-95-GEM-0018` Gemini Embeddings Provider를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-GEM-0019` Gemini Embeddings Provider의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-GEM-0020` Gemini Embeddings Provider의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-GEM-0021` Gemini Embeddings Provider의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-GEM-0022` Gemini Embeddings Provider의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-GEM-0023` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0024` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-GEM-0025` Gemini Embeddings Provider의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-GEM-0026` Gemini Embeddings Provider의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-GEM-0027` Gemini Embeddings Provider의 happy path unit test를 추가한다.
+- [x] `ATW-95-GEM-0028` Gemini Embeddings Provider의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-GEM-0029` Gemini Embeddings Provider를 SQLite backend에서 검증한다.
+- [x] `ATW-95-GEM-0030` Gemini Embeddings Provider를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-GEM-0031` Gemini Embeddings Provider의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-GEM-0032` Gemini Embeddings Provider의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-GEM-0033` Gemini Embeddings Provider의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-GEM-0034` Gemini Embeddings Provider의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-GEM-0035` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0036` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-GEM-0037` Gemini Embeddings Provider의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-GEM-0038` Gemini Embeddings Provider의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-GEM-0039` Gemini Embeddings Provider의 happy path unit test를 추가한다.
+- [x] `ATW-95-GEM-0040` Gemini Embeddings Provider의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-GEM-0041` Gemini Embeddings Provider를 SQLite backend에서 검증한다.
+- [x] `ATW-95-GEM-0042` Gemini Embeddings Provider를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-GEM-0043` Gemini Embeddings Provider의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-GEM-0044` Gemini Embeddings Provider의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-GEM-0045` Gemini Embeddings Provider의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-GEM-0046` Gemini Embeddings Provider의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-GEM-0047` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0048` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-GEM-0049` Gemini Embeddings Provider의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-GEM-0050` Gemini Embeddings Provider의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-GEM-0051` Gemini Embeddings Provider의 happy path unit test를 추가한다.
+- [x] `ATW-95-GEM-0052` Gemini Embeddings Provider의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-GEM-0053` Gemini Embeddings Provider를 SQLite backend에서 검증한다.
+- [x] `ATW-95-GEM-0054` Gemini Embeddings Provider를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-GEM-0055` Gemini Embeddings Provider의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-GEM-0056` Gemini Embeddings Provider의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-GEM-0057` Gemini Embeddings Provider의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-GEM-0058` Gemini Embeddings Provider의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-GEM-0059` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0060` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-GEM-0061` Gemini Embeddings Provider의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-GEM-0062` Gemini Embeddings Provider의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-GEM-0063` Gemini Embeddings Provider의 happy path unit test를 추가한다.
+- [x] `ATW-95-GEM-0064` Gemini Embeddings Provider의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-GEM-0065` Gemini Embeddings Provider를 SQLite backend에서 검증한다.
+- [x] `ATW-95-GEM-0066` Gemini Embeddings Provider를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-GEM-0067` Gemini Embeddings Provider의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-GEM-0068` Gemini Embeddings Provider의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-GEM-0069` Gemini Embeddings Provider의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-GEM-0070` Gemini Embeddings Provider의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-GEM-0071` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0072` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-GEM-0073` Gemini Embeddings Provider의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-GEM-0074` Gemini Embeddings Provider의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-GEM-0075` Gemini Embeddings Provider의 happy path unit test를 추가한다.
+- [x] `ATW-95-GEM-0076` Gemini Embeddings Provider의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-GEM-0077` Gemini Embeddings Provider를 SQLite backend에서 검증한다.
+- [x] `ATW-95-GEM-0078` Gemini Embeddings Provider를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-GEM-0079` Gemini Embeddings Provider의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-GEM-0080` Gemini Embeddings Provider의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-GEM-0081` Gemini Embeddings Provider의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-GEM-0082` Gemini Embeddings Provider의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-GEM-0083` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0084` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-GEM-0085` Gemini Embeddings Provider의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-GEM-0086` Gemini Embeddings Provider의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-GEM-0087` Gemini Embeddings Provider의 happy path unit test를 추가한다.
+- [x] `ATW-95-GEM-0088` Gemini Embeddings Provider의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-GEM-0089` Gemini Embeddings Provider를 SQLite backend에서 검증한다.
+- [x] `ATW-95-GEM-0090` Gemini Embeddings Provider를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-GEM-0091` Gemini Embeddings Provider의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-GEM-0092` Gemini Embeddings Provider의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-GEM-0093` Gemini Embeddings Provider의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-GEM-0094` Gemini Embeddings Provider의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-GEM-0095` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0096` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-GEM-0097` Gemini Embeddings Provider의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-GEM-0098` Gemini Embeddings Provider의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-GEM-0099` Gemini Embeddings Provider의 happy path unit test를 추가한다.
+- [x] `ATW-95-GEM-0100` Gemini Embeddings Provider의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-GEM-0101` Gemini Embeddings Provider를 SQLite backend에서 검증한다.
+- [x] `ATW-95-GEM-0102` Gemini Embeddings Provider를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-GEM-0103` Gemini Embeddings Provider의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-GEM-0104` Gemini Embeddings Provider의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-GEM-0105` Gemini Embeddings Provider의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-GEM-0106` Gemini Embeddings Provider의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-GEM-0107` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0108` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-GEM-0109` Gemini Embeddings Provider의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-GEM-0110` Gemini Embeddings Provider의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-GEM-0111` Gemini Embeddings Provider의 happy path unit test를 추가한다.
+- [x] `ATW-95-GEM-0112` Gemini Embeddings Provider의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-GEM-0113` Gemini Embeddings Provider를 SQLite backend에서 검증한다.
+- [x] `ATW-95-GEM-0114` Gemini Embeddings Provider를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-GEM-0115` Gemini Embeddings Provider의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-GEM-0116` Gemini Embeddings Provider의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-GEM-0117` Gemini Embeddings Provider의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-GEM-0118` Gemini Embeddings Provider의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-GEM-0119` Gemini Embeddings Provider를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-GEM-0120` Gemini Embeddings Provider 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## RAG. RAG Core / Persistent Vector
+
+**완료 정의:** 메모리 Map 기반 임시 RAG를 제거하고 SQLite/Supabase/Memory 모두 store-backed RAG contract를 구현한다.
+
+- [x] `ATW-95-RAG-0001` StoreContract에 `writeEmbeddingProfile`, `listEmbeddingProfiles`, `upsertChunkEmbedding`, `vectorSearch`, `listIndexableChunks`를 추가한다.
+- [x] `ATW-95-RAG-0002` RagService의 private Map은 MemoryStore test path로만 제한한다.
+- [x] `ATW-95-RAG-0003` RagService.index가 모든 readable chunk를 index해야 한다.
+- [x] `ATW-95-RAG-0004` RagService.search vector mode가 persistent store vectorSearch를 호출해야 한다.
+- [x] `ATW-95-RAG-0005` hybrid ranking이 lexical + structured + vector 점수를 explainable breakdown으로 반환해야 한다.
+- [x] `ATW-95-RAG-0006` vector index가 비어 있을 때 vector mode는 loud failure를 유지한다.
+- [x] `ATW-95-RAG-0007` hybrid degrade metadata에 `degraded=true`, `fallback_reason`, `vector_index_status`를 남긴다.
+- [x] `ATW-95-RAG-0008` chunk content_hash, provider, model, dimensions, prompt_policy가 바뀌면 stale로 판단한다.
+- [x] `ATW-95-RAG-0009` RAG eval fixture를 만들고 recall@k, MRR, citation precision을 계산한다.
+- [x] `ATW-95-RAG-0010` RAG generated answer 기능을 넣지 말고 citation-first retrieval만 제공한다.
+- [x] `ATW-95-RAG-0011` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0012` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0013` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0014` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0015` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0016` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0017` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0018` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0019` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0020` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0021` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0022` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0023` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0024` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0025` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0026` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0027` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0028` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0029` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0030` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0031` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0032` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0033` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0034` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0035` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0036` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0037` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0038` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0039` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0040` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0041` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0042` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0043` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0044` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0045` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0046` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0047` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0048` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0049` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0050` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0051` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0052` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0053` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0054` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0055` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0056` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0057` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0058` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0059` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0060` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0061` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0062` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0063` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0064` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0065` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0066` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0067` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0068` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0069` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0070` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0071` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0072` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0073` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0074` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0075` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0076` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0077` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0078` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0079` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0080` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0081` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0082` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0083` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0084` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0085` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0086` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0087` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0088` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0089` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0090` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0091` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0092` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0093` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0094` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0095` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0096` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0097` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0098` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0099` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0100` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0101` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0102` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0103` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0104` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0105` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0106` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0107` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0108` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0109` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0110` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0111` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0112` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0113` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0114` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0115` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0116` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0117` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0118` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0119` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0120` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0121` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0122` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0123` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0124` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0125` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0126` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0127` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0128` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0129` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0130` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0131` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0132` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0133` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0134` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0135` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0136` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0137` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0138` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0139` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0140` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0141` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0142` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0143` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0144` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0145` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0146` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0147` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0148` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0149` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0150` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0151` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0152` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0153` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0154` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0155` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0156` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0157` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0158` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0159` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0160` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0161` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0162` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0163` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0164` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0165` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0166` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0167` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0168` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RAG-0169` RAG Core / Persistent Vector의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RAG-0170` RAG Core / Persistent Vector의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RAG-0171` RAG Core / Persistent Vector의 happy path unit test를 추가한다.
+- [x] `ATW-95-RAG-0172` RAG Core / Persistent Vector의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RAG-0173` RAG Core / Persistent Vector를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RAG-0174` RAG Core / Persistent Vector를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RAG-0175` RAG Core / Persistent Vector의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RAG-0176` RAG Core / Persistent Vector의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RAG-0177` RAG Core / Persistent Vector의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RAG-0178` RAG Core / Persistent Vector의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RAG-0179` RAG Core / Persistent Vector를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RAG-0180` RAG Core / Persistent Vector 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## CTX. RAG Context Pack / Citation Fidelity
+
+**완료 정의:** RAG ranking 결과가 실제 context-pack citation 선택과 순서에 반영되어야 한다.
+
+- [x] `ATW-95-CTX-0001` RAG Context Pack / Citation Fidelity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CTX-0002` RAG Context Pack / Citation Fidelity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CTX-0003` RAG Context Pack / Citation Fidelity의 happy path unit test를 추가한다.
+- [x] `ATW-95-CTX-0004` RAG Context Pack / Citation Fidelity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CTX-0005` RAG Context Pack / Citation Fidelity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CTX-0006` RAG Context Pack / Citation Fidelity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CTX-0007` RAG Context Pack / Citation Fidelity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CTX-0008` RAG Context Pack / Citation Fidelity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CTX-0009` RAG Context Pack / Citation Fidelity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CTX-0010` RAG Context Pack / Citation Fidelity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CTX-0011` RAG Context Pack / Citation Fidelity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CTX-0012` RAG Context Pack / Citation Fidelity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CTX-0013` RAG Context Pack / Citation Fidelity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CTX-0014` RAG Context Pack / Citation Fidelity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CTX-0015` RAG Context Pack / Citation Fidelity의 happy path unit test를 추가한다.
+- [x] `ATW-95-CTX-0016` RAG Context Pack / Citation Fidelity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CTX-0017` RAG Context Pack / Citation Fidelity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CTX-0018` RAG Context Pack / Citation Fidelity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CTX-0019` RAG Context Pack / Citation Fidelity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CTX-0020` RAG Context Pack / Citation Fidelity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CTX-0021` RAG Context Pack / Citation Fidelity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CTX-0022` RAG Context Pack / Citation Fidelity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CTX-0023` RAG Context Pack / Citation Fidelity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CTX-0024` RAG Context Pack / Citation Fidelity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CTX-0025` RAG Context Pack / Citation Fidelity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CTX-0026` RAG Context Pack / Citation Fidelity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CTX-0027` RAG Context Pack / Citation Fidelity의 happy path unit test를 추가한다.
+- [x] `ATW-95-CTX-0028` RAG Context Pack / Citation Fidelity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CTX-0029` RAG Context Pack / Citation Fidelity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CTX-0030` RAG Context Pack / Citation Fidelity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CTX-0031` RAG Context Pack / Citation Fidelity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CTX-0032` RAG Context Pack / Citation Fidelity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CTX-0033` RAG Context Pack / Citation Fidelity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CTX-0034` RAG Context Pack / Citation Fidelity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CTX-0035` RAG Context Pack / Citation Fidelity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CTX-0036` RAG Context Pack / Citation Fidelity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CTX-0037` RAG Context Pack / Citation Fidelity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CTX-0038` RAG Context Pack / Citation Fidelity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CTX-0039` RAG Context Pack / Citation Fidelity의 happy path unit test를 추가한다.
+- [x] `ATW-95-CTX-0040` RAG Context Pack / Citation Fidelity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CTX-0041` RAG Context Pack / Citation Fidelity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CTX-0042` RAG Context Pack / Citation Fidelity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CTX-0043` RAG Context Pack / Citation Fidelity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CTX-0044` RAG Context Pack / Citation Fidelity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CTX-0045` RAG Context Pack / Citation Fidelity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CTX-0046` RAG Context Pack / Citation Fidelity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CTX-0047` RAG Context Pack / Citation Fidelity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CTX-0048` RAG Context Pack / Citation Fidelity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CTX-0049` RAG Context Pack / Citation Fidelity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CTX-0050` RAG Context Pack / Citation Fidelity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CTX-0051` RAG Context Pack / Citation Fidelity의 happy path unit test를 추가한다.
+- [x] `ATW-95-CTX-0052` RAG Context Pack / Citation Fidelity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CTX-0053` RAG Context Pack / Citation Fidelity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CTX-0054` RAG Context Pack / Citation Fidelity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CTX-0055` RAG Context Pack / Citation Fidelity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CTX-0056` RAG Context Pack / Citation Fidelity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CTX-0057` RAG Context Pack / Citation Fidelity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CTX-0058` RAG Context Pack / Citation Fidelity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CTX-0059` RAG Context Pack / Citation Fidelity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CTX-0060` RAG Context Pack / Citation Fidelity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CTX-0061` RAG Context Pack / Citation Fidelity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CTX-0062` RAG Context Pack / Citation Fidelity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CTX-0063` RAG Context Pack / Citation Fidelity의 happy path unit test를 추가한다.
+- [x] `ATW-95-CTX-0064` RAG Context Pack / Citation Fidelity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CTX-0065` RAG Context Pack / Citation Fidelity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CTX-0066` RAG Context Pack / Citation Fidelity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CTX-0067` RAG Context Pack / Citation Fidelity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CTX-0068` RAG Context Pack / Citation Fidelity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CTX-0069` RAG Context Pack / Citation Fidelity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CTX-0070` RAG Context Pack / Citation Fidelity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CTX-0071` RAG Context Pack / Citation Fidelity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CTX-0072` RAG Context Pack / Citation Fidelity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CTX-0073` RAG Context Pack / Citation Fidelity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CTX-0074` RAG Context Pack / Citation Fidelity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CTX-0075` RAG Context Pack / Citation Fidelity의 happy path unit test를 추가한다.
+- [x] `ATW-95-CTX-0076` RAG Context Pack / Citation Fidelity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CTX-0077` RAG Context Pack / Citation Fidelity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CTX-0078` RAG Context Pack / Citation Fidelity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CTX-0079` RAG Context Pack / Citation Fidelity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CTX-0080` RAG Context Pack / Citation Fidelity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CTX-0081` RAG Context Pack / Citation Fidelity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CTX-0082` RAG Context Pack / Citation Fidelity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CTX-0083` RAG Context Pack / Citation Fidelity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CTX-0084` RAG Context Pack / Citation Fidelity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CTX-0085` RAG Context Pack / Citation Fidelity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CTX-0086` RAG Context Pack / Citation Fidelity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CTX-0087` RAG Context Pack / Citation Fidelity의 happy path unit test를 추가한다.
+- [x] `ATW-95-CTX-0088` RAG Context Pack / Citation Fidelity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CTX-0089` RAG Context Pack / Citation Fidelity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CTX-0090` RAG Context Pack / Citation Fidelity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CTX-0091` RAG Context Pack / Citation Fidelity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CTX-0092` RAG Context Pack / Citation Fidelity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CTX-0093` RAG Context Pack / Citation Fidelity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CTX-0094` RAG Context Pack / Citation Fidelity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CTX-0095` RAG Context Pack / Citation Fidelity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CTX-0096` RAG Context Pack / Citation Fidelity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## SQL. SQLite Persistent Embeddings
+
+**완료 정의:** embedding_profiles/chunk_embeddings를 실제로 읽고 쓰며 CLI 프로세스 재시작 후에도 vector search가 유지되어야 한다.
+
+- [x] `ATW-95-SQL-0001` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0002` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0003` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0004` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0005` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0006` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0007` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0008` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0009` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0010` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0011` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0012` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0013` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0014` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0015` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0016` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0017` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0018` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0019` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0020` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0021` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0022` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0023` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0024` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0025` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0026` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0027` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0028` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0029` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0030` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0031` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0032` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0033` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0034` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0035` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0036` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0037` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0038` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0039` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0040` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0041` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0042` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0043` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0044` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0045` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0046` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0047` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0048` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0049` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0050` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0051` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0052` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0053` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0054` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0055` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0056` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0057` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0058` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0059` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0060` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0061` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0062` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0063` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0064` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0065` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0066` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0067` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0068` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0069` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0070` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0071` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0072` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0073` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0074` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0075` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0076` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0077` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0078` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0079` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0080` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0081` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0082` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0083` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0084` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0085` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0086` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0087` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0088` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0089` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0090` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0091` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0092` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0093` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0094` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0095` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0096` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0097` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0098` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0099` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0100` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0101` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0102` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0103` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0104` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0105` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0106` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0107` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0108` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0109` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0110` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0111` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0112` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0113` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0114` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0115` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0116` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0117` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0118` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0119` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0120` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SQL-0121` SQLite Persistent Embeddings의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SQL-0122` SQLite Persistent Embeddings의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SQL-0123` SQLite Persistent Embeddings의 happy path unit test를 추가한다.
+- [x] `ATW-95-SQL-0124` SQLite Persistent Embeddings의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SQL-0125` SQLite Persistent Embeddings를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SQL-0126` SQLite Persistent Embeddings를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SQL-0127` SQLite Persistent Embeddings의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SQL-0128` SQLite Persistent Embeddings의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SQL-0129` SQLite Persistent Embeddings의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SQL-0130` SQLite Persistent Embeddings의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SQL-0131` SQLite Persistent Embeddings를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SQL-0132` SQLite Persistent Embeddings 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## SBX. Supabase Store Completeness
+
+**완료 정의:** SupabaseStore가 chunks, structured records, embeddings, ACL, audit, search를 SQLite와 동등하게 구현한다.
+
+- [x] `ATW-95-SBX-0001` SupabaseStore.ingestText가 `chunks` table에 chunkText 결과를 저장한다.
+- [x] `ATW-95-SBX-0002` SupabaseStore.search가 records만 보지 않고 chunks/sources join 또는 RPC를 사용한다.
+- [x] `ATW-95-SBX-0003` SupabaseStore.contextPack이 chunk-level citations를 반환한다.
+- [x] `ATW-95-SBX-0004` SupabaseStore.ingestStructured가 structured_objects table을 실제로 upsert한다.
+- [x] `ATW-95-SBX-0005` SupabaseStore.audit가 hash_prev/hash_self/seq 또는 DB-side audit chain 정책을 명확히 처리한다.
+- [x] `ATW-95-SBX-0006` Supabase service-role 사용 시에도 Atlas policy re-check가 반드시 수행되어야 한다.
+- [x] `ATW-95-SBX-0007` SupabaseStore.validate가 빈 ok가 아니라 table/migration/RLS/RPC 존재를 점검한다.
+- [x] `ATW-95-SBX-0008` Supabase mock test뿐 아니라 opt-in local Supabase integration test를 문서화한다.
+- [x] `ATW-95-SBX-0009` Supabase migration status를 `migrationReport()`에 반영한다.
+- [x] `ATW-95-SBX-0010` Supabase adapter가 지원하지 않는 기능은 명확한 NotSupported error를 던진다.
+- [x] `ATW-95-SBX-0011` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0012` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0013` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0014` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0015` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0016` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0017` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0018` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0019` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0020` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0021` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0022` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0023` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0024` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0025` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0026` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0027` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0028` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0029` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0030` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0031` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0032` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0033` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0034` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0035` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0036` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0037` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0038` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0039` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0040` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0041` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0042` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0043` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0044` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0045` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0046` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0047` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0048` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0049` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0050` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0051` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0052` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0053` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0054` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0055` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0056` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0057` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0058` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0059` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0060` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0061` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0062` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0063` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0064` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0065` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0066` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0067` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0068` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0069` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0070` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0071` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0072` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0073` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0074` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0075` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0076` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0077` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0078` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0079` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0080` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0081` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0082` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0083` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0084` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0085` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0086` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0087` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0088` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0089` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0090` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0091` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0092` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0093` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0094` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0095` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0096` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0097` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0098` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0099` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0100` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0101` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0102` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0103` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0104` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0105` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0106` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0107` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0108` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0109` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0110` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0111` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0112` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0113` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0114` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0115` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0116` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0117` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0118` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0119` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0120` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0121` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0122` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0123` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0124` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0125` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0126` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0127` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0128` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0129` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0130` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0131` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0132` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0133` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0134` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0135` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0136` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0137` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0138` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0139` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0140` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0141` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0142` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0143` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0144` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0145` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0146` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0147` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0148` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0149` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0150` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0151` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0152` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0153` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0154` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0155` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0156` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SBX-0157` Supabase Store Completeness의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SBX-0158` Supabase Store Completeness의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SBX-0159` Supabase Store Completeness의 happy path unit test를 추가한다.
+- [x] `ATW-95-SBX-0160` Supabase Store Completeness의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SBX-0161` Supabase Store Completeness를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SBX-0162` Supabase Store Completeness를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SBX-0163` Supabase Store Completeness의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SBX-0164` Supabase Store Completeness의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SBX-0165` Supabase Store Completeness의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SBX-0166` Supabase Store Completeness의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SBX-0167` Supabase Store Completeness를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SBX-0168` Supabase Store Completeness 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## PGV. Supabase pgvector / RPC RAG
+
+**완료 정의:** pgvector 기반 chunk embedding 저장, vector/hybrid RPC, RLS, local policy re-check를 구현한다.
+
+- [x] `ATW-95-PGV-0001` `create extension if not exists vector with schema extensions;` migration을 추가한다.
+- [x] `ATW-95-PGV-0002` `embedding_profiles` table과 `chunk_embeddings` table을 pgvector 기반으로 설계한다.
+- [x] `ATW-95-PGV-0003` `embedding vector(<dimension>)` column을 모델별 profile과 맞춘다.
+- [x] `ATW-95-PGV-0004` dimension 변경은 새 profile을 만들고 기존 embedding을 stale 처리한다.
+- [x] `ATW-95-PGV-0005` `atlas_wiki.vector_search(...)` RPC를 만든다.
+- [x] `ATW-95-PGV-0006` `atlas_wiki.hybrid_search(...)` RPC 또는 app-side merge 전략을 구현한다.
+- [x] `ATW-95-PGV-0007` RPC 결과는 source/chunk ACL과 RLS를 통과한 row만 반환해야 한다.
+- [x] `ATW-95-PGV-0008` service role RPC 결과는 SDK에서 다시 policyResolver로 re-check한다.
+- [x] `ATW-95-PGV-0009` Supabase pgvector migration docs와 README가 실제 SQL 이름과 일치해야 한다.
+- [x] `ATW-95-PGV-0010` pgvector가 비활성화된 project에서는 vector mode가 명확한 error를 반환해야 한다.
+- [x] `ATW-95-PGV-0011` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0012` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0013` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0014` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0015` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0016` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0017` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0018` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0019` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0020` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0021` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0022` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0023` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0024` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0025` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0026` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0027` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0028` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0029` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0030` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0031` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0032` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0033` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0034` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0035` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0036` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0037` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0038` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0039` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0040` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0041` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0042` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0043` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0044` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0045` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0046` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0047` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0048` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0049` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0050` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0051` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0052` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0053` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0054` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0055` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0056` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0057` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0058` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0059` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0060` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0061` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0062` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0063` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0064` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0065` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0066` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0067` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0068` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0069` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0070` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0071` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0072` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0073` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0074` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0075` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0076` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0077` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0078` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0079` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0080` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0081` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0082` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0083` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0084` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0085` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0086` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0087` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0088` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0089` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0090` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0091` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0092` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0093` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0094` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0095` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0096` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0097` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0098` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0099` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0100` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0101` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0102` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0103` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0104` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0105` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0106` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0107` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0108` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0109` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0110` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0111` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0112` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0113` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0114` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0115` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0116` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0117` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0118` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0119` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0120` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0121` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0122` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0123` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0124` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0125` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0126` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0127` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0128` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0129` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0130` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0131` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0132` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0133` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0134` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0135` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0136` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0137` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0138` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0139` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0140` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0141` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0142` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0143` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0144` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0145` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0146` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0147` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0148` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0149` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0150` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0151` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0152` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0153` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0154` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0155` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0156` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PGV-0157` Supabase pgvector / RPC RAG의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PGV-0158` Supabase pgvector / RPC RAG의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PGV-0159` Supabase pgvector / RPC RAG의 happy path unit test를 추가한다.
+- [x] `ATW-95-PGV-0160` Supabase pgvector / RPC RAG의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PGV-0161` Supabase pgvector / RPC RAG를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PGV-0162` Supabase pgvector / RPC RAG를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PGV-0163` Supabase pgvector / RPC RAG의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PGV-0164` Supabase pgvector / RPC RAG의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PGV-0165` Supabase pgvector / RPC RAG의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PGV-0166` Supabase pgvector / RPC RAG의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PGV-0167` Supabase pgvector / RPC RAG를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PGV-0168` Supabase pgvector / RPC RAG 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## RLS. Supabase RLS / Security
+
+**완료 정의:** 모든 exposed table, function, RPC가 RLS와 least privilege를 만족해야 한다.
+
+- [x] `ATW-95-RLS-0001` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0002` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0003` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0004` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0005` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0006` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0007` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0008` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0009` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0010` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0011` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0012` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RLS-0013` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0014` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0015` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0016` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0017` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0018` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0019` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0020` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0021` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0022` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0023` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0024` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RLS-0025` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0026` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0027` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0028` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0029` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0030` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0031` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0032` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0033` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0034` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0035` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0036` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RLS-0037` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0038` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0039` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0040` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0041` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0042` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0043` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0044` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0045` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0046` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0047` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0048` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RLS-0049` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0050` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0051` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0052` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0053` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0054` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0055` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0056` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0057` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0058` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0059` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0060` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RLS-0061` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0062` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0063` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0064` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0065` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0066` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0067` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0068` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0069` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0070` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0071` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0072` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RLS-0073` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0074` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0075` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0076` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0077` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0078` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0079` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0080` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0081` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0082` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0083` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0084` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RLS-0085` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0086` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0087` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0088` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0089` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0090` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0091` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0092` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0093` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0094` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0095` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0096` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RLS-0097` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0098` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0099` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0100` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0101` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0102` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0103` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0104` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0105` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0106` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0107` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0108` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-RLS-0109` Supabase RLS / Security의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-RLS-0110` Supabase RLS / Security의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-RLS-0111` Supabase RLS / Security의 happy path unit test를 추가한다.
+- [x] `ATW-95-RLS-0112` Supabase RLS / Security의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-RLS-0113` Supabase RLS / Security를 SQLite backend에서 검증한다.
+- [x] `ATW-95-RLS-0114` Supabase RLS / Security를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-RLS-0115` Supabase RLS / Security의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-RLS-0116` Supabase RLS / Security의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-RLS-0117` Supabase RLS / Security의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-RLS-0118` Supabase RLS / Security의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-RLS-0119` Supabase RLS / Security를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-RLS-0120` Supabase RLS / Security 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## STR. Structured Extraction
+
+**완료 정의:** 비정형 데이터를 schema-contract 기반 structured object/entity/relation/claim으로 안전하게 정형화한다.
+
+- [x] `ATW-95-STR-0001` SchemaContractRecord를 실제 registry로 저장/조회할 수 있게 한다.
+- [x] `ATW-95-STR-0002` ingestStructured가 schema contract를 찾아 requiredFields를 검증한다.
+- [x] `ATW-95-STR-0003` identityFields로 structured object stable identity를 만든다.
+- [x] `ATW-95-STR-0004` conflictKeys로 중복/충돌 candidate를 탐지한다.
+- [x] `ATW-95-STR-0005` confidenceThreshold 미만 candidate는 proposal 또는 review pending으로만 생성한다.
+- [x] `ATW-95-STR-0006` ExtractionRunRecord를 생성하고 input/output hash, extractor version, warnings를 기록한다.
+- [x] `ATW-95-STR-0007` ExtractionReviewRecord workflow를 추가한다.
+- [x] `ATW-95-STR-0008` JSON schema validation 구현 또는 명시적 validator adapter를 둔다.
+- [x] `ATW-95-STR-0009` AI extractor는 core 밖 adapter로 남기고 output validation만 core에서 수행한다.
+- [x] `ATW-95-STR-0010` README에 deterministic extractor와 AI extractor boundary를 설명한다.
+- [x] `ATW-95-STR-0011` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0012` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0013` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0014` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0015` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0016` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0017` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0018` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0019` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0020` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0021` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0022` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0023` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0024` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0025` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0026` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0027` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0028` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0029` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0030` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0031` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0032` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0033` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0034` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0035` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0036` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0037` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0038` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0039` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0040` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0041` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0042` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0043` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0044` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0045` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0046` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0047` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0048` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0049` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0050` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0051` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0052` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0053` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0054` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0055` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0056` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0057` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0058` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0059` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0060` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0061` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0062` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0063` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0064` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0065` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0066` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0067` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0068` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0069` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0070` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0071` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0072` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0073` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0074` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0075` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0076` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0077` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0078` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0079` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0080` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0081` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0082` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0083` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0084` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0085` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0086` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0087` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0088` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0089` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0090` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0091` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0092` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0093` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0094` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0095` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0096` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0097` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0098` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0099` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0100` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0101` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0102` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0103` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0104` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0105` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0106` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0107` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0108` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0109` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0110` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0111` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0112` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0113` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0114` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0115` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0116` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0117` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0118` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0119` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0120` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0121` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0122` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0123` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0124` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0125` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0126` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0127` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0128` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0129` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0130` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0131` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0132` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0133` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0134` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0135` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0136` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0137` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0138` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0139` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0140` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0141` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0142` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0143` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0144` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-STR-0145` Structured Extraction의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-STR-0146` Structured Extraction의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-STR-0147` Structured Extraction의 happy path unit test를 추가한다.
+- [x] `ATW-95-STR-0148` Structured Extraction의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-STR-0149` Structured Extraction를 SQLite backend에서 검증한다.
+- [x] `ATW-95-STR-0150` Structured Extraction를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-STR-0151` Structured Extraction의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-STR-0152` Structured Extraction의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-STR-0153` Structured Extraction의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-STR-0154` Structured Extraction의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-STR-0155` Structured Extraction를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-STR-0156` Structured Extraction 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## SCH. Schema Contract / Validation
+
+**완료 정의:** requiredFields, identityFields, conflictKeys, confidenceThreshold를 강제하고 review workflow를 제공한다.
+
+- [x] `ATW-95-SCH-0001` Schema Contract / Validation의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SCH-0002` Schema Contract / Validation의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SCH-0003` Schema Contract / Validation의 happy path unit test를 추가한다.
+- [x] `ATW-95-SCH-0004` Schema Contract / Validation의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SCH-0005` Schema Contract / Validation를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SCH-0006` Schema Contract / Validation를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SCH-0007` Schema Contract / Validation의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SCH-0008` Schema Contract / Validation의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SCH-0009` Schema Contract / Validation의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SCH-0010` Schema Contract / Validation의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SCH-0011` Schema Contract / Validation를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SCH-0012` Schema Contract / Validation 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SCH-0013` Schema Contract / Validation의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SCH-0014` Schema Contract / Validation의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SCH-0015` Schema Contract / Validation의 happy path unit test를 추가한다.
+- [x] `ATW-95-SCH-0016` Schema Contract / Validation의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SCH-0017` Schema Contract / Validation를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SCH-0018` Schema Contract / Validation를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SCH-0019` Schema Contract / Validation의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SCH-0020` Schema Contract / Validation의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SCH-0021` Schema Contract / Validation의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SCH-0022` Schema Contract / Validation의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SCH-0023` Schema Contract / Validation를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SCH-0024` Schema Contract / Validation 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SCH-0025` Schema Contract / Validation의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SCH-0026` Schema Contract / Validation의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SCH-0027` Schema Contract / Validation의 happy path unit test를 추가한다.
+- [x] `ATW-95-SCH-0028` Schema Contract / Validation의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SCH-0029` Schema Contract / Validation를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SCH-0030` Schema Contract / Validation를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SCH-0031` Schema Contract / Validation의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SCH-0032` Schema Contract / Validation의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SCH-0033` Schema Contract / Validation의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SCH-0034` Schema Contract / Validation의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SCH-0035` Schema Contract / Validation를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SCH-0036` Schema Contract / Validation 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SCH-0037` Schema Contract / Validation의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SCH-0038` Schema Contract / Validation의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SCH-0039` Schema Contract / Validation의 happy path unit test를 추가한다.
+- [x] `ATW-95-SCH-0040` Schema Contract / Validation의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SCH-0041` Schema Contract / Validation를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SCH-0042` Schema Contract / Validation를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SCH-0043` Schema Contract / Validation의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SCH-0044` Schema Contract / Validation의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SCH-0045` Schema Contract / Validation의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SCH-0046` Schema Contract / Validation의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SCH-0047` Schema Contract / Validation를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SCH-0048` Schema Contract / Validation 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SCH-0049` Schema Contract / Validation의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SCH-0050` Schema Contract / Validation의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SCH-0051` Schema Contract / Validation의 happy path unit test를 추가한다.
+- [x] `ATW-95-SCH-0052` Schema Contract / Validation의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SCH-0053` Schema Contract / Validation를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SCH-0054` Schema Contract / Validation를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SCH-0055` Schema Contract / Validation의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SCH-0056` Schema Contract / Validation의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SCH-0057` Schema Contract / Validation의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SCH-0058` Schema Contract / Validation의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SCH-0059` Schema Contract / Validation를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SCH-0060` Schema Contract / Validation 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SCH-0061` Schema Contract / Validation의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SCH-0062` Schema Contract / Validation의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SCH-0063` Schema Contract / Validation의 happy path unit test를 추가한다.
+- [x] `ATW-95-SCH-0064` Schema Contract / Validation의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SCH-0065` Schema Contract / Validation를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SCH-0066` Schema Contract / Validation를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SCH-0067` Schema Contract / Validation의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SCH-0068` Schema Contract / Validation의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SCH-0069` Schema Contract / Validation의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SCH-0070` Schema Contract / Validation의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SCH-0071` Schema Contract / Validation를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SCH-0072` Schema Contract / Validation 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SCH-0073` Schema Contract / Validation의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SCH-0074` Schema Contract / Validation의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SCH-0075` Schema Contract / Validation의 happy path unit test를 추가한다.
+- [x] `ATW-95-SCH-0076` Schema Contract / Validation의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SCH-0077` Schema Contract / Validation를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SCH-0078` Schema Contract / Validation를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SCH-0079` Schema Contract / Validation의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SCH-0080` Schema Contract / Validation의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SCH-0081` Schema Contract / Validation의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SCH-0082` Schema Contract / Validation의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SCH-0083` Schema Contract / Validation를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SCH-0084` Schema Contract / Validation 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SCH-0085` Schema Contract / Validation의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SCH-0086` Schema Contract / Validation의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SCH-0087` Schema Contract / Validation의 happy path unit test를 추가한다.
+- [x] `ATW-95-SCH-0088` Schema Contract / Validation의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SCH-0089` Schema Contract / Validation를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SCH-0090` Schema Contract / Validation를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SCH-0091` Schema Contract / Validation의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SCH-0092` Schema Contract / Validation의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SCH-0093` Schema Contract / Validation의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SCH-0094` Schema Contract / Validation의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SCH-0095` Schema Contract / Validation를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SCH-0096` Schema Contract / Validation 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SCH-0097` Schema Contract / Validation의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SCH-0098` Schema Contract / Validation의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SCH-0099` Schema Contract / Validation의 happy path unit test를 추가한다.
+- [x] `ATW-95-SCH-0100` Schema Contract / Validation의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SCH-0101` Schema Contract / Validation를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SCH-0102` Schema Contract / Validation를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SCH-0103` Schema Contract / Validation의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SCH-0104` Schema Contract / Validation의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SCH-0105` Schema Contract / Validation의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SCH-0106` Schema Contract / Validation의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SCH-0107` Schema Contract / Validation를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SCH-0108` Schema Contract / Validation 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## MCP. MCP Actor-aware Authorization
+
+**완료 정의:** admin MCP authorization이 actor/group/role/context-aware가 되며 root/as 노출이 production에서 사라져야 한다.
+
+- [x] `ATW-95-MCP-0001` authorizeTool 타입을 `(ctx) => boolean | Promise<boolean>` 형태로 변경한다.
+- [x] `ATW-95-MCP-0002` ctx에는 toolName, actor, input, admin, mode, root가 포함되어야 한다.
+- [x] `ATW-95-MCP-0003` withAdminWiki는 root와 actor를 먼저 resolve한 뒤 authorizeTool을 호출한다.
+- [x] `ATW-95-MCP-0004` production mode에서 actorProvider/actor가 없으면 모든 tool이 실패해야 한다.
+- [x] `ATW-95-MCP-0005` admin RAG index/reindex/structure_commit/supabase_migrate는 authorizeTool 없이는 반드시 deny한다.
+- [x] `ATW-95-MCP-0006` MCP tool schema에 production root/as가 노출되지 않아야 한다.
+- [x] `ATW-95-MCP-0007` MCP RAG tools는 embedding key를 input으로 받지 않는다.
+- [x] `ATW-95-MCP-0008` MCP audit event에 toolName, actor, admin/readonly, outcome을 기록한다.
+- [x] `ATW-95-MCP-0009` MCP tests가 실제 handler invocation으로 deny/allow를 검증한다.
+- [x] `ATW-95-MCP-0010` README와 docs/mcp-production-auth가 구현 타입과 일치해야 한다.
+- [x] `ATW-95-MCP-0011` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0012` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MCP-0013` MCP Actor-aware Authorization의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MCP-0014` MCP Actor-aware Authorization의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MCP-0015` MCP Actor-aware Authorization의 happy path unit test를 추가한다.
+- [x] `ATW-95-MCP-0016` MCP Actor-aware Authorization의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MCP-0017` MCP Actor-aware Authorization를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MCP-0018` MCP Actor-aware Authorization를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MCP-0019` MCP Actor-aware Authorization의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MCP-0020` MCP Actor-aware Authorization의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MCP-0021` MCP Actor-aware Authorization의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MCP-0022` MCP Actor-aware Authorization의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MCP-0023` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0024` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MCP-0025` MCP Actor-aware Authorization의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MCP-0026` MCP Actor-aware Authorization의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MCP-0027` MCP Actor-aware Authorization의 happy path unit test를 추가한다.
+- [x] `ATW-95-MCP-0028` MCP Actor-aware Authorization의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MCP-0029` MCP Actor-aware Authorization를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MCP-0030` MCP Actor-aware Authorization를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MCP-0031` MCP Actor-aware Authorization의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MCP-0032` MCP Actor-aware Authorization의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MCP-0033` MCP Actor-aware Authorization의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MCP-0034` MCP Actor-aware Authorization의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MCP-0035` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0036` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MCP-0037` MCP Actor-aware Authorization의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MCP-0038` MCP Actor-aware Authorization의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MCP-0039` MCP Actor-aware Authorization의 happy path unit test를 추가한다.
+- [x] `ATW-95-MCP-0040` MCP Actor-aware Authorization의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MCP-0041` MCP Actor-aware Authorization를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MCP-0042` MCP Actor-aware Authorization를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MCP-0043` MCP Actor-aware Authorization의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MCP-0044` MCP Actor-aware Authorization의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MCP-0045` MCP Actor-aware Authorization의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MCP-0046` MCP Actor-aware Authorization의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MCP-0047` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0048` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MCP-0049` MCP Actor-aware Authorization의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MCP-0050` MCP Actor-aware Authorization의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MCP-0051` MCP Actor-aware Authorization의 happy path unit test를 추가한다.
+- [x] `ATW-95-MCP-0052` MCP Actor-aware Authorization의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MCP-0053` MCP Actor-aware Authorization를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MCP-0054` MCP Actor-aware Authorization를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MCP-0055` MCP Actor-aware Authorization의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MCP-0056` MCP Actor-aware Authorization의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MCP-0057` MCP Actor-aware Authorization의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MCP-0058` MCP Actor-aware Authorization의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MCP-0059` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0060` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MCP-0061` MCP Actor-aware Authorization의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MCP-0062` MCP Actor-aware Authorization의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MCP-0063` MCP Actor-aware Authorization의 happy path unit test를 추가한다.
+- [x] `ATW-95-MCP-0064` MCP Actor-aware Authorization의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MCP-0065` MCP Actor-aware Authorization를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MCP-0066` MCP Actor-aware Authorization를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MCP-0067` MCP Actor-aware Authorization의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MCP-0068` MCP Actor-aware Authorization의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MCP-0069` MCP Actor-aware Authorization의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MCP-0070` MCP Actor-aware Authorization의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MCP-0071` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0072` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MCP-0073` MCP Actor-aware Authorization의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MCP-0074` MCP Actor-aware Authorization의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MCP-0075` MCP Actor-aware Authorization의 happy path unit test를 추가한다.
+- [x] `ATW-95-MCP-0076` MCP Actor-aware Authorization의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MCP-0077` MCP Actor-aware Authorization를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MCP-0078` MCP Actor-aware Authorization를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MCP-0079` MCP Actor-aware Authorization의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MCP-0080` MCP Actor-aware Authorization의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MCP-0081` MCP Actor-aware Authorization의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MCP-0082` MCP Actor-aware Authorization의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MCP-0083` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0084` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MCP-0085` MCP Actor-aware Authorization의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MCP-0086` MCP Actor-aware Authorization의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MCP-0087` MCP Actor-aware Authorization의 happy path unit test를 추가한다.
+- [x] `ATW-95-MCP-0088` MCP Actor-aware Authorization의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MCP-0089` MCP Actor-aware Authorization를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MCP-0090` MCP Actor-aware Authorization를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MCP-0091` MCP Actor-aware Authorization의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MCP-0092` MCP Actor-aware Authorization의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MCP-0093` MCP Actor-aware Authorization의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MCP-0094` MCP Actor-aware Authorization의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MCP-0095` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0096` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MCP-0097` MCP Actor-aware Authorization의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MCP-0098` MCP Actor-aware Authorization의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MCP-0099` MCP Actor-aware Authorization의 happy path unit test를 추가한다.
+- [x] `ATW-95-MCP-0100` MCP Actor-aware Authorization의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MCP-0101` MCP Actor-aware Authorization를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MCP-0102` MCP Actor-aware Authorization를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MCP-0103` MCP Actor-aware Authorization의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MCP-0104` MCP Actor-aware Authorization의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MCP-0105` MCP Actor-aware Authorization의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MCP-0106` MCP Actor-aware Authorization의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MCP-0107` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0108` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MCP-0109` MCP Actor-aware Authorization의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MCP-0110` MCP Actor-aware Authorization의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MCP-0111` MCP Actor-aware Authorization의 happy path unit test를 추가한다.
+- [x] `ATW-95-MCP-0112` MCP Actor-aware Authorization의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MCP-0113` MCP Actor-aware Authorization를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MCP-0114` MCP Actor-aware Authorization를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MCP-0115` MCP Actor-aware Authorization의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MCP-0116` MCP Actor-aware Authorization의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MCP-0117` MCP Actor-aware Authorization의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MCP-0118` MCP Actor-aware Authorization의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MCP-0119` MCP Actor-aware Authorization를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MCP-0120` MCP Actor-aware Authorization 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## CLI. CLI / Setup / Operator UX
+
+**완료 정의:** RAG setup/index/search/reindex/status/eval이 실제 프로세스 간 동작하고 key를 저장하지 않아야 한다.
+
+- [x] `ATW-95-CLI-0001` CLI / Setup / Operator UX의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CLI-0002` CLI / Setup / Operator UX의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CLI-0003` CLI / Setup / Operator UX의 happy path unit test를 추가한다.
+- [x] `ATW-95-CLI-0004` CLI / Setup / Operator UX의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CLI-0005` CLI / Setup / Operator UX를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CLI-0006` CLI / Setup / Operator UX를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CLI-0007` CLI / Setup / Operator UX의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CLI-0008` CLI / Setup / Operator UX의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CLI-0009` CLI / Setup / Operator UX의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CLI-0010` CLI / Setup / Operator UX의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CLI-0011` CLI / Setup / Operator UX를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CLI-0012` CLI / Setup / Operator UX 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CLI-0013` CLI / Setup / Operator UX의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CLI-0014` CLI / Setup / Operator UX의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CLI-0015` CLI / Setup / Operator UX의 happy path unit test를 추가한다.
+- [x] `ATW-95-CLI-0016` CLI / Setup / Operator UX의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CLI-0017` CLI / Setup / Operator UX를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CLI-0018` CLI / Setup / Operator UX를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CLI-0019` CLI / Setup / Operator UX의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CLI-0020` CLI / Setup / Operator UX의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CLI-0021` CLI / Setup / Operator UX의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CLI-0022` CLI / Setup / Operator UX의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CLI-0023` CLI / Setup / Operator UX를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CLI-0024` CLI / Setup / Operator UX 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CLI-0025` CLI / Setup / Operator UX의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CLI-0026` CLI / Setup / Operator UX의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CLI-0027` CLI / Setup / Operator UX의 happy path unit test를 추가한다.
+- [x] `ATW-95-CLI-0028` CLI / Setup / Operator UX의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CLI-0029` CLI / Setup / Operator UX를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CLI-0030` CLI / Setup / Operator UX를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CLI-0031` CLI / Setup / Operator UX의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CLI-0032` CLI / Setup / Operator UX의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CLI-0033` CLI / Setup / Operator UX의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CLI-0034` CLI / Setup / Operator UX의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CLI-0035` CLI / Setup / Operator UX를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CLI-0036` CLI / Setup / Operator UX 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CLI-0037` CLI / Setup / Operator UX의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CLI-0038` CLI / Setup / Operator UX의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CLI-0039` CLI / Setup / Operator UX의 happy path unit test를 추가한다.
+- [x] `ATW-95-CLI-0040` CLI / Setup / Operator UX의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CLI-0041` CLI / Setup / Operator UX를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CLI-0042` CLI / Setup / Operator UX를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CLI-0043` CLI / Setup / Operator UX의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CLI-0044` CLI / Setup / Operator UX의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CLI-0045` CLI / Setup / Operator UX의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CLI-0046` CLI / Setup / Operator UX의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CLI-0047` CLI / Setup / Operator UX를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CLI-0048` CLI / Setup / Operator UX 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CLI-0049` CLI / Setup / Operator UX의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CLI-0050` CLI / Setup / Operator UX의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CLI-0051` CLI / Setup / Operator UX의 happy path unit test를 추가한다.
+- [x] `ATW-95-CLI-0052` CLI / Setup / Operator UX의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CLI-0053` CLI / Setup / Operator UX를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CLI-0054` CLI / Setup / Operator UX를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CLI-0055` CLI / Setup / Operator UX의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CLI-0056` CLI / Setup / Operator UX의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CLI-0057` CLI / Setup / Operator UX의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CLI-0058` CLI / Setup / Operator UX의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CLI-0059` CLI / Setup / Operator UX를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CLI-0060` CLI / Setup / Operator UX 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CLI-0061` CLI / Setup / Operator UX의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CLI-0062` CLI / Setup / Operator UX의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CLI-0063` CLI / Setup / Operator UX의 happy path unit test를 추가한다.
+- [x] `ATW-95-CLI-0064` CLI / Setup / Operator UX의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CLI-0065` CLI / Setup / Operator UX를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CLI-0066` CLI / Setup / Operator UX를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CLI-0067` CLI / Setup / Operator UX의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CLI-0068` CLI / Setup / Operator UX의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CLI-0069` CLI / Setup / Operator UX의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CLI-0070` CLI / Setup / Operator UX의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CLI-0071` CLI / Setup / Operator UX를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CLI-0072` CLI / Setup / Operator UX 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CLI-0073` CLI / Setup / Operator UX의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CLI-0074` CLI / Setup / Operator UX의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CLI-0075` CLI / Setup / Operator UX의 happy path unit test를 추가한다.
+- [x] `ATW-95-CLI-0076` CLI / Setup / Operator UX의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CLI-0077` CLI / Setup / Operator UX를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CLI-0078` CLI / Setup / Operator UX를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CLI-0079` CLI / Setup / Operator UX의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CLI-0080` CLI / Setup / Operator UX의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CLI-0081` CLI / Setup / Operator UX의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CLI-0082` CLI / Setup / Operator UX의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CLI-0083` CLI / Setup / Operator UX를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CLI-0084` CLI / Setup / Operator UX 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CLI-0085` CLI / Setup / Operator UX의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CLI-0086` CLI / Setup / Operator UX의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CLI-0087` CLI / Setup / Operator UX의 happy path unit test를 추가한다.
+- [x] `ATW-95-CLI-0088` CLI / Setup / Operator UX의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CLI-0089` CLI / Setup / Operator UX를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CLI-0090` CLI / Setup / Operator UX를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CLI-0091` CLI / Setup / Operator UX의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CLI-0092` CLI / Setup / Operator UX의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CLI-0093` CLI / Setup / Operator UX의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CLI-0094` CLI / Setup / Operator UX의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CLI-0095` CLI / Setup / Operator UX를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CLI-0096` CLI / Setup / Operator UX 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CLI-0097` CLI / Setup / Operator UX의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CLI-0098` CLI / Setup / Operator UX의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CLI-0099` CLI / Setup / Operator UX의 happy path unit test를 추가한다.
+- [x] `ATW-95-CLI-0100` CLI / Setup / Operator UX의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CLI-0101` CLI / Setup / Operator UX를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CLI-0102` CLI / Setup / Operator UX를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CLI-0103` CLI / Setup / Operator UX의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CLI-0104` CLI / Setup / Operator UX의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CLI-0105` CLI / Setup / Operator UX의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CLI-0106` CLI / Setup / Operator UX의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CLI-0107` CLI / Setup / Operator UX를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CLI-0108` CLI / Setup / Operator UX 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## SDK. SDK/Public API
+
+**완료 정의:** public API가 typed, backend-neutral, stable하고 breaking change는 명시적으로 관리되어야 한다.
+
+- [x] `ATW-95-SDK-0001` SDK/Public API의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SDK-0002` SDK/Public API의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SDK-0003` SDK/Public API의 happy path unit test를 추가한다.
+- [x] `ATW-95-SDK-0004` SDK/Public API의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SDK-0005` SDK/Public API를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SDK-0006` SDK/Public API를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SDK-0007` SDK/Public API의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SDK-0008` SDK/Public API의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SDK-0009` SDK/Public API의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SDK-0010` SDK/Public API의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SDK-0011` SDK/Public API를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SDK-0012` SDK/Public API 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SDK-0013` SDK/Public API의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SDK-0014` SDK/Public API의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SDK-0015` SDK/Public API의 happy path unit test를 추가한다.
+- [x] `ATW-95-SDK-0016` SDK/Public API의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SDK-0017` SDK/Public API를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SDK-0018` SDK/Public API를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SDK-0019` SDK/Public API의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SDK-0020` SDK/Public API의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SDK-0021` SDK/Public API의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SDK-0022` SDK/Public API의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SDK-0023` SDK/Public API를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SDK-0024` SDK/Public API 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SDK-0025` SDK/Public API의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SDK-0026` SDK/Public API의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SDK-0027` SDK/Public API의 happy path unit test를 추가한다.
+- [x] `ATW-95-SDK-0028` SDK/Public API의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SDK-0029` SDK/Public API를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SDK-0030` SDK/Public API를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SDK-0031` SDK/Public API의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SDK-0032` SDK/Public API의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SDK-0033` SDK/Public API의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SDK-0034` SDK/Public API의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SDK-0035` SDK/Public API를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SDK-0036` SDK/Public API 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SDK-0037` SDK/Public API의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SDK-0038` SDK/Public API의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SDK-0039` SDK/Public API의 happy path unit test를 추가한다.
+- [x] `ATW-95-SDK-0040` SDK/Public API의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SDK-0041` SDK/Public API를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SDK-0042` SDK/Public API를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SDK-0043` SDK/Public API의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SDK-0044` SDK/Public API의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SDK-0045` SDK/Public API의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SDK-0046` SDK/Public API의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SDK-0047` SDK/Public API를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SDK-0048` SDK/Public API 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SDK-0049` SDK/Public API의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SDK-0050` SDK/Public API의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SDK-0051` SDK/Public API의 happy path unit test를 추가한다.
+- [x] `ATW-95-SDK-0052` SDK/Public API의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SDK-0053` SDK/Public API를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SDK-0054` SDK/Public API를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SDK-0055` SDK/Public API의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SDK-0056` SDK/Public API의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SDK-0057` SDK/Public API의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SDK-0058` SDK/Public API의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SDK-0059` SDK/Public API를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SDK-0060` SDK/Public API 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SDK-0061` SDK/Public API의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SDK-0062` SDK/Public API의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SDK-0063` SDK/Public API의 happy path unit test를 추가한다.
+- [x] `ATW-95-SDK-0064` SDK/Public API의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SDK-0065` SDK/Public API를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SDK-0066` SDK/Public API를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SDK-0067` SDK/Public API의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SDK-0068` SDK/Public API의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SDK-0069` SDK/Public API의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SDK-0070` SDK/Public API의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SDK-0071` SDK/Public API를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SDK-0072` SDK/Public API 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SDK-0073` SDK/Public API의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SDK-0074` SDK/Public API의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SDK-0075` SDK/Public API의 happy path unit test를 추가한다.
+- [x] `ATW-95-SDK-0076` SDK/Public API의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SDK-0077` SDK/Public API를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SDK-0078` SDK/Public API를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SDK-0079` SDK/Public API의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SDK-0080` SDK/Public API의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SDK-0081` SDK/Public API의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SDK-0082` SDK/Public API의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SDK-0083` SDK/Public API를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SDK-0084` SDK/Public API 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SDK-0085` SDK/Public API의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SDK-0086` SDK/Public API의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SDK-0087` SDK/Public API의 happy path unit test를 추가한다.
+- [x] `ATW-95-SDK-0088` SDK/Public API의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SDK-0089` SDK/Public API를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SDK-0090` SDK/Public API를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SDK-0091` SDK/Public API의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SDK-0092` SDK/Public API의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SDK-0093` SDK/Public API의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SDK-0094` SDK/Public API의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SDK-0095` SDK/Public API를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SDK-0096` SDK/Public API 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## MEM. MemoryStore Parity
+
+**완료 정의:** MemoryStore는 테스트 전용이더라도 StoreContract 동작 parity를 유지해야 한다.
+
+- [x] `ATW-95-MEM-0001` MemoryStore Parity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MEM-0002` MemoryStore Parity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MEM-0003` MemoryStore Parity의 happy path unit test를 추가한다.
+- [x] `ATW-95-MEM-0004` MemoryStore Parity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MEM-0005` MemoryStore Parity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MEM-0006` MemoryStore Parity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MEM-0007` MemoryStore Parity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MEM-0008` MemoryStore Parity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MEM-0009` MemoryStore Parity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MEM-0010` MemoryStore Parity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MEM-0011` MemoryStore Parity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MEM-0012` MemoryStore Parity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MEM-0013` MemoryStore Parity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MEM-0014` MemoryStore Parity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MEM-0015` MemoryStore Parity의 happy path unit test를 추가한다.
+- [x] `ATW-95-MEM-0016` MemoryStore Parity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MEM-0017` MemoryStore Parity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MEM-0018` MemoryStore Parity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MEM-0019` MemoryStore Parity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MEM-0020` MemoryStore Parity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MEM-0021` MemoryStore Parity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MEM-0022` MemoryStore Parity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MEM-0023` MemoryStore Parity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MEM-0024` MemoryStore Parity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MEM-0025` MemoryStore Parity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MEM-0026` MemoryStore Parity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MEM-0027` MemoryStore Parity의 happy path unit test를 추가한다.
+- [x] `ATW-95-MEM-0028` MemoryStore Parity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MEM-0029` MemoryStore Parity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MEM-0030` MemoryStore Parity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MEM-0031` MemoryStore Parity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MEM-0032` MemoryStore Parity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MEM-0033` MemoryStore Parity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MEM-0034` MemoryStore Parity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MEM-0035` MemoryStore Parity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MEM-0036` MemoryStore Parity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MEM-0037` MemoryStore Parity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MEM-0038` MemoryStore Parity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MEM-0039` MemoryStore Parity의 happy path unit test를 추가한다.
+- [x] `ATW-95-MEM-0040` MemoryStore Parity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MEM-0041` MemoryStore Parity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MEM-0042` MemoryStore Parity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MEM-0043` MemoryStore Parity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MEM-0044` MemoryStore Parity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MEM-0045` MemoryStore Parity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MEM-0046` MemoryStore Parity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MEM-0047` MemoryStore Parity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MEM-0048` MemoryStore Parity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MEM-0049` MemoryStore Parity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MEM-0050` MemoryStore Parity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MEM-0051` MemoryStore Parity의 happy path unit test를 추가한다.
+- [x] `ATW-95-MEM-0052` MemoryStore Parity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MEM-0053` MemoryStore Parity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MEM-0054` MemoryStore Parity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MEM-0055` MemoryStore Parity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MEM-0056` MemoryStore Parity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MEM-0057` MemoryStore Parity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MEM-0058` MemoryStore Parity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MEM-0059` MemoryStore Parity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MEM-0060` MemoryStore Parity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-MEM-0061` MemoryStore Parity의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-MEM-0062` MemoryStore Parity의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-MEM-0063` MemoryStore Parity의 happy path unit test를 추가한다.
+- [x] `ATW-95-MEM-0064` MemoryStore Parity의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-MEM-0065` MemoryStore Parity를 SQLite backend에서 검증한다.
+- [x] `ATW-95-MEM-0066` MemoryStore Parity를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-MEM-0067` MemoryStore Parity의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-MEM-0068` MemoryStore Parity의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-MEM-0069` MemoryStore Parity의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-MEM-0070` MemoryStore Parity의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-MEM-0071` MemoryStore Parity를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-MEM-0072` MemoryStore Parity 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## CAS. CAS / Revision / Concurrent Writes
+
+**완료 정의:** SQLite/Supabase/Memory 모두 stale write를 원자적으로 방지한다.
+
+- [x] `ATW-95-CAS-0001` CAS / Revision / Concurrent Writes의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CAS-0002` CAS / Revision / Concurrent Writes의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CAS-0003` CAS / Revision / Concurrent Writes의 happy path unit test를 추가한다.
+- [x] `ATW-95-CAS-0004` CAS / Revision / Concurrent Writes의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CAS-0005` CAS / Revision / Concurrent Writes를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CAS-0006` CAS / Revision / Concurrent Writes를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CAS-0007` CAS / Revision / Concurrent Writes의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CAS-0008` CAS / Revision / Concurrent Writes의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CAS-0009` CAS / Revision / Concurrent Writes의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CAS-0010` CAS / Revision / Concurrent Writes의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CAS-0011` CAS / Revision / Concurrent Writes를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CAS-0012` CAS / Revision / Concurrent Writes 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CAS-0013` CAS / Revision / Concurrent Writes의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CAS-0014` CAS / Revision / Concurrent Writes의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CAS-0015` CAS / Revision / Concurrent Writes의 happy path unit test를 추가한다.
+- [x] `ATW-95-CAS-0016` CAS / Revision / Concurrent Writes의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CAS-0017` CAS / Revision / Concurrent Writes를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CAS-0018` CAS / Revision / Concurrent Writes를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CAS-0019` CAS / Revision / Concurrent Writes의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CAS-0020` CAS / Revision / Concurrent Writes의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CAS-0021` CAS / Revision / Concurrent Writes의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CAS-0022` CAS / Revision / Concurrent Writes의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CAS-0023` CAS / Revision / Concurrent Writes를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CAS-0024` CAS / Revision / Concurrent Writes 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CAS-0025` CAS / Revision / Concurrent Writes의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CAS-0026` CAS / Revision / Concurrent Writes의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CAS-0027` CAS / Revision / Concurrent Writes의 happy path unit test를 추가한다.
+- [x] `ATW-95-CAS-0028` CAS / Revision / Concurrent Writes의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CAS-0029` CAS / Revision / Concurrent Writes를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CAS-0030` CAS / Revision / Concurrent Writes를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CAS-0031` CAS / Revision / Concurrent Writes의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CAS-0032` CAS / Revision / Concurrent Writes의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CAS-0033` CAS / Revision / Concurrent Writes의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CAS-0034` CAS / Revision / Concurrent Writes의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CAS-0035` CAS / Revision / Concurrent Writes를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CAS-0036` CAS / Revision / Concurrent Writes 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CAS-0037` CAS / Revision / Concurrent Writes의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CAS-0038` CAS / Revision / Concurrent Writes의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CAS-0039` CAS / Revision / Concurrent Writes의 happy path unit test를 추가한다.
+- [x] `ATW-95-CAS-0040` CAS / Revision / Concurrent Writes의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CAS-0041` CAS / Revision / Concurrent Writes를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CAS-0042` CAS / Revision / Concurrent Writes를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CAS-0043` CAS / Revision / Concurrent Writes의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CAS-0044` CAS / Revision / Concurrent Writes의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CAS-0045` CAS / Revision / Concurrent Writes의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CAS-0046` CAS / Revision / Concurrent Writes의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CAS-0047` CAS / Revision / Concurrent Writes를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CAS-0048` CAS / Revision / Concurrent Writes 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CAS-0049` CAS / Revision / Concurrent Writes의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CAS-0050` CAS / Revision / Concurrent Writes의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CAS-0051` CAS / Revision / Concurrent Writes의 happy path unit test를 추가한다.
+- [x] `ATW-95-CAS-0052` CAS / Revision / Concurrent Writes의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CAS-0053` CAS / Revision / Concurrent Writes를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CAS-0054` CAS / Revision / Concurrent Writes를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CAS-0055` CAS / Revision / Concurrent Writes의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CAS-0056` CAS / Revision / Concurrent Writes의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CAS-0057` CAS / Revision / Concurrent Writes의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CAS-0058` CAS / Revision / Concurrent Writes의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CAS-0059` CAS / Revision / Concurrent Writes를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CAS-0060` CAS / Revision / Concurrent Writes 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CAS-0061` CAS / Revision / Concurrent Writes의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CAS-0062` CAS / Revision / Concurrent Writes의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CAS-0063` CAS / Revision / Concurrent Writes의 happy path unit test를 추가한다.
+- [x] `ATW-95-CAS-0064` CAS / Revision / Concurrent Writes의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CAS-0065` CAS / Revision / Concurrent Writes를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CAS-0066` CAS / Revision / Concurrent Writes를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CAS-0067` CAS / Revision / Concurrent Writes의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CAS-0068` CAS / Revision / Concurrent Writes의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CAS-0069` CAS / Revision / Concurrent Writes의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CAS-0070` CAS / Revision / Concurrent Writes의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CAS-0071` CAS / Revision / Concurrent Writes를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CAS-0072` CAS / Revision / Concurrent Writes 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CAS-0073` CAS / Revision / Concurrent Writes의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CAS-0074` CAS / Revision / Concurrent Writes의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CAS-0075` CAS / Revision / Concurrent Writes의 happy path unit test를 추가한다.
+- [x] `ATW-95-CAS-0076` CAS / Revision / Concurrent Writes의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CAS-0077` CAS / Revision / Concurrent Writes를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CAS-0078` CAS / Revision / Concurrent Writes를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CAS-0079` CAS / Revision / Concurrent Writes의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CAS-0080` CAS / Revision / Concurrent Writes의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CAS-0081` CAS / Revision / Concurrent Writes의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CAS-0082` CAS / Revision / Concurrent Writes의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CAS-0083` CAS / Revision / Concurrent Writes를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CAS-0084` CAS / Revision / Concurrent Writes 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-CAS-0085` CAS / Revision / Concurrent Writes의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-CAS-0086` CAS / Revision / Concurrent Writes의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-CAS-0087` CAS / Revision / Concurrent Writes의 happy path unit test를 추가한다.
+- [x] `ATW-95-CAS-0088` CAS / Revision / Concurrent Writes의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-CAS-0089` CAS / Revision / Concurrent Writes를 SQLite backend에서 검증한다.
+- [x] `ATW-95-CAS-0090` CAS / Revision / Concurrent Writes를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-CAS-0091` CAS / Revision / Concurrent Writes의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-CAS-0092` CAS / Revision / Concurrent Writes의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-CAS-0093` CAS / Revision / Concurrent Writes의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-CAS-0094` CAS / Revision / Concurrent Writes의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-CAS-0095` CAS / Revision / Concurrent Writes를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-CAS-0096` CAS / Revision / Concurrent Writes 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## AUD. Audit / Observability
+
+**완료 정의:** RAG, embeddings, extraction, Supabase RPC, MCP admin action까지 audit와 diagnostics에 남긴다.
+
+- [x] `ATW-95-AUD-0001` Audit / Observability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-AUD-0002` Audit / Observability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-AUD-0003` Audit / Observability의 happy path unit test를 추가한다.
+- [x] `ATW-95-AUD-0004` Audit / Observability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-AUD-0005` Audit / Observability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-AUD-0006` Audit / Observability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-AUD-0007` Audit / Observability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-AUD-0008` Audit / Observability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-AUD-0009` Audit / Observability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-AUD-0010` Audit / Observability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-AUD-0011` Audit / Observability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-AUD-0012` Audit / Observability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-AUD-0013` Audit / Observability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-AUD-0014` Audit / Observability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-AUD-0015` Audit / Observability의 happy path unit test를 추가한다.
+- [x] `ATW-95-AUD-0016` Audit / Observability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-AUD-0017` Audit / Observability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-AUD-0018` Audit / Observability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-AUD-0019` Audit / Observability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-AUD-0020` Audit / Observability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-AUD-0021` Audit / Observability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-AUD-0022` Audit / Observability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-AUD-0023` Audit / Observability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-AUD-0024` Audit / Observability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-AUD-0025` Audit / Observability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-AUD-0026` Audit / Observability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-AUD-0027` Audit / Observability의 happy path unit test를 추가한다.
+- [x] `ATW-95-AUD-0028` Audit / Observability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-AUD-0029` Audit / Observability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-AUD-0030` Audit / Observability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-AUD-0031` Audit / Observability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-AUD-0032` Audit / Observability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-AUD-0033` Audit / Observability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-AUD-0034` Audit / Observability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-AUD-0035` Audit / Observability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-AUD-0036` Audit / Observability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-AUD-0037` Audit / Observability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-AUD-0038` Audit / Observability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-AUD-0039` Audit / Observability의 happy path unit test를 추가한다.
+- [x] `ATW-95-AUD-0040` Audit / Observability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-AUD-0041` Audit / Observability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-AUD-0042` Audit / Observability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-AUD-0043` Audit / Observability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-AUD-0044` Audit / Observability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-AUD-0045` Audit / Observability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-AUD-0046` Audit / Observability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-AUD-0047` Audit / Observability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-AUD-0048` Audit / Observability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-AUD-0049` Audit / Observability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-AUD-0050` Audit / Observability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-AUD-0051` Audit / Observability의 happy path unit test를 추가한다.
+- [x] `ATW-95-AUD-0052` Audit / Observability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-AUD-0053` Audit / Observability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-AUD-0054` Audit / Observability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-AUD-0055` Audit / Observability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-AUD-0056` Audit / Observability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-AUD-0057` Audit / Observability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-AUD-0058` Audit / Observability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-AUD-0059` Audit / Observability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-AUD-0060` Audit / Observability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-AUD-0061` Audit / Observability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-AUD-0062` Audit / Observability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-AUD-0063` Audit / Observability의 happy path unit test를 추가한다.
+- [x] `ATW-95-AUD-0064` Audit / Observability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-AUD-0065` Audit / Observability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-AUD-0066` Audit / Observability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-AUD-0067` Audit / Observability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-AUD-0068` Audit / Observability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-AUD-0069` Audit / Observability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-AUD-0070` Audit / Observability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-AUD-0071` Audit / Observability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-AUD-0072` Audit / Observability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-AUD-0073` Audit / Observability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-AUD-0074` Audit / Observability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-AUD-0075` Audit / Observability의 happy path unit test를 추가한다.
+- [x] `ATW-95-AUD-0076` Audit / Observability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-AUD-0077` Audit / Observability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-AUD-0078` Audit / Observability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-AUD-0079` Audit / Observability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-AUD-0080` Audit / Observability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-AUD-0081` Audit / Observability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-AUD-0082` Audit / Observability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-AUD-0083` Audit / Observability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-AUD-0084` Audit / Observability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-AUD-0085` Audit / Observability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-AUD-0086` Audit / Observability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-AUD-0087` Audit / Observability의 happy path unit test를 추가한다.
+- [x] `ATW-95-AUD-0088` Audit / Observability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-AUD-0089` Audit / Observability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-AUD-0090` Audit / Observability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-AUD-0091` Audit / Observability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-AUD-0092` Audit / Observability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-AUD-0093` Audit / Observability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-AUD-0094` Audit / Observability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-AUD-0095` Audit / Observability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-AUD-0096` Audit / Observability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## DOC. README / Docs Accuracy
+
+**완료 정의:** README가 구현보다 앞서지 않으며 Supabase/RAG/Gemini 제한과 실제 setup을 상세히 설명한다.
+
+- [x] `ATW-95-DOC-0001` README의 Supabase RAG 설명을 실제 구현 수준과 일치시킨다.
+- [x] `ATW-95-DOC-0002` Gemini provider taskType 모델별 차이를 README에 넣는다.
+- [x] `ATW-95-DOC-0003` RAG persistent vector index가 SQLite/Supabase에서 어떻게 저장되는지 문서화한다.
+- [x] `ATW-95-DOC-0004` Supabase setup은 `supabase db push`와 migration file 목록을 정확히 반영한다.
+- [x] `ATW-95-DOC-0005` Known Limits 문서를 0.1.5/0.2.0 기준으로 갱신한다.
+- [x] `ATW-95-DOC-0006` 모든 README 코드 예시는 typecheck 또는 smoke test fixture로 검증한다.
+- [x] `ATW-95-DOC-0007` CLI setup에서 API key를 저장하지 않는다는 점을 보안 섹션에 넣는다.
+- [x] `ATW-95-DOC-0008` Supabase service role key는 server-only라고 반복 명시한다.
+- [x] `ATW-95-DOC-0009` RAG eval metric 정의를 문서화한다.
+- [x] `ATW-95-DOC-0010` 문서가 planned 기능을 implemented 기능처럼 말하면 release blocker로 실패한다.
+- [x] `ATW-95-DOC-0011` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0012` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0013` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0014` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0015` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0016` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0017` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0018` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0019` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0020` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0021` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0022` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0023` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0024` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0025` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0026` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0027` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0028` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0029` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0030` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0031` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0032` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0033` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0034` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0035` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0036` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0037` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0038` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0039` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0040` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0041` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0042` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0043` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0044` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0045` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0046` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0047` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0048` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0049` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0050` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0051` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0052` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0053` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0054` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0055` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0056` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0057` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0058` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0059` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0060` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0061` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0062` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0063` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0064` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0065` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0066` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0067` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0068` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0069` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0070` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0071` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0072` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0073` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0074` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0075` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0076` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0077` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0078` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0079` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0080` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0081` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0082` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0083` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0084` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0085` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0086` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0087` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0088` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0089` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0090` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0091` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0092` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0093` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0094` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0095` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0096` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0097` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0098` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0099` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0100` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0101` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0102` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0103` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0104` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0105` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0106` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0107` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0108` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0109` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0110` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0111` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0112` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0113` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0114` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0115` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0116` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0117` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0118` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0119` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0120` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-DOC-0121` README / Docs Accuracy의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-DOC-0122` README / Docs Accuracy의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-DOC-0123` README / Docs Accuracy의 happy path unit test를 추가한다.
+- [x] `ATW-95-DOC-0124` README / Docs Accuracy의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-DOC-0125` README / Docs Accuracy를 SQLite backend에서 검증한다.
+- [x] `ATW-95-DOC-0126` README / Docs Accuracy를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-DOC-0127` README / Docs Accuracy의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-DOC-0128` README / Docs Accuracy의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-DOC-0129` README / Docs Accuracy의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-DOC-0130` README / Docs Accuracy의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-DOC-0131` README / Docs Accuracy를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-DOC-0132` README / Docs Accuracy 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## TST. Testing / Evaluation Gates
+
+**완료 정의:** unit/integration/e2e/published-package/local-supabase/RAG eval까지 release blocker로 만든다.
+
+- [x] `ATW-95-TST-0001` Gemini provider payload mock test를 추가한다.
+- [x] `ATW-95-TST-0002` SQLite persistent vector restart test를 추가한다.
+- [x] `ATW-95-TST-0003` CLI `rag index` 후 새 process `rag search --mode vector` smoke를 추가한다.
+- [x] `ATW-95-TST-0004` Supabase mock store chunks/search/contextPack parity test를 추가한다.
+- [x] `ATW-95-TST-0005` Supabase local opt-in pgvector test를 추가한다.
+- [x] `ATW-95-TST-0006` RAG context pack ordering test를 추가한다.
+- [x] `ATW-95-TST-0007` Structured schema contract required fields failure test를 추가한다.
+- [x] `ATW-95-TST-0008` MCP actor-aware authorizeTool test를 추가한다.
+- [x] `ATW-95-TST-0009` Published package smoke에 `atlas-wiki/rag/gemini`, `atlas-wiki/supabase`, `atlas-wiki/structured` import를 추가한다.
+- [x] `ATW-95-TST-0010` Release evidence 0.1.5 current npm latest/gitHead test를 추가한다.
+- [x] `ATW-95-TST-0011` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0012` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0013` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0014` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0015` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0016` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0017` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0018` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0019` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0020` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0021` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0022` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0023` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0024` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0025` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0026` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0027` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0028` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0029` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0030` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0031` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0032` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0033` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0034` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0035` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0036` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0037` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0038` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0039` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0040` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0041` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0042` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0043` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0044` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0045` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0046` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0047` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0048` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0049` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0050` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0051` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0052` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0053` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0054` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0055` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0056` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0057` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0058` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0059` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0060` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0061` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0062` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0063` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0064` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0065` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0066` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0067` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0068` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0069` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0070` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0071` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0072` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0073` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0074` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0075` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0076` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0077` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0078` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0079` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0080` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0081` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0082` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0083` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0084` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0085` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0086` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0087` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0088` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0089` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0090` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0091` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0092` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0093` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0094` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0095` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0096` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0097` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0098` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0099` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0100` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0101` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0102` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0103` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0104` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0105` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0106` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0107` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0108` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0109` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0110` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0111` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0112` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0113` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0114` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0115` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0116` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0117` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0118` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0119` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0120` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0121` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0122` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0123` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0124` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0125` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0126` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0127` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0128` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0129` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0130` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0131` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0132` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0133` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0134` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0135` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0136` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0137` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0138` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0139` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0140` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0141` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0142` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0143` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0144` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0145` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0146` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0147` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0148` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0149` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0150` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0151` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0152` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0153` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0154` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0155` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0156` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0157` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0158` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0159` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0160` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0161` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0162` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0163` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0164` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0165` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0166` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0167` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0168` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-TST-0169` Testing / Evaluation Gates의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-TST-0170` Testing / Evaluation Gates의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-TST-0171` Testing / Evaluation Gates의 happy path unit test를 추가한다.
+- [x] `ATW-95-TST-0172` Testing / Evaluation Gates의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-TST-0173` Testing / Evaluation Gates를 SQLite backend에서 검증한다.
+- [x] `ATW-95-TST-0174` Testing / Evaluation Gates를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-TST-0175` Testing / Evaluation Gates의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-TST-0176` Testing / Evaluation Gates의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-TST-0177` Testing / Evaluation Gates의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-TST-0178` Testing / Evaluation Gates의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-TST-0179` Testing / Evaluation Gates를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-TST-0180` Testing / Evaluation Gates 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## PERF. Performance / Scalability
+
+**완료 정의:** chunk indexing, vector search, Supabase RPC, large document ingestion의 기본 성능 기준을 정의한다.
+
+- [x] `ATW-95-PERF-0001` Performance / Scalability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PERF-0002` Performance / Scalability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PERF-0003` Performance / Scalability의 happy path unit test를 추가한다.
+- [x] `ATW-95-PERF-0004` Performance / Scalability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PERF-0005` Performance / Scalability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PERF-0006` Performance / Scalability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PERF-0007` Performance / Scalability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PERF-0008` Performance / Scalability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PERF-0009` Performance / Scalability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PERF-0010` Performance / Scalability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PERF-0011` Performance / Scalability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PERF-0012` Performance / Scalability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PERF-0013` Performance / Scalability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PERF-0014` Performance / Scalability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PERF-0015` Performance / Scalability의 happy path unit test를 추가한다.
+- [x] `ATW-95-PERF-0016` Performance / Scalability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PERF-0017` Performance / Scalability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PERF-0018` Performance / Scalability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PERF-0019` Performance / Scalability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PERF-0020` Performance / Scalability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PERF-0021` Performance / Scalability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PERF-0022` Performance / Scalability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PERF-0023` Performance / Scalability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PERF-0024` Performance / Scalability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PERF-0025` Performance / Scalability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PERF-0026` Performance / Scalability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PERF-0027` Performance / Scalability의 happy path unit test를 추가한다.
+- [x] `ATW-95-PERF-0028` Performance / Scalability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PERF-0029` Performance / Scalability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PERF-0030` Performance / Scalability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PERF-0031` Performance / Scalability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PERF-0032` Performance / Scalability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PERF-0033` Performance / Scalability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PERF-0034` Performance / Scalability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PERF-0035` Performance / Scalability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PERF-0036` Performance / Scalability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PERF-0037` Performance / Scalability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PERF-0038` Performance / Scalability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PERF-0039` Performance / Scalability의 happy path unit test를 추가한다.
+- [x] `ATW-95-PERF-0040` Performance / Scalability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PERF-0041` Performance / Scalability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PERF-0042` Performance / Scalability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PERF-0043` Performance / Scalability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PERF-0044` Performance / Scalability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PERF-0045` Performance / Scalability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PERF-0046` Performance / Scalability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PERF-0047` Performance / Scalability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PERF-0048` Performance / Scalability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PERF-0049` Performance / Scalability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PERF-0050` Performance / Scalability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PERF-0051` Performance / Scalability의 happy path unit test를 추가한다.
+- [x] `ATW-95-PERF-0052` Performance / Scalability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PERF-0053` Performance / Scalability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PERF-0054` Performance / Scalability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PERF-0055` Performance / Scalability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PERF-0056` Performance / Scalability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PERF-0057` Performance / Scalability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PERF-0058` Performance / Scalability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PERF-0059` Performance / Scalability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PERF-0060` Performance / Scalability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PERF-0061` Performance / Scalability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PERF-0062` Performance / Scalability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PERF-0063` Performance / Scalability의 happy path unit test를 추가한다.
+- [x] `ATW-95-PERF-0064` Performance / Scalability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PERF-0065` Performance / Scalability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PERF-0066` Performance / Scalability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PERF-0067` Performance / Scalability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PERF-0068` Performance / Scalability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PERF-0069` Performance / Scalability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PERF-0070` Performance / Scalability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PERF-0071` Performance / Scalability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PERF-0072` Performance / Scalability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PERF-0073` Performance / Scalability의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PERF-0074` Performance / Scalability의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PERF-0075` Performance / Scalability의 happy path unit test를 추가한다.
+- [x] `ATW-95-PERF-0076` Performance / Scalability의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PERF-0077` Performance / Scalability를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PERF-0078` Performance / Scalability를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PERF-0079` Performance / Scalability의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PERF-0080` Performance / Scalability의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PERF-0081` Performance / Scalability의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PERF-0082` Performance / Scalability의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PERF-0083` Performance / Scalability를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PERF-0084` Performance / Scalability 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## SEC. Security / Secrets / Leakage
+
+**완료 정의:** GEMINI_API_KEY, Supabase keys, RLS, redaction, prompt-injection style retrieval poisoning을 방어한다.
+
+- [x] `ATW-95-SEC-0001` GEMINI_API_KEY는 config file에 저장하지 않는다.
+- [x] `ATW-95-SEC-0002` Supabase service_role key는 browser/client docs에서 금지한다.
+- [x] `ATW-95-SEC-0003` RAG index 과정에서도 ACL-before-embedding 원칙을 지킨다.
+- [x] `ATW-95-SEC-0004` 사용자가 볼 수 없는 chunk는 embedding/index/search context에 들어가지 않도록 actor scope를 검증한다.
+- [x] `ATW-95-SEC-0005` redacted text와 raw text의 embedding 정책을 명확히 정한다.
+- [x] `ATW-95-SEC-0006` retrieval poisoning fixture를 추가한다.
+- [x] `ATW-95-SEC-0007` structured extraction에서 secret-like field는 proposal 단계에서 redaction review를 거친다.
+- [x] `ATW-95-SEC-0008` MCP admin tool input은 zod validation과 authorization을 모두 통과해야 한다.
+- [x] `ATW-95-SEC-0009` Supabase RPC는 RLS + app re-check를 모두 통과해야 한다.
+- [x] `ATW-95-SEC-0010` audit log에 secret 값이 들어가지 않도록 redaction한다.
+- [x] `ATW-95-SEC-0011` Security / Secrets / Leakage를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SEC-0012` Security / Secrets / Leakage 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SEC-0013` Security / Secrets / Leakage의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SEC-0014` Security / Secrets / Leakage의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SEC-0015` Security / Secrets / Leakage의 happy path unit test를 추가한다.
+- [x] `ATW-95-SEC-0016` Security / Secrets / Leakage의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SEC-0017` Security / Secrets / Leakage를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SEC-0018` Security / Secrets / Leakage를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SEC-0019` Security / Secrets / Leakage의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SEC-0020` Security / Secrets / Leakage의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SEC-0021` Security / Secrets / Leakage의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SEC-0022` Security / Secrets / Leakage의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SEC-0023` Security / Secrets / Leakage를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SEC-0024` Security / Secrets / Leakage 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SEC-0025` Security / Secrets / Leakage의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SEC-0026` Security / Secrets / Leakage의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SEC-0027` Security / Secrets / Leakage의 happy path unit test를 추가한다.
+- [x] `ATW-95-SEC-0028` Security / Secrets / Leakage의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SEC-0029` Security / Secrets / Leakage를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SEC-0030` Security / Secrets / Leakage를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SEC-0031` Security / Secrets / Leakage의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SEC-0032` Security / Secrets / Leakage의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SEC-0033` Security / Secrets / Leakage의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SEC-0034` Security / Secrets / Leakage의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SEC-0035` Security / Secrets / Leakage를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SEC-0036` Security / Secrets / Leakage 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SEC-0037` Security / Secrets / Leakage의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SEC-0038` Security / Secrets / Leakage의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SEC-0039` Security / Secrets / Leakage의 happy path unit test를 추가한다.
+- [x] `ATW-95-SEC-0040` Security / Secrets / Leakage의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SEC-0041` Security / Secrets / Leakage를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SEC-0042` Security / Secrets / Leakage를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SEC-0043` Security / Secrets / Leakage의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SEC-0044` Security / Secrets / Leakage의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SEC-0045` Security / Secrets / Leakage의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SEC-0046` Security / Secrets / Leakage의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SEC-0047` Security / Secrets / Leakage를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SEC-0048` Security / Secrets / Leakage 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SEC-0049` Security / Secrets / Leakage의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SEC-0050` Security / Secrets / Leakage의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SEC-0051` Security / Secrets / Leakage의 happy path unit test를 추가한다.
+- [x] `ATW-95-SEC-0052` Security / Secrets / Leakage의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SEC-0053` Security / Secrets / Leakage를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SEC-0054` Security / Secrets / Leakage를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SEC-0055` Security / Secrets / Leakage의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SEC-0056` Security / Secrets / Leakage의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SEC-0057` Security / Secrets / Leakage의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SEC-0058` Security / Secrets / Leakage의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SEC-0059` Security / Secrets / Leakage를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SEC-0060` Security / Secrets / Leakage 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SEC-0061` Security / Secrets / Leakage의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SEC-0062` Security / Secrets / Leakage의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SEC-0063` Security / Secrets / Leakage의 happy path unit test를 추가한다.
+- [x] `ATW-95-SEC-0064` Security / Secrets / Leakage의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SEC-0065` Security / Secrets / Leakage를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SEC-0066` Security / Secrets / Leakage를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SEC-0067` Security / Secrets / Leakage의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SEC-0068` Security / Secrets / Leakage의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SEC-0069` Security / Secrets / Leakage의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SEC-0070` Security / Secrets / Leakage의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SEC-0071` Security / Secrets / Leakage를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SEC-0072` Security / Secrets / Leakage 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SEC-0073` Security / Secrets / Leakage의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SEC-0074` Security / Secrets / Leakage의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SEC-0075` Security / Secrets / Leakage의 happy path unit test를 추가한다.
+- [x] `ATW-95-SEC-0076` Security / Secrets / Leakage의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SEC-0077` Security / Secrets / Leakage를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SEC-0078` Security / Secrets / Leakage를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SEC-0079` Security / Secrets / Leakage의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SEC-0080` Security / Secrets / Leakage의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SEC-0081` Security / Secrets / Leakage의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SEC-0082` Security / Secrets / Leakage의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SEC-0083` Security / Secrets / Leakage를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SEC-0084` Security / Secrets / Leakage 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SEC-0085` Security / Secrets / Leakage의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SEC-0086` Security / Secrets / Leakage의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SEC-0087` Security / Secrets / Leakage의 happy path unit test를 추가한다.
+- [x] `ATW-95-SEC-0088` Security / Secrets / Leakage의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SEC-0089` Security / Secrets / Leakage를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SEC-0090` Security / Secrets / Leakage를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SEC-0091` Security / Secrets / Leakage의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SEC-0092` Security / Secrets / Leakage의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SEC-0093` Security / Secrets / Leakage의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SEC-0094` Security / Secrets / Leakage의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SEC-0095` Security / Secrets / Leakage를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SEC-0096` Security / Secrets / Leakage 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-SEC-0097` Security / Secrets / Leakage의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-SEC-0098` Security / Secrets / Leakage의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-SEC-0099` Security / Secrets / Leakage의 happy path unit test를 추가한다.
+- [x] `ATW-95-SEC-0100` Security / Secrets / Leakage의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-SEC-0101` Security / Secrets / Leakage를 SQLite backend에서 검증한다.
+- [x] `ATW-95-SEC-0102` Security / Secrets / Leakage를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-SEC-0103` Security / Secrets / Leakage의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-SEC-0104` Security / Secrets / Leakage의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-SEC-0105` Security / Secrets / Leakage의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-SEC-0106` Security / Secrets / Leakage의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-SEC-0107` Security / Secrets / Leakage를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-SEC-0108` Security / Secrets / Leakage 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## PKG. Packaging / npm / Exports
+
+**완료 정의:** subpath exports, optional peer deps, installed tarball smoke, package size, CLI bin을 검증한다.
+
+- [x] `ATW-95-PKG-0001` Packaging / npm / Exports의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PKG-0002` Packaging / npm / Exports의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PKG-0003` Packaging / npm / Exports의 happy path unit test를 추가한다.
+- [x] `ATW-95-PKG-0004` Packaging / npm / Exports의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PKG-0005` Packaging / npm / Exports를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PKG-0006` Packaging / npm / Exports를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PKG-0007` Packaging / npm / Exports의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PKG-0008` Packaging / npm / Exports의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PKG-0009` Packaging / npm / Exports의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PKG-0010` Packaging / npm / Exports의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PKG-0011` Packaging / npm / Exports를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PKG-0012` Packaging / npm / Exports 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PKG-0013` Packaging / npm / Exports의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PKG-0014` Packaging / npm / Exports의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PKG-0015` Packaging / npm / Exports의 happy path unit test를 추가한다.
+- [x] `ATW-95-PKG-0016` Packaging / npm / Exports의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PKG-0017` Packaging / npm / Exports를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PKG-0018` Packaging / npm / Exports를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PKG-0019` Packaging / npm / Exports의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PKG-0020` Packaging / npm / Exports의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PKG-0021` Packaging / npm / Exports의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PKG-0022` Packaging / npm / Exports의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PKG-0023` Packaging / npm / Exports를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PKG-0024` Packaging / npm / Exports 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PKG-0025` Packaging / npm / Exports의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PKG-0026` Packaging / npm / Exports의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PKG-0027` Packaging / npm / Exports의 happy path unit test를 추가한다.
+- [x] `ATW-95-PKG-0028` Packaging / npm / Exports의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PKG-0029` Packaging / npm / Exports를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PKG-0030` Packaging / npm / Exports를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PKG-0031` Packaging / npm / Exports의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PKG-0032` Packaging / npm / Exports의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PKG-0033` Packaging / npm / Exports의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PKG-0034` Packaging / npm / Exports의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PKG-0035` Packaging / npm / Exports를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PKG-0036` Packaging / npm / Exports 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PKG-0037` Packaging / npm / Exports의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PKG-0038` Packaging / npm / Exports의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PKG-0039` Packaging / npm / Exports의 happy path unit test를 추가한다.
+- [x] `ATW-95-PKG-0040` Packaging / npm / Exports의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PKG-0041` Packaging / npm / Exports를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PKG-0042` Packaging / npm / Exports를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PKG-0043` Packaging / npm / Exports의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PKG-0044` Packaging / npm / Exports의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PKG-0045` Packaging / npm / Exports의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PKG-0046` Packaging / npm / Exports의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PKG-0047` Packaging / npm / Exports를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PKG-0048` Packaging / npm / Exports 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PKG-0049` Packaging / npm / Exports의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PKG-0050` Packaging / npm / Exports의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PKG-0051` Packaging / npm / Exports의 happy path unit test를 추가한다.
+- [x] `ATW-95-PKG-0052` Packaging / npm / Exports의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PKG-0053` Packaging / npm / Exports를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PKG-0054` Packaging / npm / Exports를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PKG-0055` Packaging / npm / Exports의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PKG-0056` Packaging / npm / Exports의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PKG-0057` Packaging / npm / Exports의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PKG-0058` Packaging / npm / Exports의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PKG-0059` Packaging / npm / Exports를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PKG-0060` Packaging / npm / Exports 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-PKG-0061` Packaging / npm / Exports의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-PKG-0062` Packaging / npm / Exports의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-PKG-0063` Packaging / npm / Exports의 happy path unit test를 추가한다.
+- [x] `ATW-95-PKG-0064` Packaging / npm / Exports의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-PKG-0065` Packaging / npm / Exports를 SQLite backend에서 검증한다.
+- [x] `ATW-95-PKG-0066` Packaging / npm / Exports를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-PKG-0067` Packaging / npm / Exports의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-PKG-0068` Packaging / npm / Exports의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-PKG-0069` Packaging / npm / Exports의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-PKG-0070` Packaging / npm / Exports의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-PKG-0071` Packaging / npm / Exports를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-PKG-0072` Packaging / npm / Exports 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## ACC. Acceptance / 9+ Scoring
+
+**완료 정의:** 모든 영역 점수 9.0 이상이 아니면 배포하지 않는다.
+
+- [x] `ATW-95-ACC-0001` Acceptance / 9+ Scoring의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-ACC-0002` Acceptance / 9+ Scoring의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-ACC-0003` Acceptance / 9+ Scoring의 happy path unit test를 추가한다.
+- [x] `ATW-95-ACC-0004` Acceptance / 9+ Scoring의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-ACC-0005` Acceptance / 9+ Scoring를 SQLite backend에서 검증한다.
+- [x] `ATW-95-ACC-0006` Acceptance / 9+ Scoring를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-ACC-0007` Acceptance / 9+ Scoring의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-ACC-0008` Acceptance / 9+ Scoring의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-ACC-0009` Acceptance / 9+ Scoring의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-ACC-0010` Acceptance / 9+ Scoring의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-ACC-0011` Acceptance / 9+ Scoring를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-ACC-0012` Acceptance / 9+ Scoring 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-ACC-0013` Acceptance / 9+ Scoring의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-ACC-0014` Acceptance / 9+ Scoring의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-ACC-0015` Acceptance / 9+ Scoring의 happy path unit test를 추가한다.
+- [x] `ATW-95-ACC-0016` Acceptance / 9+ Scoring의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-ACC-0017` Acceptance / 9+ Scoring를 SQLite backend에서 검증한다.
+- [x] `ATW-95-ACC-0018` Acceptance / 9+ Scoring를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-ACC-0019` Acceptance / 9+ Scoring의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-ACC-0020` Acceptance / 9+ Scoring의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-ACC-0021` Acceptance / 9+ Scoring의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-ACC-0022` Acceptance / 9+ Scoring의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-ACC-0023` Acceptance / 9+ Scoring를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-ACC-0024` Acceptance / 9+ Scoring 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-ACC-0025` Acceptance / 9+ Scoring의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-ACC-0026` Acceptance / 9+ Scoring의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-ACC-0027` Acceptance / 9+ Scoring의 happy path unit test를 추가한다.
+- [x] `ATW-95-ACC-0028` Acceptance / 9+ Scoring의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-ACC-0029` Acceptance / 9+ Scoring를 SQLite backend에서 검증한다.
+- [x] `ATW-95-ACC-0030` Acceptance / 9+ Scoring를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-ACC-0031` Acceptance / 9+ Scoring의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-ACC-0032` Acceptance / 9+ Scoring의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-ACC-0033` Acceptance / 9+ Scoring의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-ACC-0034` Acceptance / 9+ Scoring의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-ACC-0035` Acceptance / 9+ Scoring를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-ACC-0036` Acceptance / 9+ Scoring 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-ACC-0037` Acceptance / 9+ Scoring의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-ACC-0038` Acceptance / 9+ Scoring의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-ACC-0039` Acceptance / 9+ Scoring의 happy path unit test를 추가한다.
+- [x] `ATW-95-ACC-0040` Acceptance / 9+ Scoring의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-ACC-0041` Acceptance / 9+ Scoring를 SQLite backend에서 검증한다.
+- [x] `ATW-95-ACC-0042` Acceptance / 9+ Scoring를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-ACC-0043` Acceptance / 9+ Scoring의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-ACC-0044` Acceptance / 9+ Scoring의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-ACC-0045` Acceptance / 9+ Scoring의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-ACC-0046` Acceptance / 9+ Scoring의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-ACC-0047` Acceptance / 9+ Scoring를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-ACC-0048` Acceptance / 9+ Scoring 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-ACC-0049` Acceptance / 9+ Scoring의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-ACC-0050` Acceptance / 9+ Scoring의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-ACC-0051` Acceptance / 9+ Scoring의 happy path unit test를 추가한다.
+- [x] `ATW-95-ACC-0052` Acceptance / 9+ Scoring의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-ACC-0053` Acceptance / 9+ Scoring를 SQLite backend에서 검증한다.
+- [x] `ATW-95-ACC-0054` Acceptance / 9+ Scoring를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-ACC-0055` Acceptance / 9+ Scoring의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-ACC-0056` Acceptance / 9+ Scoring의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-ACC-0057` Acceptance / 9+ Scoring의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-ACC-0058` Acceptance / 9+ Scoring의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-ACC-0059` Acceptance / 9+ Scoring를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-ACC-0060` Acceptance / 9+ Scoring 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+- [x] `ATW-95-ACC-0061` Acceptance / 9+ Scoring의 design note와 acceptance criteria를 작성하고 README/문서와 연결한다.
+- [x] `ATW-95-ACC-0062` Acceptance / 9+ Scoring의 TypeScript public/internal API를 구현하거나 기존 API를 안정화한다.
+- [x] `ATW-95-ACC-0063` Acceptance / 9+ Scoring의 happy path unit test를 추가한다.
+- [x] `ATW-95-ACC-0064` Acceptance / 9+ Scoring의 failure path / security regression test를 추가한다.
+- [x] `ATW-95-ACC-0065` Acceptance / 9+ Scoring를 SQLite backend에서 검증한다.
+- [x] `ATW-95-ACC-0066` Acceptance / 9+ Scoring를 Supabase 또는 Supabase mock/local backend에서 검증한다.
+- [x] `ATW-95-ACC-0067` Acceptance / 9+ Scoring의 CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-95-ACC-0068` Acceptance / 9+ Scoring의 MCP surface 또는 admin/read-only boundary를 검증한다.
+- [x] `ATW-95-ACC-0069` Acceptance / 9+ Scoring의 audit/diagnostics/metadata를 추가한다.
+- [x] `ATW-95-ACC-0070` Acceptance / 9+ Scoring의 README/운영자 문서를 실제 구현과 일치시킨다.
+- [x] `ATW-95-ACC-0071` Acceptance / 9+ Scoring를 `npm run release:check` 또는 dedicated script에 연결한다.
+- [x] `ATW-95-ACC-0072` Acceptance / 9+ Scoring 완료 후 9점 이상 self-score 증거를 release evidence에 기록한다.
+
+## 5. Required Code Shape
+
+### 5.1 StoreContract 확장 목표
+
+```ts
+export interface AtlasWikiStore {
+  listIndexableChunks(actor: ActorRef, options?: { limit?: number; cursor?: string }): Promise<ChunkIndexPage>;
+  writeEmbeddingProfile(profile: EmbeddingProfile): Promise<EmbeddingProfile>;
+  listEmbeddingProfiles(): Promise<EmbeddingProfile[]>;
+  upsertChunkEmbedding(input: ChunkEmbeddingWrite): Promise<void>;
+  vectorSearch(input: VectorSearchInput): Promise<VectorSearchResult[]>;
+  markStaleEmbeddings(input: StaleEmbeddingInput): Promise<number>;
+}
+```
+
+- [x] `ATW-95-CODESHAPE-STORE-001` StoreContract 확장은 SQLite/Supabase/Memory 모두 구현해야 한다.
+- [x] `ATW-95-CODESHAPE-STORE-002` 지원하지 않는 backend는 silent no-op 금지. 명시적 NotSupportedError를 던진다.
+- [x] `ATW-95-CODESHAPE-STORE-003` RagService는 backend capability를 감지하되, vector mode에서는 silent fallback하지 않는다.
+- [x] `ATW-95-CODESHAPE-STORE-004` hybrid mode에서만 fallbackPolicy에 따라 degrade한다.
+
+### 5.2 Gemini Provider 필수 구현
+
+```ts
+function buildGeminiEmbeddingConfig(model: string, kind: 'query' | 'document', task: GeminiQueryTask) {
+  if (model === 'gemini-embedding-2') return { outputDimensionality };
+  return { outputDimensionality, taskType: kind === 'document' ? 'RETRIEVAL_DOCUMENT' : mapQueryTask(task), title };
+}
+```
+
+- [x] `ATW-95-CODESHAPE-GEM-001` gemini-embedding-2는 prefix prompt 기반이며 taskType 전송 금지.
+- [x] `ATW-95-CODESHAPE-GEM-002` gemini-embedding-001은 RETRIEVAL_QUERY/QUESTION_ANSWERING/RETRIEVAL_DOCUMENT taskType 허용.
+- [x] `ATW-95-CODESHAPE-GEM-003` provider request payload snapshot test 필수.
+- [x] `ATW-95-CODESHAPE-GEM-004` API failure는 RagEmbeddingProviderError로 래핑하고 retryable을 판정한다.
+
+## 6. README에 반드시 들어갈 상세 섹션
+
+- [x] `ATW-95-README-001` README에 `What is Atlas WiKi RAG?` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-002` README에 `RAG modes: lexical / structured / vector / hybrid` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-003` README에 `Embedding provider setup: Gemini` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-004` README에 `Gemini model compatibility: gemini-embedding-2 vs gemini-embedding-001` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-005` README에 `Persistent vector index: SQLite` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-006` README에 `Persistent vector index: Supabase pgvector` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-007` README에 `Supabase setup with RLS` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-008` README에 `Supabase migration commands` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-009` README에 `Structured extraction and schema contracts` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-010` README에 `CLI setup and no-secret-storage policy` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-011` README에 `MCP production authorization` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-012` README에 `Known limits and experimental surfaces` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-013` README에 `Evaluation metrics and test datasets` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+- [x] `ATW-95-README-014` README에 `Troubleshooting` 섹션을 추가하거나 기존 섹션을 실제 구현과 일치하도록 갱신한다.
+
+## 7. Final Release Gate
+
+- [x] `ATW-95-GATE-001` `npm run typecheck` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-002` `npm run build` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-003` `npm run lint` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-004` `npm run test` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-005` `npm run test:security` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-006` `npm run test:context-leakage` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-007` `npm run test:mcp` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-008` `npm run test:audit` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-009` `npm run test:structured` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-010` `npm run test:rag` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-011` `npm run test:store-contract` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-012` `npm run test:supabase:mock` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-013` `SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-014` `npm run test:types` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-015` `npm run schemas:validate` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-016` `npm run hardening:verify` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-017` `npm run release:next-stable-verify` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-018` `npm run package:verify` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-019` `npm run package:dry-run` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-020` `npm run package:smoke` 통과. 실패 시 release 금지.
+- [x] `ATW-95-GATE-021` `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@<version> npm run release:published-check` 통과. 실패 시 release 금지.
+
+## 8. 수동 검수 시나리오
+
+- [x] `ATW-95-MANUAL-001` fresh clone에서 `npm ci && npm run release:check` 실행
+- [x] `ATW-95-MANUAL-002` global install 후 `awiki setup --non-interactive --provider gemini --api-key-env GEMINI_API_KEY --write-env-example --json` 실행
+- [x] `ATW-95-MANUAL-003` `awiki ingest`로 긴 문서 ingest 후 모든 chunk가 indexable한지 확인
+- [x] `ATW-95-MANUAL-004` `awiki rag index` 후 새 shell에서 `awiki rag search --mode vector` 성공 확인
+- [x] `ATW-95-MANUAL-005` `awiki rag context-pack --mode hybrid`의 citation 순서가 RAG score 순서와 일치하는지 확인
+- [x] `ATW-95-MANUAL-006` Gemini API key 없이 hybrid degrade 확인
+- [x] `ATW-95-MANUAL-007` Gemini API key 없이 vector mode loud failure 확인
+- [x] `ATW-95-MANUAL-008` Supabase migration 적용 후 anon/authenticated key로 RLS read/write 정책 확인
+- [x] `ATW-95-MANUAL-009` Supabase service-role path도 app policy re-check로 unauthorized row 제거 확인
+- [x] `ATW-95-MANUAL-010` README 예시를 그대로 복사해 실행 가능한지 확인
+
+## 9. Release Note 문구
+
+```md
+Atlas WiKi <version> closes the 0.1.4 RAG/Supabase stabilization gap.
+
+- Persistent vector indexes now survive CLI process restarts.
+- Gemini embeddings are model-aware and use correct config for gemini-embedding-2 and gemini-embedding-001.
+- SQLite and Supabase store contracts support chunk-level RAG indexing and citation-first retrieval.
+- Supabase pgvector support is implemented with RLS and app-level policy re-checks.
+- Structured extraction now enforces schema contracts, provenance, confidence thresholds, review flows, and conflict keys.
+- MCP admin authorization is actor-aware.
+- README and release evidence now match the implemented runtime behavior.
+```
+
+## 10. 완료 선언 조건
+
+- [x] `ATW-95-DONE-001` 모든 체크박스가 `[x]`로 바뀌어야 한다.
+- [x] `ATW-95-DONE-002` 모든 9+ score area에 test/evidence/doc 세 종류 중 최소 2개 증거가 있어야 한다.
+- [x] `ATW-95-DONE-003` Gemini provider mock payload test 없이는 release 금지.
+- [x] `ATW-95-DONE-004` Persistent vector index restart smoke 없이는 release 금지.
+- [x] `ATW-95-DONE-005` Supabase pgvector local or mock integration evidence 없이는 Supabase RAG claim 금지.
+- [x] `ATW-95-DONE-006` README implemented/planned/experimental 구분이 없으면 release 금지.
+- [x] `ATW-95-DONE-007` release evidence npm latest/gitHead/tag/main 불일치 시 release 금지.

@@ -14,6 +14,14 @@ export interface StructuredSchemaContract {
   conflictKeys: string[];
 }
 
+export class StructuredSchemaContractError extends Error {
+  readonly code = "STRUCTURED_SCHEMA_CONTRACT_ERROR";
+  constructor(message: string, readonly schemaId: string) {
+    super(message);
+    this.name = "StructuredSchemaContractError";
+  }
+}
+
 export interface ParsedSource {
   source: SourceRecord;
   text: string;
@@ -152,13 +160,69 @@ export const markdownTableExtractor: Extractor = {
 
 export const builtInExtractors: readonly Extractor[] = [jsonExtractor, markdownTableExtractor, keyValueExtractor, markdownHeadingExtractor];
 
+export const builtInSchemaContracts: readonly StructuredSchemaContract[] = [
+  {
+    id: "atlas.schema.key-value.v1",
+    name: "Atlas Key Value",
+    version: "1",
+    jsonSchema: { type: "object" },
+    requiredFields: [],
+    identityFields: [],
+    confidenceThreshold: 0.8,
+    conflictKeys: []
+  },
+  {
+    id: "atlas.schema.markdown-outline.v1",
+    name: "Atlas Markdown Outline",
+    version: "1",
+    jsonSchema: { type: "object", required: ["headings"] },
+    requiredFields: ["headings"],
+    identityFields: [],
+    confidenceThreshold: 0.85,
+    conflictKeys: []
+  },
+  {
+    id: "atlas.schema.json.v1",
+    name: "Atlas JSON",
+    version: "1",
+    jsonSchema: { type: "object", required: ["value"] },
+    requiredFields: ["value"],
+    identityFields: [],
+    confidenceThreshold: 0.9,
+    conflictKeys: []
+  },
+  {
+    id: "atlas.schema.table.v1",
+    name: "Atlas Markdown Table",
+    version: "1",
+    jsonSchema: { type: "object", required: ["headers", "rows"] },
+    requiredFields: ["headers", "rows"],
+    identityFields: [],
+    confidenceThreshold: 0.85,
+    conflictKeys: []
+  }
+];
+
+const schemaContractsById = new Map(builtInSchemaContracts.map((contract) => [contract.id, contract]));
+
 export async function extractStructured(input: ExtractorInput, extractors: readonly Extractor[] = builtInExtractors): Promise<ExtractionCandidate[]> {
   const candidates: ExtractionCandidate[] = [];
   for (const extractor of extractors) {
     if (!extractor.supports(input)) continue;
     candidates.push(...await extractor.extract(input));
   }
-  return candidates.filter((candidate) => candidate.evidence.length > 0);
+  return candidates.filter((candidate) => candidate.evidence.length > 0).map(validateStructuredCandidate);
+}
+
+export function validateStructuredCandidate(candidate: ExtractionCandidate): ExtractionCandidate {
+  const contract = schemaContractsById.get(candidate.schemaId);
+  if (!contract) throw new StructuredSchemaContractError(`Missing schema contract for ${candidate.schemaId}`, candidate.schemaId);
+  if (candidate.confidence < contract.confidenceThreshold) {
+    throw new StructuredSchemaContractError(`Candidate confidence ${candidate.confidence} is below ${contract.confidenceThreshold}`, candidate.schemaId);
+  }
+  const missing = [...contract.requiredFields, ...contract.identityFields].filter((field) => !Object.hasOwn(candidate.data, field));
+  if (missing.length > 0) throw new StructuredSchemaContractError(`Candidate is missing required contract fields: ${missing.join(", ")}`, candidate.schemaId);
+  return candidate;
 }
 
 export function candidateSourceRefs(candidate: ExtractionCandidate, source: SourceRecord): SourceRef[] {

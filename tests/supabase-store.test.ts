@@ -48,8 +48,27 @@ describe("SupabaseStore mock adapter", () => {
     await store.init();
     const source = await store.ingestText({ title: "Supabase", text: "RLS source", owner: "user:alice@example.com", visibility: "private" });
     expect(source.id).toMatch(/^source_/);
-    expect(writes.map((write) => write.table)).toEqual(expect.arrayContaining(["records", "sources", "record_acl", "audit_events"]));
+    expect(writes.map((write) => write.table)).toEqual(expect.arrayContaining(["records", "sources", "chunks", "record_acl", "audit_events"]));
+    const search = await store.search("RLS source", { id: "user:alice@example.com", type: "user", groups: ["authenticated"] });
+    expect(search[0]).toMatchObject({ source: { id: source.id }, text: "RLS source" });
     expect(await store.validate()).toEqual({ ok: true, findings: [] });
+  });
+
+  it("stores and reads mock Supabase RAG embeddings with Atlas policy re-checks", async () => {
+    const { client } = mockClient();
+    const actor = { id: "user:alice@example.com", type: "user" as const, groups: ["authenticated"] };
+    const store = createSupabaseStore({ url: "http://localhost:54321", key: "anon", client, actor });
+    await store.init();
+    await store.ingestText({ title: "Vector", text: "Supabase chunks back vector search.", owner: actor.id, visibility: "private" });
+    const [chunk] = await store.listRagIndexChunks(actor);
+    expect(chunk?.text).toContain("vector search");
+    const profile = { id: "profile_test", provider_id: "testing", model: "mock", dimensions: 3, prompt_policy: "test" };
+    await store.upsertRagEmbeddingProfile(profile);
+    await store.upsertRagChunkEmbedding({ chunk_id: chunk!.chunk_id, profile_id: profile.id, provider_id: profile.provider_id, model: profile.model, dimensions: profile.dimensions, content_hash: chunk!.content_hash, vector: [1, 0, 0] });
+    expect(await store.ragVectorStats(profile)).toEqual({ indexed_chunks: 1, stale_chunks: 0 });
+    const embeddings = await store.listRagChunkEmbeddings(profile, actor);
+    expect(embeddings[0]).toMatchObject({ chunk_id: chunk!.chunk_id, vector: [1, 0, 0] });
+    expect(await store.listRagChunkEmbeddings(profile, { id: "user:bob@example.com", type: "user", groups: ["authenticated"] })).toEqual([]);
   });
 
   it("requires trusted mode for direct structured commits", async () => {

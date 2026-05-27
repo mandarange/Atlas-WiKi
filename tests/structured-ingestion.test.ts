@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { actorFromId, AtlasWiki, extractStructured, MemoryStore } from "../src/index.js";
+import { actorFromId, AtlasWiki, extractStructured, MemoryStore, StructuredSchemaContractError } from "../src/index.js";
 
 const roots: string[] = [];
 
@@ -45,5 +45,23 @@ describe("structured ingestion", () => {
     const source = await new MemoryStore().ingestText({ title: "JSON", text: "{\"case\":1}", visibility: "public" });
     const candidates = await extractStructured({ source, text: "{\"case\":1}" });
     expect(candidates[0]?.schemaId).toBe("atlas.schema.json.v1");
+  });
+
+  it("enforces schema contracts before returning extraction candidates", async () => {
+    const store = new MemoryStore();
+    const source = await store.ingestText({ title: "Low confidence", text: "Name: Alice", visibility: "public" });
+    await expect(extractStructured({ source, text: "Name: Alice" }, [{
+      name: "test.low-confidence",
+      version: "1",
+      supports: () => true,
+      extract: () => [{
+        objectType: "key_value_document",
+        schemaId: "atlas.schema.key-value.v1",
+        data: { name: "Alice" },
+        confidence: 0.5,
+        evidence: [{ sourceId: source.id, quote: "Name: Alice" }],
+        warnings: []
+      }]
+    }])).rejects.toBeInstanceOf(StructuredSchemaContractError);
   });
 });

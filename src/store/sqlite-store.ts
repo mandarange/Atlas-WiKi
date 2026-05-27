@@ -17,7 +17,7 @@ import { validateRecord } from "../core/validation/index.js";
 import { chunkText } from "../ingest/chunker.js";
 import { redactText } from "../security/redaction.js";
 import { candidateSourceRefs, extractStructured, structuredContentHash, structuredStableId } from "../structured/index.js";
-import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, SearchResult, StructuredIngestInput, StructuredIngestResult, WriteOptions, WriteResult } from "./store-contract.js";
+import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, WriteOptions, WriteResult } from "./store-contract.js";
 
 interface SourceRow {
   json: string;
@@ -396,6 +396,116 @@ export class SqliteStore implements AtlasWikiStore {
 
   migrationReport() {
     return migrationDryRun(this.requireDb());
+  }
+
+  async listRagIndexChunks(actor: ActorRef, limit = 100): Promise<RagIndexChunk[]> {
+    const rows = this.requireDb().prepare(
+      `SELECT records.json, chunks.id AS chunk_id, chunks.text, chunks.text_hash AS content_hash
+       FROM chunks
+       JOIN records ON records.id = chunks.source_id
+       WHERE records.deleted_at IS NULL
+       ORDER BY chunks.source_id, chunks.ordinal
+       LIMIT ?`
+    ).all(limit * 4) as Array<{ json: string; chunk_id: string; text: string; content_hash: string }>;
+    const chunks: RagIndexChunk[] = [];
+    const decisions: PolicyDecision[] = [];
+    for (const row of rows) {
+      const source = validateRecord(JSON.parse(row.json)) as SourceRecord;
+      const decision = policyResolver.canRead({ record: source, actor, purpose: "rag_index" });
+      decisions.push({ record_ref: { id: source.id, schema: source.schema, kind: source.kind }, allowed: decision.allowed, reason: decision.reason });
+      if (decision.allowed) chunks.push({ source, chunk_id: row.chunk_id, text: row.text, content_hash: row.content_hash });
+      if (chunks.length >= limit) break;
+    }
+    this.logAudit("rag.index_chunks", actor, chunks.map((chunk) => ({ id: chunk.source.id, schema: chunk.source.schema, kind: chunk.source.kind })), decisions, "success");
+    return chunks;
+  }
+
+  async upsertRagEmbeddingProfile(profile: RagEmbeddingProfile): Promise<void> {
+    this.requireDb().prepare(
+      `INSERT INTO embedding_profiles (id, provider_id, model, dimensions, prompt_policy, created_at, metadata_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         provider_id = excluded.provider_id,
+         model = excluded.model,
+         dimensions = excluded.dimensions,
+         prompt_policy = excluded.prompt_policy,
+         metadata_json = excluded.metadata_json`
+    ).run(profile.id, profile.provider_id, profile.model, profile.dimensions, profile.prompt_policy, nowIso(), JSON.stringify(profile.metadata ?? {}));
+  }
+
+  async upsertRagChunkEmbedding(embedding: RagChunkEmbedding): Promise<void> {
+    this.requireDb().prepare(
+      `INSERT INTO chunk_embeddings (id, chunk_id, profile_id, provider_id, model, dimensions, content_hash, vector_json, created_at, stale_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+       ON CONFLICT(profile_id, chunk_id) DO UPDATE SET
+         provider_id = excluded.provider_id,
+         model = excluded.model,
+         dimensions = excluded.dimensions,
+         content_hash = excluded.content_hash,
+         vector_json = excluded.vector_json,
+         stale_at = NULL`
+    ).run(
+      stableId("chunk_embedding", { profile_id: embedding.profile_id, chunk_id: embedding.chunk_id }),
+      embedding.chunk_id,
+      embedding.profile_id,
+      embedding.provider_id,
+      embedding.model,
+      embedding.dimensions,
+      embedding.content_hash,
+      JSON.stringify(embedding.vector),
+      nowIso()
+    );
+  }
+
+  async listRagChunkEmbeddings(profile: RagEmbeddingProfile, actor: ActorRef, limit = 100): Promise<RagStoredEmbedding[]> {
+    const rows = this.requireDb().prepare(
+      `SELECT records.json, chunks.text, chunks.text_hash, chunk_embeddings.chunk_id, chunk_embeddings.profile_id,
+              chunk_embeddings.provider_id, chunk_embeddings.model, chunk_embeddings.dimensions,
+              chunk_embeddings.content_hash, chunk_embeddings.vector_json
+       FROM chunk_embeddings
+       JOIN chunks ON chunks.id = chunk_embeddings.chunk_id
+       JOIN records ON records.id = chunks.source_id
+       WHERE chunk_embeddings.profile_id = ?
+         AND chunk_embeddings.stale_at IS NULL
+         AND records.deleted_at IS NULL
+       LIMIT ?`
+    ).all(profile.id, limit * 4) as Array<{ json: string; text: string; text_hash: string; chunk_id: string; profile_id: string; provider_id: string; model: string; dimensions: number; content_hash: string; vector_json: string }>;
+    const embeddings: RagStoredEmbedding[] = [];
+    const decisions: PolicyDecision[] = [];
+    for (const row of rows) {
+      if (row.text_hash !== row.content_hash) continue;
+      const source = validateRecord(JSON.parse(row.json)) as SourceRecord;
+      const decision = policyResolver.canRead({ record: source, actor, purpose: "rag_vector_search" });
+      decisions.push({ record_ref: { id: source.id, schema: source.schema, kind: source.kind }, allowed: decision.allowed, reason: decision.reason });
+      if (!decision.allowed) continue;
+      const redaction = redactText(row.text, { id: source.id, schema: source.schema, kind: source.kind }, { field: "text", sensitivity: source.sensitivity });
+      embeddings.push({
+        source,
+        text: redaction.text,
+        chunk_id: row.chunk_id,
+        profile_id: row.profile_id,
+        provider_id: row.provider_id,
+        model: row.model,
+        dimensions: row.dimensions,
+        content_hash: row.content_hash,
+        vector: JSON.parse(row.vector_json) as number[]
+      });
+      if (embeddings.length >= limit) break;
+    }
+    this.logAudit("rag.vector_search", actor, embeddings.map((entry) => ({ id: entry.source.id, schema: entry.source.schema, kind: entry.source.kind })), decisions, "success");
+    return embeddings;
+  }
+
+  ragVectorStats(profile: RagEmbeddingProfile): RagVectorStats {
+    const row = this.requireDb().prepare(
+      `SELECT
+         SUM(CASE WHEN chunk_embeddings.stale_at IS NULL AND chunks.text_hash = chunk_embeddings.content_hash THEN 1 ELSE 0 END) AS indexed_chunks,
+         SUM(CASE WHEN chunk_embeddings.stale_at IS NOT NULL OR chunks.text_hash <> chunk_embeddings.content_hash THEN 1 ELSE 0 END) AS stale_chunks
+       FROM chunk_embeddings
+       LEFT JOIN chunks ON chunks.id = chunk_embeddings.chunk_id
+       WHERE chunk_embeddings.profile_id = ?`
+    ).get(profile.id) as { indexed_chunks: number | null; stale_chunks: number | null } | undefined;
+    return { indexed_chunks: row?.indexed_chunks ?? 0, stale_chunks: row?.stale_chunks ?? 0 };
   }
 
   rebuildIndex(): void {

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { actorFromId, AtlasWiki, contentHash, createAdminAtlasWikiServer, createReadonlyAtlasWikiServer } from "../src/index.js";
-import type { AccessPolicy, ActorRef, AtlasRecord } from "../src/index.js";
+import type { AccessPolicy, ActorRef, AtlasRecord, AtlasWikiToolAuthorizationContext } from "../src/index.js";
 
 let root: string;
 
@@ -66,7 +66,7 @@ describe("stable core release blockers", () => {
     const admin = createAdminAtlasWikiServer({ root, actor: "user:admin@example.com" });
     await expect(toolHandler(admin, "atlas_wiki.ingest")({ title: "Denied", text: "blocked" })).rejects.toThrow(/authorizeTool/);
 
-    const allowed = createAdminAtlasWikiServer({ root, actor: "user:admin@example.com", authorizeTool: (name) => name === "atlas_wiki.ingest" });
+    const allowed = createAdminAtlasWikiServer({ root, actor: "user:admin@example.com", authorizeTool: (context: AtlasWikiToolAuthorizationContext) => context.toolName === "atlas_wiki.ingest" && context.actor.id === "user:admin@example.com" });
     const result = await toolHandler(allowed, "atlas_wiki.ingest")({ title: "Allowed", text: "committed", visibility: "public" });
     expect(JSON.stringify(result)).toContain("Allowed");
   });

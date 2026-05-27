@@ -12,5 +12,9 @@ describe("published package smoke script", () => {
     expect(script).toContain("installedPkg.exports?.[\"./release\"]");
     expect(script).toContain("npx");
     expect(script).toContain("audit\", \"verify");
+    expect(script).toContain("\"rag\", \"index\"");
+    expect(script).toContain("\"rag\", \"search\"");
+    expect(script).toContain("\"--mode\", \"vector\"");
+    expect(script).toContain("manager approval");
   });
 });

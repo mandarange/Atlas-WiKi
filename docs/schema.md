@@ -49,6 +49,8 @@ Schema descriptors include redaction fields and ACL inheritance hints so storage
 
 Treat schema IDs as semver-like contracts. Add new schema versions instead of changing existing required fields in place.
 
+Structured extraction schemas are registered through `wiki.schema.register(contract)` and inspected with `wiki.schema.list()` or `wiki.schema.get(id)`. Ingestion fails closed when an extractor returns an unregistered schema ID, omits required or identity fields, or falls below the contract confidence threshold.
+
 ## Example
 
 ```ts

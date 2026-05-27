@@ -9,7 +9,7 @@ describe("package surface", () => {
     expect(Object.keys(pkg.bin)).toEqual(["awiki", "atlas-wiki"]);
     expect(pkg.exports).toHaveProperty(".");
     expect(pkg.exports).toHaveProperty("./release");
-    expect(releaseEvidenceSchema).toBe("atlas-wiki.release-evidence.v1");
+    expect(releaseEvidenceSchema).toBe("atlas-wiki.release-evidence.v2");
     expect(schemas.map((schema) => schema.$id)).toContain("atlas.wiki.source.v1");
   });
 });

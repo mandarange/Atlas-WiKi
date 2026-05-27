@@ -4,12 +4,14 @@ import { RagService } from "../rag/index.js";
 import type { RagEmbeddingProvider, RagFallbackPolicy, RagMode } from "../rag/index.js";
 import { SqliteStore } from "../store/sqlite-store.js";
 import type { AtlasWikiStore, IngestInput, StructuredIngestInput } from "../store/store-contract.js";
+import type { StructuredSchemaContract } from "../structured/index.js";
 export interface AtlasWikiOptions { root?: string | undefined; store?: AtlasWikiStore | undefined; rag?: { embeddingProvider?: RagEmbeddingProvider | undefined; fallbackPolicy?: RagFallbackPolicy | undefined } | undefined; }
 export class AtlasWiki {
   readonly store: AtlasWikiStore;
+  readonly schema: { register(contract: StructuredSchemaContract): Promise<void>; list(): Promise<StructuredSchemaContract[]>; get(id: string): Promise<StructuredSchemaContract | undefined> };
   private readonly ragService: RagService;
   private readonly ragFallbackPolicy: RagFallbackPolicy | undefined;
-  private constructor(store: AtlasWikiStore, options: AtlasWikiOptions = {}) { this.store = store; this.ragService = new RagService(store, options.rag?.embeddingProvider); this.ragFallbackPolicy = options.rag?.fallbackPolicy; }
+  private constructor(store: AtlasWikiStore, options: AtlasWikiOptions = {}) { this.store = store; this.schema = { register: (contract) => this.store.registerSchemaContract(contract), list: () => this.store.listSchemaContracts(), get: (id) => this.store.getSchemaContract(id) }; this.ragService = new RagService(store, options.rag?.embeddingProvider); this.ragFallbackPolicy = options.rag?.fallbackPolicy; }
   static async open(options: AtlasWikiOptions = {}): Promise<AtlasWiki> { const wiki = new AtlasWiki(options.store ?? new SqliteStore({ root: options.root ?? ".atlas-wiki" }), options); await wiki.init(); return wiki; }
   async init(): Promise<void> { await this.store.init(); }
   async ingestText(input: IngestInput) { return this.store.ingestText(input); }
@@ -23,7 +25,8 @@ export class AtlasWiki {
   async ragSearch(input: { query: string; actor: ActorRef; mode?: RagMode | undefined; fallbackPolicy?: RagFallbackPolicy | undefined; limit?: number | undefined }) { return this.ragService.search({ ...input, fallbackPolicy: input.fallbackPolicy ?? this.ragFallbackPolicy }); }
   async ragContextPack(input: { query: string; actor: ActorRef; mode?: RagMode | undefined; fallbackPolicy?: RagFallbackPolicy | undefined; limit?: number | undefined }) { return this.ragService.contextPack({ ...input, fallbackPolicy: input.fallbackPolicy ?? this.ragFallbackPolicy }); }
   async ragIndex(input: { actor: ActorRef; query?: string | undefined; limit?: number | undefined; fallbackPolicy?: RagFallbackPolicy | undefined }) { return this.ragService.index(input); }
-  ragStatus() { return this.ragService.status(); }
+  async ragStatus() { return this.ragService.status(); }
+  ragStatusSync() { return this.ragService.statusSync(); }
   async proposeClaim(input: { text: string; source_id?: string | undefined; requested_by: ActorRef; owner?: string | undefined }) { return this.store.proposeClaim(input); }
   async proposeChange(type: "update" | "deprecate" | "conflict", input: { text: string; source_id?: string | undefined; requested_by: ActorRef; owner?: string | undefined }) { return this.store.proposeChange(type, input); }
   rebuildIndex() { return "rebuildIndex" in this.store && typeof this.store.rebuildIndex === "function" ? this.store.rebuildIndex() : undefined; }

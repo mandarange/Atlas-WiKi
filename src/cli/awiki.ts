@@ -29,7 +29,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> { const args = 
     if (cmd === "context-pack") { print(await wiki.contextPack(args.command.slice(1).join(" "), actorFromId(str(args, "as")), num(args, "limit")), asJson); return; }
     if (cmd === "rag") {
       const actor = actorFromId(str(args, "as"));
-      if (sub === "status") { print({ ...wiki.ragStatus(), config: cliConfig?.rag ?? null, config_path: cliConfig ? join(root, "cli-config.json") : null }, asJson); return; }
+      if (sub === "status") { print({ ...await wiki.ragStatus(), config: cliConfig?.rag ?? null, config_path: cliConfig ? join(root, "cli-config.json") : null }, asJson); return; }
       if (sub === "index" || sub === "reindex") { print(await wiki.ragIndex({ actor, limit: num(args, "limit"), fallbackPolicy: fallbackPolicy(args, cliConfig) }), asJson); return; }
       if (sub === "search") { const query = third ?? str(args, "query") ?? args.command.slice(2).join(" "); print(await wiki.ragSearch({ query, actor, mode: ragMode(args), fallbackPolicy: fallbackPolicy(args, cliConfig), limit: num(args, "limit") }), asJson); return; }
       if (sub === "context-pack") { const query = third ?? str(args, "query") ?? args.command.slice(2).join(" "); print(await wiki.ragContextPack({ query, actor, mode: ragMode(args), fallbackPolicy: fallbackPolicy(args, cliConfig), limit: num(args, "limit") }), asJson); return; }

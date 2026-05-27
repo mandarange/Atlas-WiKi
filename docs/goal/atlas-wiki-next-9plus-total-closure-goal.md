@@ -1,0 +1,3413 @@
+# Atlas WiKi Next 9+ Total Closure /goal 지시서
+
+**목표:** 0.1.5에서 남은 모든 9점 미만 요소를 다음 버전에서 완전히 닫고, 전체 영역별 최소 9.0 이상을 달성한다.
+
+생성일: 2026-05-27 08:41:57Z
+
+## 0. Target Version Decision
+
+이번 변경은 `ragStatus()` async화, StoreContract 확장, Supabase RPC runtime 사용, schema contract registry 등 public surface 변화가 포함될 수 있다. 따라서 기본 목표 버전은 **`0.2.0`**이다. 단, 모든 변경을 backward-compatible wrapper로 감싸고 기존 API를 유지할 수 있으면 **`0.1.6`**으로 배포할 수 있다.
+
+- [x] `ATW-N9-VERSION-001` breaking change가 하나라도 있으면 target version을 `0.2.0`으로 확정한다.
+- [x] `ATW-N9-VERSION-002` `0.1.6`으로 가려면 기존 `ragStatus()` sync API를 유지하고 `ragStatusAsync()`를 추가하는 등 backward compatibility를 증명한다.
+- [x] `ATW-N9-VERSION-003` 이번 goal의 핵심은 버전 숫자가 아니라 전체 영역 9점 이상이다.
+- [x] `ATW-N9-VERSION-004` Supabase pgvector를 production claim으로 유지하려면 SDK가 실제 RPC path를 사용해야 한다.
+- [x] `ATW-N9-VERSION-005` release evidence는 더 이상 빈 `vNEXT` 파일을 허용하지 않는다.
+- [x] `ATW-N9-VERSION-006` 모든 문서 claim은 구현/테스트/release evidence와 일치해야 한다.
+
+## 1. 0.1.5 잔여 결함 요약
+
+- [x] `ATW-N9-DEFECT-001` release-evidence/atlas-wiki-vNEXT.json이 main에서 빈 파일이다. 해결해야 하는 이유: Release reproducibility가 9점에 도달할 수 없다.
+- [x] `ATW-N9-DEFECT-002` main/tag commit에 대한 CI run/status evidence가 확인되지 않는다. 해결해야 하는 이유: 외부 신뢰성 증거가 부족하다.
+- [x] `ATW-N9-DEFECT-003` SupabaseStore가 `atlas_wiki.rag_search` RPC를 사용하지 않고 app-side scan을 한다. 해결해야 하는 이유: README의 Supabase pgvector/RPC claim과 runtime이 다르다.
+- [x] `ATW-N9-DEFECT-004` Supabase vector dimension은 1536으로 고정인데 CLI/README는 dimensions를 자유롭게 받는다. 해결해야 하는 이유: dimension mismatch 및 사용성 혼란이 있다.
+- [x] `ATW-N9-DEFECT-005` Supabase search는 chunks 일부를 select한 뒤 Node에서 includes로 필터링한다. 해결해야 하는 이유: production full-text retrieval이라고 보기 어렵다.
+- [x] `ATW-N9-DEFECT-006` `ragStatus()`가 sync라 async Supabase stats를 0으로 취급한다. 해결해야 하는 이유: Supabase RAG status가 부정확하다.
+- [x] `ATW-N9-DEFECT-007` CAS는 조회 후 update 방식이라 DB-level atomicity가 부족하다. 해결해야 하는 이유: multi-writer 환경에서 stale write race가 가능하다.
+- [x] `ATW-N9-DEFECT-008` published smoke가 CLI RAG persistent vector flow를 검증하지 않는다. 해결해야 하는 이유: npm 설치 기준 핵심 RAG 기능 증거가 부족하다.
+- [x] `ATW-N9-DEFECT-009` README의 user schema 예시와 built-in schema contract registry가 맞지 않는다. 해결해야 하는 이유: 예시 코드가 실패할 수 있다.
+- [x] `ATW-N9-DEFECT-010` Supabase pgvector local test는 opt-in이라 release:check 기본 점수 증거가 약하다. 해결해야 하는 이유: Supabase 9점 주장을 보강해야 한다.
+
+## 2. 최종 9+ Scorecard
+
+| 영역 | 목표 | 필수 증거 |
+| --- | ---: | --- |
+| Release reproducibility | 9.5 | pre/post evidence, tag, npm gitHead, CI green, GitHub Release asset |
+| Gemini provider | 9.3 | model-specific payload tests, dimension policy, provider error taxonomy |
+| SQLite RAG | 9.4 | persistent vector, chunk-level indexing, CLI restart smoke, audit |
+| Supabase Store | 9.1 | chunks, search RPC, embeddings, RLS, policy re-check, CAS |
+| Supabase pgvector/RPC | 9.0 | SDK uses RPC, dimension policy, local pgvector smoke |
+| Structured extraction | 9.1 | custom schema registry, required fields, review, conflicts |
+| MCP authorization | 9.3 | actor-aware admin callback, fail-closed, audit, schema hiding |
+| Security | 9.2 | ACL-before-embedding/search, no secret logs, RLS, leakage tests |
+| Docs | 9.2 | all README examples smoke/typechecked, no overclaiming |
+| Testing | 9.4 | published package e2e, Supabase local opt-in, eval metrics |
+
+- [x] `ATW-N9-SCORE-001` `Release reproducibility`가 9.5 미만이면 release 금지. 증거: pre/post evidence, tag, npm gitHead, CI green, GitHub Release asset.
+- [x] `ATW-N9-SCORE-002` `Gemini provider`가 9.3 미만이면 release 금지. 증거: model-specific payload tests, dimension policy, provider error taxonomy.
+- [x] `ATW-N9-SCORE-003` `SQLite RAG`가 9.4 미만이면 release 금지. 증거: persistent vector, chunk-level indexing, CLI restart smoke, audit.
+- [x] `ATW-N9-SCORE-004` `Supabase Store`가 9.1 미만이면 release 금지. 증거: chunks, search RPC, embeddings, RLS, policy re-check, CAS.
+- [x] `ATW-N9-SCORE-005` `Supabase pgvector/RPC`가 9.0 미만이면 release 금지. 증거: SDK uses RPC, dimension policy, local pgvector smoke.
+- [x] `ATW-N9-SCORE-006` `Structured extraction`가 9.1 미만이면 release 금지. 증거: custom schema registry, required fields, review, conflicts.
+- [x] `ATW-N9-SCORE-007` `MCP authorization`가 9.3 미만이면 release 금지. 증거: actor-aware admin callback, fail-closed, audit, schema hiding.
+- [x] `ATW-N9-SCORE-008` `Security`가 9.2 미만이면 release 금지. 증거: ACL-before-embedding/search, no secret logs, RLS, leakage tests.
+- [x] `ATW-N9-SCORE-009` `Docs`가 9.2 미만이면 release 금지. 증거: all README examples smoke/typechecked, no overclaiming.
+- [x] `ATW-N9-SCORE-010` `Testing`가 9.4 미만이면 release 금지. 증거: published package e2e, Supabase local opt-in, eval metrics.
+
+## 3. Architecture Decision Records
+
+- [x] `ADR-N9-001` Release evidence는 prepublish source artifact와 postpublish artifact를 분리한다.
+- [x] `ADR-N9-002` Supabase pgvector는 SDK runtime에서 RPC를 실제 호출해야 production claim을 허용한다.
+- [x] `ADR-N9-003` Supabase 0.2.0은 default 1536-dimension pgvector profile을 공식 지원하고, custom dimensions는 explicit unsupported 또는 separate migration으로만 허용한다.
+- [x] `ADR-N9-004` RAG status는 async store를 위해 async API를 제공해야 한다.
+- [x] `ADR-N9-005` CAS는 DB-level atomic compare-and-swap이어야 한다.
+- [x] `ADR-N9-006` Structured extraction의 user-defined schema는 registry에 등록되어야 하며 등록되지 않은 schema는 fail-closed한다.
+- [x] `ADR-N9-007` Published package smoke는 npm tarball 설치 후 CLI RAG index/search restart flow를 검증해야 한다.
+- [x] `ADR-N9-008` README는 implemented / experimental / planned 라벨을 사용한다.
+
+## 4. Required Public API Shape
+
+### 4.1 StoreContract v2
+
+```ts
+export interface AtlasWikiStore {
+  searchChunks(input: ChunkSearchInput): Promise<ChunkSearchResult[]>;
+  vectorSearch(input: VectorSearchInput): Promise<VectorSearchResult[]>;
+  hybridSearch?(input: HybridSearchInput): Promise<HybridSearchResult[]>;
+  ragVectorStats(profile: RagEmbeddingProfile): Promise<RagVectorStats>;
+  upsertRecordCas(record: AtlasRecord, options: CasWriteOptions): Promise<WriteResult>;
+  registerSchemaContract(contract: StructuredSchemaContract): Promise<void>;
+  listSchemaContracts(): Promise<StructuredSchemaContract[]>;
+  getSchemaContract(id: string): Promise<StructuredSchemaContract | undefined>;
+}
+```
+- [x] `ATW-N9-API-STORE-001` `ragVectorStats`는 항상 Promise로 통일한다.
+- [x] `ATW-N9-API-STORE-002` 기존 sync caller를 위해 `AtlasWiki.ragStatusSync()`를 유지하거나 deprecate notice를 제공한다.
+- [x] `ATW-N9-API-STORE-003` `vectorSearch()`는 backend별 최적 path를 사용한다: SQLite app-side JSON vector, Supabase RPC.
+- [x] `ATW-N9-API-STORE-004` `searchChunks()`는 source-level search가 아니라 chunk-level citation search를 반환한다.
+- [x] `ATW-N9-API-STORE-005` `upsertRecordCas()`는 expectedRevision 없이는 update를 거부하거나 explicit unsafe option을 요구한다.
+
+### 4.2 AtlasWiki SDK
+
+```ts
+await wiki.ragStatus();        // async, all backends
+wiki.ragStatusSync?.();       // optional sync, SQLite/Memory only
+await wiki.ragSearch({...});   // uses store.vectorSearch where available
+await wiki.schema.register(contract);
+await wiki.schema.list();
+```
+- [x] `ATW-N9-API-SDK-001` SDK docs에 async status migration note를 넣는다.
+- [x] `ATW-N9-API-SDK-002` 기존 API가 깨지는 경우 CHANGELOG에 breaking change를 명시한다.
+- [x] `ATW-N9-API-SDK-003` RAG result item에는 backend, retrieval_path, profile_id, chunk_id, citation이 포함되어야 한다.
+- [x] `ATW-N9-API-SDK-004` RAG context pack은 RAG result item을 다시 검색하지 않고 그대로 citation으로 변환한다.
+
+## REL. Release Reproducibility 9.5
+
+**완료 정의:** main/tag/npm/GitHub Release/CI evidence가 서로 모순 없이 검증되어야 한다.
+
+- [x] `ATW-N9-REL-0001` 빈 `release-evidence/atlas-wiki-vNEXT.json` 파일을 제거한다.
+- [x] `ATW-N9-REL-0002` `release-evidence/prepublish-v<version>.json`을 tag 전에 생성해 commit한다.
+- [x] `ATW-N9-REL-0003` `release-evidence/postpublish-v<version>.json`은 publish workflow가 GitHub Release asset으로 업로드한다.
+- [x] `ATW-N9-REL-0004` main에는 latest stable release evidence summary를 non-empty JSON으로 유지한다.
+- [x] `ATW-N9-REL-0005` release verifier가 빈 JSON 또는 whitespace-only artifact를 즉시 실패시킨다.
+- [x] `ATW-N9-REL-0006` tag commit, package.json version, package-lock version, packageInfo version이 일치해야 한다.
+- [x] `ATW-N9-REL-0007` npm `gitHead`와 tag commit이 일치해야 한다.
+- [x] `ATW-N9-REL-0008` GitHub Release asset에 postpublish smoke 결과를 첨부한다.
+- [x] `ATW-N9-REL-0009` CI run URL을 evidence에 기록한다.
+- [x] `ATW-N9-REL-0010` workflow_runs가 비어 있으면 release evidence 검증 실패 처리한다.
+- [x] `ATW-N9-REL-0011` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0012` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0013` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0014` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-REL-0015` Release Reproducibility 9.5: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-REL-0016` Release Reproducibility 9.5: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-REL-0017` Release Reproducibility 9.5: happy path unit test를 작성한다.
+- [x] `ATW-N9-REL-0018` Release Reproducibility 9.5: failure path regression test를 작성한다.
+- [x] `ATW-N9-REL-0019` Release Reproducibility 9.5: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-REL-0020` Release Reproducibility 9.5: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0021` Release Reproducibility 9.5: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0022` Release Reproducibility 9.5: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-REL-0023` Release Reproducibility 9.5: CLI smoke를 추가한다.
+- [x] `ATW-N9-REL-0024` Release Reproducibility 9.5: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-REL-0025` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0026` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0027` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0028` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-REL-0029` Release Reproducibility 9.5: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-REL-0030` Release Reproducibility 9.5: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-REL-0031` Release Reproducibility 9.5: happy path unit test를 작성한다.
+- [x] `ATW-N9-REL-0032` Release Reproducibility 9.5: failure path regression test를 작성한다.
+- [x] `ATW-N9-REL-0033` Release Reproducibility 9.5: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-REL-0034` Release Reproducibility 9.5: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0035` Release Reproducibility 9.5: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0036` Release Reproducibility 9.5: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-REL-0037` Release Reproducibility 9.5: CLI smoke를 추가한다.
+- [x] `ATW-N9-REL-0038` Release Reproducibility 9.5: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-REL-0039` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0040` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0041` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0042` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-REL-0043` Release Reproducibility 9.5: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-REL-0044` Release Reproducibility 9.5: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-REL-0045` Release Reproducibility 9.5: happy path unit test를 작성한다.
+- [x] `ATW-N9-REL-0046` Release Reproducibility 9.5: failure path regression test를 작성한다.
+- [x] `ATW-N9-REL-0047` Release Reproducibility 9.5: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-REL-0048` Release Reproducibility 9.5: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0049` Release Reproducibility 9.5: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0050` Release Reproducibility 9.5: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-REL-0051` Release Reproducibility 9.5: CLI smoke를 추가한다.
+- [x] `ATW-N9-REL-0052` Release Reproducibility 9.5: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-REL-0053` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0054` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0055` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0056` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-REL-0057` Release Reproducibility 9.5: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-REL-0058` Release Reproducibility 9.5: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-REL-0059` Release Reproducibility 9.5: happy path unit test를 작성한다.
+- [x] `ATW-N9-REL-0060` Release Reproducibility 9.5: failure path regression test를 작성한다.
+- [x] `ATW-N9-REL-0061` Release Reproducibility 9.5: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-REL-0062` Release Reproducibility 9.5: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0063` Release Reproducibility 9.5: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0064` Release Reproducibility 9.5: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-REL-0065` Release Reproducibility 9.5: CLI smoke를 추가한다.
+- [x] `ATW-N9-REL-0066` Release Reproducibility 9.5: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-REL-0067` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0068` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0069` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0070` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-REL-0071` Release Reproducibility 9.5: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-REL-0072` Release Reproducibility 9.5: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-REL-0073` Release Reproducibility 9.5: happy path unit test를 작성한다.
+- [x] `ATW-N9-REL-0074` Release Reproducibility 9.5: failure path regression test를 작성한다.
+- [x] `ATW-N9-REL-0075` Release Reproducibility 9.5: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-REL-0076` Release Reproducibility 9.5: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0077` Release Reproducibility 9.5: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0078` Release Reproducibility 9.5: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-REL-0079` Release Reproducibility 9.5: CLI smoke를 추가한다.
+- [x] `ATW-N9-REL-0080` Release Reproducibility 9.5: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-REL-0081` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0082` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0083` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0084` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-REL-0085` Release Reproducibility 9.5: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-REL-0086` Release Reproducibility 9.5: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-REL-0087` Release Reproducibility 9.5: happy path unit test를 작성한다.
+- [x] `ATW-N9-REL-0088` Release Reproducibility 9.5: failure path regression test를 작성한다.
+- [x] `ATW-N9-REL-0089` Release Reproducibility 9.5: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-REL-0090` Release Reproducibility 9.5: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0091` Release Reproducibility 9.5: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0092` Release Reproducibility 9.5: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-REL-0093` Release Reproducibility 9.5: CLI smoke를 추가한다.
+- [x] `ATW-N9-REL-0094` Release Reproducibility 9.5: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-REL-0095` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0096` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0097` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0098` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-REL-0099` Release Reproducibility 9.5: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-REL-0100` Release Reproducibility 9.5: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-REL-0101` Release Reproducibility 9.5: happy path unit test를 작성한다.
+- [x] `ATW-N9-REL-0102` Release Reproducibility 9.5: failure path regression test를 작성한다.
+- [x] `ATW-N9-REL-0103` Release Reproducibility 9.5: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-REL-0104` Release Reproducibility 9.5: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0105` Release Reproducibility 9.5: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0106` Release Reproducibility 9.5: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-REL-0107` Release Reproducibility 9.5: CLI smoke를 추가한다.
+- [x] `ATW-N9-REL-0108` Release Reproducibility 9.5: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-REL-0109` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0110` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0111` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0112` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-REL-0113` Release Reproducibility 9.5: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-REL-0114` Release Reproducibility 9.5: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-REL-0115` Release Reproducibility 9.5: happy path unit test를 작성한다.
+- [x] `ATW-N9-REL-0116` Release Reproducibility 9.5: failure path regression test를 작성한다.
+- [x] `ATW-N9-REL-0117` Release Reproducibility 9.5: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-REL-0118` Release Reproducibility 9.5: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0119` Release Reproducibility 9.5: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0120` Release Reproducibility 9.5: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-REL-0121` Release Reproducibility 9.5: CLI smoke를 추가한다.
+- [x] `ATW-N9-REL-0122` Release Reproducibility 9.5: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-REL-0123` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0124` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0125` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0126` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-REL-0127` Release Reproducibility 9.5: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-REL-0128` Release Reproducibility 9.5: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-REL-0129` Release Reproducibility 9.5: happy path unit test를 작성한다.
+- [x] `ATW-N9-REL-0130` Release Reproducibility 9.5: failure path regression test를 작성한다.
+- [x] `ATW-N9-REL-0131` Release Reproducibility 9.5: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-REL-0132` Release Reproducibility 9.5: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0133` Release Reproducibility 9.5: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-REL-0134` Release Reproducibility 9.5: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-REL-0135` Release Reproducibility 9.5: CLI smoke를 추가한다.
+- [x] `ATW-N9-REL-0136` Release Reproducibility 9.5: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-REL-0137` Release Reproducibility 9.5: MCP boundary를 검증한다.
+- [x] `ATW-N9-REL-0138` Release Reproducibility 9.5: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-REL-0139` Release Reproducibility 9.5: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-REL-0140` Release Reproducibility 9.5: 9점 이상 self-score evidence에 반영한다.
+
+## EVD. Evidence Artifact Model
+
+**완료 정의:** vNEXT 빈 파일을 제거하고 prepublish/postpublish evidence를 분리해 불가능한 재현성 요구를 없앤다.
+
+- [x] `ATW-N9-EVD-0001` Evidence Artifact Model: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVD-0002` Evidence Artifact Model: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVD-0003` Evidence Artifact Model: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVD-0004` Evidence Artifact Model: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVD-0005` Evidence Artifact Model: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVD-0006` Evidence Artifact Model: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0007` Evidence Artifact Model: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0008` Evidence Artifact Model: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVD-0009` Evidence Artifact Model: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVD-0010` Evidence Artifact Model: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVD-0011` Evidence Artifact Model: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVD-0012` Evidence Artifact Model: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVD-0013` Evidence Artifact Model: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVD-0014` Evidence Artifact Model: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVD-0015` Evidence Artifact Model: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVD-0016` Evidence Artifact Model: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVD-0017` Evidence Artifact Model: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVD-0018` Evidence Artifact Model: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVD-0019` Evidence Artifact Model: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVD-0020` Evidence Artifact Model: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0021` Evidence Artifact Model: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0022` Evidence Artifact Model: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVD-0023` Evidence Artifact Model: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVD-0024` Evidence Artifact Model: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVD-0025` Evidence Artifact Model: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVD-0026` Evidence Artifact Model: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVD-0027` Evidence Artifact Model: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVD-0028` Evidence Artifact Model: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVD-0029` Evidence Artifact Model: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVD-0030` Evidence Artifact Model: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVD-0031` Evidence Artifact Model: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVD-0032` Evidence Artifact Model: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVD-0033` Evidence Artifact Model: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVD-0034` Evidence Artifact Model: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0035` Evidence Artifact Model: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0036` Evidence Artifact Model: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVD-0037` Evidence Artifact Model: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVD-0038` Evidence Artifact Model: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVD-0039` Evidence Artifact Model: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVD-0040` Evidence Artifact Model: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVD-0041` Evidence Artifact Model: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVD-0042` Evidence Artifact Model: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVD-0043` Evidence Artifact Model: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVD-0044` Evidence Artifact Model: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVD-0045` Evidence Artifact Model: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVD-0046` Evidence Artifact Model: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVD-0047` Evidence Artifact Model: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVD-0048` Evidence Artifact Model: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0049` Evidence Artifact Model: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0050` Evidence Artifact Model: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVD-0051` Evidence Artifact Model: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVD-0052` Evidence Artifact Model: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVD-0053` Evidence Artifact Model: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVD-0054` Evidence Artifact Model: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVD-0055` Evidence Artifact Model: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVD-0056` Evidence Artifact Model: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVD-0057` Evidence Artifact Model: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVD-0058` Evidence Artifact Model: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVD-0059` Evidence Artifact Model: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVD-0060` Evidence Artifact Model: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVD-0061` Evidence Artifact Model: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVD-0062` Evidence Artifact Model: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0063` Evidence Artifact Model: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0064` Evidence Artifact Model: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVD-0065` Evidence Artifact Model: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVD-0066` Evidence Artifact Model: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVD-0067` Evidence Artifact Model: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVD-0068` Evidence Artifact Model: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVD-0069` Evidence Artifact Model: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVD-0070` Evidence Artifact Model: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVD-0071` Evidence Artifact Model: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVD-0072` Evidence Artifact Model: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVD-0073` Evidence Artifact Model: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVD-0074` Evidence Artifact Model: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVD-0075` Evidence Artifact Model: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVD-0076` Evidence Artifact Model: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0077` Evidence Artifact Model: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0078` Evidence Artifact Model: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVD-0079` Evidence Artifact Model: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVD-0080` Evidence Artifact Model: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVD-0081` Evidence Artifact Model: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVD-0082` Evidence Artifact Model: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVD-0083` Evidence Artifact Model: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVD-0084` Evidence Artifact Model: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVD-0085` Evidence Artifact Model: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVD-0086` Evidence Artifact Model: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVD-0087` Evidence Artifact Model: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVD-0088` Evidence Artifact Model: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVD-0089` Evidence Artifact Model: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVD-0090` Evidence Artifact Model: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0091` Evidence Artifact Model: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVD-0092` Evidence Artifact Model: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVD-0093` Evidence Artifact Model: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVD-0094` Evidence Artifact Model: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVD-0095` Evidence Artifact Model: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVD-0096` Evidence Artifact Model: README/docs를 실제 구현과 일치시킨다.
+
+## CI. CI / Branch Protection / Publish Workflow
+
+**완료 정의:** main/tag에서 release:check와 published smoke가 실제 green evidence를 남긴다.
+
+- [x] `ATW-N9-CI-0001` CI / Branch Protection / Publish Workflow: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CI-0002` CI / Branch Protection / Publish Workflow: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CI-0003` CI / Branch Protection / Publish Workflow: happy path unit test를 작성한다.
+- [x] `ATW-N9-CI-0004` CI / Branch Protection / Publish Workflow: failure path regression test를 작성한다.
+- [x] `ATW-N9-CI-0005` CI / Branch Protection / Publish Workflow: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CI-0006` CI / Branch Protection / Publish Workflow: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0007` CI / Branch Protection / Publish Workflow: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0008` CI / Branch Protection / Publish Workflow: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CI-0009` CI / Branch Protection / Publish Workflow: CLI smoke를 추가한다.
+- [x] `ATW-N9-CI-0010` CI / Branch Protection / Publish Workflow: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CI-0011` CI / Branch Protection / Publish Workflow: MCP boundary를 검증한다.
+- [x] `ATW-N9-CI-0012` CI / Branch Protection / Publish Workflow: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CI-0013` CI / Branch Protection / Publish Workflow: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CI-0014` CI / Branch Protection / Publish Workflow: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CI-0015` CI / Branch Protection / Publish Workflow: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CI-0016` CI / Branch Protection / Publish Workflow: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CI-0017` CI / Branch Protection / Publish Workflow: happy path unit test를 작성한다.
+- [x] `ATW-N9-CI-0018` CI / Branch Protection / Publish Workflow: failure path regression test를 작성한다.
+- [x] `ATW-N9-CI-0019` CI / Branch Protection / Publish Workflow: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CI-0020` CI / Branch Protection / Publish Workflow: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0021` CI / Branch Protection / Publish Workflow: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0022` CI / Branch Protection / Publish Workflow: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CI-0023` CI / Branch Protection / Publish Workflow: CLI smoke를 추가한다.
+- [x] `ATW-N9-CI-0024` CI / Branch Protection / Publish Workflow: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CI-0025` CI / Branch Protection / Publish Workflow: MCP boundary를 검증한다.
+- [x] `ATW-N9-CI-0026` CI / Branch Protection / Publish Workflow: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CI-0027` CI / Branch Protection / Publish Workflow: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CI-0028` CI / Branch Protection / Publish Workflow: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CI-0029` CI / Branch Protection / Publish Workflow: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CI-0030` CI / Branch Protection / Publish Workflow: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CI-0031` CI / Branch Protection / Publish Workflow: happy path unit test를 작성한다.
+- [x] `ATW-N9-CI-0032` CI / Branch Protection / Publish Workflow: failure path regression test를 작성한다.
+- [x] `ATW-N9-CI-0033` CI / Branch Protection / Publish Workflow: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CI-0034` CI / Branch Protection / Publish Workflow: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0035` CI / Branch Protection / Publish Workflow: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0036` CI / Branch Protection / Publish Workflow: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CI-0037` CI / Branch Protection / Publish Workflow: CLI smoke를 추가한다.
+- [x] `ATW-N9-CI-0038` CI / Branch Protection / Publish Workflow: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CI-0039` CI / Branch Protection / Publish Workflow: MCP boundary를 검증한다.
+- [x] `ATW-N9-CI-0040` CI / Branch Protection / Publish Workflow: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CI-0041` CI / Branch Protection / Publish Workflow: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CI-0042` CI / Branch Protection / Publish Workflow: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CI-0043` CI / Branch Protection / Publish Workflow: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CI-0044` CI / Branch Protection / Publish Workflow: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CI-0045` CI / Branch Protection / Publish Workflow: happy path unit test를 작성한다.
+- [x] `ATW-N9-CI-0046` CI / Branch Protection / Publish Workflow: failure path regression test를 작성한다.
+- [x] `ATW-N9-CI-0047` CI / Branch Protection / Publish Workflow: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CI-0048` CI / Branch Protection / Publish Workflow: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0049` CI / Branch Protection / Publish Workflow: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0050` CI / Branch Protection / Publish Workflow: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CI-0051` CI / Branch Protection / Publish Workflow: CLI smoke를 추가한다.
+- [x] `ATW-N9-CI-0052` CI / Branch Protection / Publish Workflow: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CI-0053` CI / Branch Protection / Publish Workflow: MCP boundary를 검증한다.
+- [x] `ATW-N9-CI-0054` CI / Branch Protection / Publish Workflow: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CI-0055` CI / Branch Protection / Publish Workflow: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CI-0056` CI / Branch Protection / Publish Workflow: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CI-0057` CI / Branch Protection / Publish Workflow: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CI-0058` CI / Branch Protection / Publish Workflow: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CI-0059` CI / Branch Protection / Publish Workflow: happy path unit test를 작성한다.
+- [x] `ATW-N9-CI-0060` CI / Branch Protection / Publish Workflow: failure path regression test를 작성한다.
+- [x] `ATW-N9-CI-0061` CI / Branch Protection / Publish Workflow: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CI-0062` CI / Branch Protection / Publish Workflow: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0063` CI / Branch Protection / Publish Workflow: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0064` CI / Branch Protection / Publish Workflow: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CI-0065` CI / Branch Protection / Publish Workflow: CLI smoke를 추가한다.
+- [x] `ATW-N9-CI-0066` CI / Branch Protection / Publish Workflow: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CI-0067` CI / Branch Protection / Publish Workflow: MCP boundary를 검증한다.
+- [x] `ATW-N9-CI-0068` CI / Branch Protection / Publish Workflow: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CI-0069` CI / Branch Protection / Publish Workflow: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CI-0070` CI / Branch Protection / Publish Workflow: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CI-0071` CI / Branch Protection / Publish Workflow: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CI-0072` CI / Branch Protection / Publish Workflow: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CI-0073` CI / Branch Protection / Publish Workflow: happy path unit test를 작성한다.
+- [x] `ATW-N9-CI-0074` CI / Branch Protection / Publish Workflow: failure path regression test를 작성한다.
+- [x] `ATW-N9-CI-0075` CI / Branch Protection / Publish Workflow: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CI-0076` CI / Branch Protection / Publish Workflow: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0077` CI / Branch Protection / Publish Workflow: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0078` CI / Branch Protection / Publish Workflow: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CI-0079` CI / Branch Protection / Publish Workflow: CLI smoke를 추가한다.
+- [x] `ATW-N9-CI-0080` CI / Branch Protection / Publish Workflow: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CI-0081` CI / Branch Protection / Publish Workflow: MCP boundary를 검증한다.
+- [x] `ATW-N9-CI-0082` CI / Branch Protection / Publish Workflow: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CI-0083` CI / Branch Protection / Publish Workflow: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CI-0084` CI / Branch Protection / Publish Workflow: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CI-0085` CI / Branch Protection / Publish Workflow: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CI-0086` CI / Branch Protection / Publish Workflow: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CI-0087` CI / Branch Protection / Publish Workflow: happy path unit test를 작성한다.
+- [x] `ATW-N9-CI-0088` CI / Branch Protection / Publish Workflow: failure path regression test를 작성한다.
+- [x] `ATW-N9-CI-0089` CI / Branch Protection / Publish Workflow: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CI-0090` CI / Branch Protection / Publish Workflow: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0091` CI / Branch Protection / Publish Workflow: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CI-0092` CI / Branch Protection / Publish Workflow: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CI-0093` CI / Branch Protection / Publish Workflow: CLI smoke를 추가한다.
+- [x] `ATW-N9-CI-0094` CI / Branch Protection / Publish Workflow: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CI-0095` CI / Branch Protection / Publish Workflow: MCP boundary를 검증한다.
+- [x] `ATW-N9-CI-0096` CI / Branch Protection / Publish Workflow: README/docs를 실제 구현과 일치시킨다.
+
+## PKG. npm Packaging / Published Smoke
+
+**완료 정의:** 설치된 tarball 기준 SDK/CLI/MCP/RAG/Supabase subpath가 실제 동작한다.
+
+- [x] `ATW-N9-PKG-0001` npm Packaging / Published Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PKG-0002` npm Packaging / Published Smoke: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PKG-0003` npm Packaging / Published Smoke: happy path unit test를 작성한다.
+- [x] `ATW-N9-PKG-0004` npm Packaging / Published Smoke: failure path regression test를 작성한다.
+- [x] `ATW-N9-PKG-0005` npm Packaging / Published Smoke: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PKG-0006` npm Packaging / Published Smoke: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0007` npm Packaging / Published Smoke: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0008` npm Packaging / Published Smoke: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PKG-0009` npm Packaging / Published Smoke: CLI smoke를 추가한다.
+- [x] `ATW-N9-PKG-0010` npm Packaging / Published Smoke: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PKG-0011` npm Packaging / Published Smoke: MCP boundary를 검증한다.
+- [x] `ATW-N9-PKG-0012` npm Packaging / Published Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PKG-0013` npm Packaging / Published Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PKG-0014` npm Packaging / Published Smoke: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PKG-0015` npm Packaging / Published Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PKG-0016` npm Packaging / Published Smoke: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PKG-0017` npm Packaging / Published Smoke: happy path unit test를 작성한다.
+- [x] `ATW-N9-PKG-0018` npm Packaging / Published Smoke: failure path regression test를 작성한다.
+- [x] `ATW-N9-PKG-0019` npm Packaging / Published Smoke: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PKG-0020` npm Packaging / Published Smoke: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0021` npm Packaging / Published Smoke: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0022` npm Packaging / Published Smoke: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PKG-0023` npm Packaging / Published Smoke: CLI smoke를 추가한다.
+- [x] `ATW-N9-PKG-0024` npm Packaging / Published Smoke: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PKG-0025` npm Packaging / Published Smoke: MCP boundary를 검증한다.
+- [x] `ATW-N9-PKG-0026` npm Packaging / Published Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PKG-0027` npm Packaging / Published Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PKG-0028` npm Packaging / Published Smoke: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PKG-0029` npm Packaging / Published Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PKG-0030` npm Packaging / Published Smoke: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PKG-0031` npm Packaging / Published Smoke: happy path unit test를 작성한다.
+- [x] `ATW-N9-PKG-0032` npm Packaging / Published Smoke: failure path regression test를 작성한다.
+- [x] `ATW-N9-PKG-0033` npm Packaging / Published Smoke: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PKG-0034` npm Packaging / Published Smoke: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0035` npm Packaging / Published Smoke: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0036` npm Packaging / Published Smoke: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PKG-0037` npm Packaging / Published Smoke: CLI smoke를 추가한다.
+- [x] `ATW-N9-PKG-0038` npm Packaging / Published Smoke: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PKG-0039` npm Packaging / Published Smoke: MCP boundary를 검증한다.
+- [x] `ATW-N9-PKG-0040` npm Packaging / Published Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PKG-0041` npm Packaging / Published Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PKG-0042` npm Packaging / Published Smoke: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PKG-0043` npm Packaging / Published Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PKG-0044` npm Packaging / Published Smoke: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PKG-0045` npm Packaging / Published Smoke: happy path unit test를 작성한다.
+- [x] `ATW-N9-PKG-0046` npm Packaging / Published Smoke: failure path regression test를 작성한다.
+- [x] `ATW-N9-PKG-0047` npm Packaging / Published Smoke: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PKG-0048` npm Packaging / Published Smoke: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0049` npm Packaging / Published Smoke: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0050` npm Packaging / Published Smoke: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PKG-0051` npm Packaging / Published Smoke: CLI smoke를 추가한다.
+- [x] `ATW-N9-PKG-0052` npm Packaging / Published Smoke: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PKG-0053` npm Packaging / Published Smoke: MCP boundary를 검증한다.
+- [x] `ATW-N9-PKG-0054` npm Packaging / Published Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PKG-0055` npm Packaging / Published Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PKG-0056` npm Packaging / Published Smoke: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PKG-0057` npm Packaging / Published Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PKG-0058` npm Packaging / Published Smoke: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PKG-0059` npm Packaging / Published Smoke: happy path unit test를 작성한다.
+- [x] `ATW-N9-PKG-0060` npm Packaging / Published Smoke: failure path regression test를 작성한다.
+- [x] `ATW-N9-PKG-0061` npm Packaging / Published Smoke: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PKG-0062` npm Packaging / Published Smoke: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0063` npm Packaging / Published Smoke: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0064` npm Packaging / Published Smoke: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PKG-0065` npm Packaging / Published Smoke: CLI smoke를 추가한다.
+- [x] `ATW-N9-PKG-0066` npm Packaging / Published Smoke: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PKG-0067` npm Packaging / Published Smoke: MCP boundary를 검증한다.
+- [x] `ATW-N9-PKG-0068` npm Packaging / Published Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PKG-0069` npm Packaging / Published Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PKG-0070` npm Packaging / Published Smoke: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PKG-0071` npm Packaging / Published Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PKG-0072` npm Packaging / Published Smoke: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PKG-0073` npm Packaging / Published Smoke: happy path unit test를 작성한다.
+- [x] `ATW-N9-PKG-0074` npm Packaging / Published Smoke: failure path regression test를 작성한다.
+- [x] `ATW-N9-PKG-0075` npm Packaging / Published Smoke: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PKG-0076` npm Packaging / Published Smoke: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0077` npm Packaging / Published Smoke: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0078` npm Packaging / Published Smoke: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PKG-0079` npm Packaging / Published Smoke: CLI smoke를 추가한다.
+- [x] `ATW-N9-PKG-0080` npm Packaging / Published Smoke: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PKG-0081` npm Packaging / Published Smoke: MCP boundary를 검증한다.
+- [x] `ATW-N9-PKG-0082` npm Packaging / Published Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PKG-0083` npm Packaging / Published Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PKG-0084` npm Packaging / Published Smoke: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PKG-0085` npm Packaging / Published Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PKG-0086` npm Packaging / Published Smoke: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PKG-0087` npm Packaging / Published Smoke: happy path unit test를 작성한다.
+- [x] `ATW-N9-PKG-0088` npm Packaging / Published Smoke: failure path regression test를 작성한다.
+- [x] `ATW-N9-PKG-0089` npm Packaging / Published Smoke: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PKG-0090` npm Packaging / Published Smoke: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0091` npm Packaging / Published Smoke: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0092` npm Packaging / Published Smoke: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PKG-0093` npm Packaging / Published Smoke: CLI smoke를 추가한다.
+- [x] `ATW-N9-PKG-0094` npm Packaging / Published Smoke: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PKG-0095` npm Packaging / Published Smoke: MCP boundary를 검증한다.
+- [x] `ATW-N9-PKG-0096` npm Packaging / Published Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PKG-0097` npm Packaging / Published Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PKG-0098` npm Packaging / Published Smoke: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PKG-0099` npm Packaging / Published Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PKG-0100` npm Packaging / Published Smoke: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PKG-0101` npm Packaging / Published Smoke: happy path unit test를 작성한다.
+- [x] `ATW-N9-PKG-0102` npm Packaging / Published Smoke: failure path regression test를 작성한다.
+- [x] `ATW-N9-PKG-0103` npm Packaging / Published Smoke: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PKG-0104` npm Packaging / Published Smoke: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0105` npm Packaging / Published Smoke: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PKG-0106` npm Packaging / Published Smoke: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PKG-0107` npm Packaging / Published Smoke: CLI smoke를 추가한다.
+- [x] `ATW-N9-PKG-0108` npm Packaging / Published Smoke: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PKG-0109` npm Packaging / Published Smoke: MCP boundary를 검증한다.
+- [x] `ATW-N9-PKG-0110` npm Packaging / Published Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PKG-0111` npm Packaging / Published Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PKG-0112` npm Packaging / Published Smoke: 9점 이상 self-score evidence에 반영한다.
+
+## GEM. Gemini Provider API 정확성
+
+**완료 정의:** gemini-embedding-2와 gemini-embedding-001의 요청 형식, dimension, fallback이 정확해야 한다.
+
+- [x] `ATW-N9-GEM-0001` `gemini-embedding-2` request에서 taskType/title 제거를 유지한다.
+- [x] `ATW-N9-GEM-0002` `gemini-embedding-001` request에서 outputDimensionality를 보내지 않는 경우 실제 returned dimension과 provider.dimensions 정책을 문서화한다.
+- [x] `ATW-N9-GEM-0003` `gemini-embedding-001`은 기본 dimensions를 model default로 자동 감지하거나 user가 dimension을 지정하지 않으면 dimension check를 response 기반으로 profile에 기록한다.
+- [x] `ATW-N9-GEM-0004` custom dimensions가 model에서 지원되지 않으면 constructor 또는 first request에서 명확한 error를 던진다.
+- [x] `ATW-N9-GEM-0005` Gemini provider mock test에 model별 query/document payload snapshot을 추가한다.
+- [x] `ATW-N9-GEM-0006` retryable error taxonomy에 429, quota, timeout, temporary unavailable을 포함한다.
+- [x] `ATW-N9-GEM-0007` provider error에 raw API key, request text full body를 포함하지 않는다.
+- [x] `ATW-N9-GEM-0008` Gemini docs 링크와 model policy를 README에 넣는다.
+- [x] `ATW-N9-GEM-0009` CLI `--dimensions`는 Gemini model capability와 충돌하면 fail-fast한다.
+- [x] `ATW-N9-GEM-0010` Gemini provider는 batch embedding을 지원하되 rate-limit backoff hook을 둔다.
+- [x] `ATW-N9-GEM-0011` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0012` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0013` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0014` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0015` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0016` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0017` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0018` Gemini Provider API 정확성: failure path regression test를 작성한다.
+- [x] `ATW-N9-GEM-0019` Gemini Provider API 정확성: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-GEM-0020` Gemini Provider API 정확성: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0021` Gemini Provider API 정확성: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0022` Gemini Provider API 정확성: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-GEM-0023` Gemini Provider API 정확성: CLI smoke를 추가한다.
+- [x] `ATW-N9-GEM-0024` Gemini Provider API 정확성: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-GEM-0025` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0026` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0027` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0028` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0029` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0030` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0031` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0032` Gemini Provider API 정확성: failure path regression test를 작성한다.
+- [x] `ATW-N9-GEM-0033` Gemini Provider API 정확성: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-GEM-0034` Gemini Provider API 정확성: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0035` Gemini Provider API 정확성: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0036` Gemini Provider API 정확성: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-GEM-0037` Gemini Provider API 정확성: CLI smoke를 추가한다.
+- [x] `ATW-N9-GEM-0038` Gemini Provider API 정확성: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-GEM-0039` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0040` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0041` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0042` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0043` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0044` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0045` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0046` Gemini Provider API 정확성: failure path regression test를 작성한다.
+- [x] `ATW-N9-GEM-0047` Gemini Provider API 정확성: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-GEM-0048` Gemini Provider API 정확성: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0049` Gemini Provider API 정확성: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0050` Gemini Provider API 정확성: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-GEM-0051` Gemini Provider API 정확성: CLI smoke를 추가한다.
+- [x] `ATW-N9-GEM-0052` Gemini Provider API 정확성: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-GEM-0053` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0054` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0055` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0056` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0057` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0058` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0059` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0060` Gemini Provider API 정확성: failure path regression test를 작성한다.
+- [x] `ATW-N9-GEM-0061` Gemini Provider API 정확성: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-GEM-0062` Gemini Provider API 정확성: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0063` Gemini Provider API 정확성: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0064` Gemini Provider API 정확성: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-GEM-0065` Gemini Provider API 정확성: CLI smoke를 추가한다.
+- [x] `ATW-N9-GEM-0066` Gemini Provider API 정확성: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-GEM-0067` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0068` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0069` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0070` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0071` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0072` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0073` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0074` Gemini Provider API 정확성: failure path regression test를 작성한다.
+- [x] `ATW-N9-GEM-0075` Gemini Provider API 정확성: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-GEM-0076` Gemini Provider API 정확성: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0077` Gemini Provider API 정확성: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0078` Gemini Provider API 정확성: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-GEM-0079` Gemini Provider API 정확성: CLI smoke를 추가한다.
+- [x] `ATW-N9-GEM-0080` Gemini Provider API 정확성: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-GEM-0081` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0082` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0083` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0084` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0085` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0086` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0087` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0088` Gemini Provider API 정확성: failure path regression test를 작성한다.
+- [x] `ATW-N9-GEM-0089` Gemini Provider API 정확성: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-GEM-0090` Gemini Provider API 정확성: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0091` Gemini Provider API 정확성: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0092` Gemini Provider API 정확성: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-GEM-0093` Gemini Provider API 정확성: CLI smoke를 추가한다.
+- [x] `ATW-N9-GEM-0094` Gemini Provider API 정확성: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-GEM-0095` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0096` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0097` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0098` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0099` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0100` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0101` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0102` Gemini Provider API 정확성: failure path regression test를 작성한다.
+- [x] `ATW-N9-GEM-0103` Gemini Provider API 정확성: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-GEM-0104` Gemini Provider API 정확성: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0105` Gemini Provider API 정확성: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0106` Gemini Provider API 정확성: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-GEM-0107` Gemini Provider API 정확성: CLI smoke를 추가한다.
+- [x] `ATW-N9-GEM-0108` Gemini Provider API 정확성: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-GEM-0109` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0110` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0111` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0112` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0113` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0114` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0115` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0116` Gemini Provider API 정확성: failure path regression test를 작성한다.
+- [x] `ATW-N9-GEM-0117` Gemini Provider API 정확성: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-GEM-0118` Gemini Provider API 정확성: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0119` Gemini Provider API 정확성: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0120` Gemini Provider API 정확성: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-GEM-0121` Gemini Provider API 정확성: CLI smoke를 추가한다.
+- [x] `ATW-N9-GEM-0122` Gemini Provider API 정확성: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-GEM-0123` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0124` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0125` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0126` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0127` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0128` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0129` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0130` Gemini Provider API 정확성: failure path regression test를 작성한다.
+- [x] `ATW-N9-GEM-0131` Gemini Provider API 정확성: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-GEM-0132` Gemini Provider API 정확성: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0133` Gemini Provider API 정확성: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-GEM-0134` Gemini Provider API 정확성: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-GEM-0135` Gemini Provider API 정확성: CLI smoke를 추가한다.
+- [x] `ATW-N9-GEM-0136` Gemini Provider API 정확성: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-GEM-0137` Gemini Provider API 정확성: MCP boundary를 검증한다.
+- [x] `ATW-N9-GEM-0138` Gemini Provider API 정확성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-GEM-0139` Gemini Provider API 정확성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-GEM-0140` Gemini Provider API 정확성: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-GEM-0141` Gemini Provider API 정확성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-GEM-0142` Gemini Provider API 정확성: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-GEM-0143` Gemini Provider API 정확성: happy path unit test를 작성한다.
+- [x] `ATW-N9-GEM-0144` Gemini Provider API 정확성: failure path regression test를 작성한다.
+
+## RAG. RAG Architecture v2
+
+**완료 정의:** RAG가 store-backed, restart-safe, citation-first, backend-neutral이어야 한다.
+
+- [x] `ATW-N9-RAG-0001` RagService는 store.vectorSearch를 우선 사용한다.
+- [x] `ATW-N9-RAG-0002` SQLite vector path는 listRagChunkEmbeddings + app-side cosine을 사용할 수 있다.
+- [x] `ATW-N9-RAG-0003` Supabase vector path는 app-side scan이 아니라 `vectorSearch()` RPC를 사용한다.
+- [x] `ATW-N9-RAG-0004` RAG index는 source당 1 chunk가 아니라 모든 indexable chunk를 대상으로 한다.
+- [x] `ATW-N9-RAG-0005` index는 content_hash가 동일하면 중복 embedding call을 피한다.
+- [x] `ATW-N9-RAG-0006` stale embedding은 source/chunk content hash mismatch로 계산한다.
+- [x] `ATW-N9-RAG-0007` hybrid ranking 공식은 lexical/structured/vector/freshness/authority를 명시적으로 반환한다.
+- [x] `ATW-N9-RAG-0008` RAG 결과는 generated answer를 포함하지 않는다.
+- [x] `ATW-N9-RAG-0009` RAG context pack은 RAG search results의 ordering을 보존한다.
+- [x] `ATW-N9-RAG-0010` mode=vector는 provider/index/RPC 없으면 절대 lexical로 fallback하지 않는다.
+- [x] `ATW-N9-RAG-0011` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0012` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0013` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0014` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0015` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0016` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0017` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0018` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0019` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0020` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0021` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0022` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0023` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0024` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0025` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0026` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0027` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0028` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0029` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0030` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0031` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0032` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0033` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0034` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0035` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0036` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0037` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0038` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0039` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0040` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0041` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0042` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0043` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0044` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0045` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0046` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0047` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0048` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0049` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0050` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0051` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0052` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0053` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0054` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0055` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0056` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0057` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0058` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0059` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0060` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0061` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0062` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0063` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0064` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0065` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0066` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0067` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0068` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0069` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0070` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0071` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0072` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0073` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0074` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0075` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0076` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0077` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0078` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0079` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0080` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0081` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0082` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0083` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0084` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0085` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0086` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0087` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0088` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0089` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0090` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0091` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0092` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0093` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0094` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0095` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0096` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0097` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0098` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0099` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0100` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0101` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0102` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0103` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0104` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0105` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0106` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0107` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0108` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0109` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0110` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0111` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0112` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0113` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0114` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0115` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0116` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0117` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0118` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0119` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0120` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0121` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0122` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0123` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0124` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0125` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0126` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0127` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0128` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0129` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0130` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0131` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0132` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0133` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0134` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0135` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0136` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0137` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0138` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0139` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0140` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0141` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0142` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0143` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0144` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0145` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0146` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0147` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0148` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0149` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0150` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0151` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0152` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0153` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0154` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-RAG-0155` RAG Architecture v2: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-RAG-0156` RAG Architecture v2: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-RAG-0157` RAG Architecture v2: happy path unit test를 작성한다.
+- [x] `ATW-N9-RAG-0158` RAG Architecture v2: failure path regression test를 작성한다.
+- [x] `ATW-N9-RAG-0159` RAG Architecture v2: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-RAG-0160` RAG Architecture v2: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0161` RAG Architecture v2: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-RAG-0162` RAG Architecture v2: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-RAG-0163` RAG Architecture v2: CLI smoke를 추가한다.
+- [x] `ATW-N9-RAG-0164` RAG Architecture v2: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-RAG-0165` RAG Architecture v2: MCP boundary를 검증한다.
+- [x] `ATW-N9-RAG-0166` RAG Architecture v2: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-RAG-0167` RAG Architecture v2: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-RAG-0168` RAG Architecture v2: 9점 이상 self-score evidence에 반영한다.
+
+## STA. Async RAG Status / Store Capabilities
+
+**완료 정의:** Supabase 같은 async backend에서도 status와 capability reporting이 정확해야 한다.
+
+- [x] `ATW-N9-STA-0001` Async RAG Status / Store Capabilities: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STA-0002` Async RAG Status / Store Capabilities: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STA-0003` Async RAG Status / Store Capabilities: happy path unit test를 작성한다.
+- [x] `ATW-N9-STA-0004` Async RAG Status / Store Capabilities: failure path regression test를 작성한다.
+- [x] `ATW-N9-STA-0005` Async RAG Status / Store Capabilities: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STA-0006` Async RAG Status / Store Capabilities: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0007` Async RAG Status / Store Capabilities: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0008` Async RAG Status / Store Capabilities: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STA-0009` Async RAG Status / Store Capabilities: CLI smoke를 추가한다.
+- [x] `ATW-N9-STA-0010` Async RAG Status / Store Capabilities: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STA-0011` Async RAG Status / Store Capabilities: MCP boundary를 검증한다.
+- [x] `ATW-N9-STA-0012` Async RAG Status / Store Capabilities: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STA-0013` Async RAG Status / Store Capabilities: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STA-0014` Async RAG Status / Store Capabilities: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STA-0015` Async RAG Status / Store Capabilities: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STA-0016` Async RAG Status / Store Capabilities: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STA-0017` Async RAG Status / Store Capabilities: happy path unit test를 작성한다.
+- [x] `ATW-N9-STA-0018` Async RAG Status / Store Capabilities: failure path regression test를 작성한다.
+- [x] `ATW-N9-STA-0019` Async RAG Status / Store Capabilities: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STA-0020` Async RAG Status / Store Capabilities: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0021` Async RAG Status / Store Capabilities: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0022` Async RAG Status / Store Capabilities: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STA-0023` Async RAG Status / Store Capabilities: CLI smoke를 추가한다.
+- [x] `ATW-N9-STA-0024` Async RAG Status / Store Capabilities: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STA-0025` Async RAG Status / Store Capabilities: MCP boundary를 검증한다.
+- [x] `ATW-N9-STA-0026` Async RAG Status / Store Capabilities: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STA-0027` Async RAG Status / Store Capabilities: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STA-0028` Async RAG Status / Store Capabilities: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STA-0029` Async RAG Status / Store Capabilities: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STA-0030` Async RAG Status / Store Capabilities: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STA-0031` Async RAG Status / Store Capabilities: happy path unit test를 작성한다.
+- [x] `ATW-N9-STA-0032` Async RAG Status / Store Capabilities: failure path regression test를 작성한다.
+- [x] `ATW-N9-STA-0033` Async RAG Status / Store Capabilities: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STA-0034` Async RAG Status / Store Capabilities: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0035` Async RAG Status / Store Capabilities: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0036` Async RAG Status / Store Capabilities: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STA-0037` Async RAG Status / Store Capabilities: CLI smoke를 추가한다.
+- [x] `ATW-N9-STA-0038` Async RAG Status / Store Capabilities: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STA-0039` Async RAG Status / Store Capabilities: MCP boundary를 검증한다.
+- [x] `ATW-N9-STA-0040` Async RAG Status / Store Capabilities: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STA-0041` Async RAG Status / Store Capabilities: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STA-0042` Async RAG Status / Store Capabilities: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STA-0043` Async RAG Status / Store Capabilities: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STA-0044` Async RAG Status / Store Capabilities: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STA-0045` Async RAG Status / Store Capabilities: happy path unit test를 작성한다.
+- [x] `ATW-N9-STA-0046` Async RAG Status / Store Capabilities: failure path regression test를 작성한다.
+- [x] `ATW-N9-STA-0047` Async RAG Status / Store Capabilities: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STA-0048` Async RAG Status / Store Capabilities: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0049` Async RAG Status / Store Capabilities: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0050` Async RAG Status / Store Capabilities: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STA-0051` Async RAG Status / Store Capabilities: CLI smoke를 추가한다.
+- [x] `ATW-N9-STA-0052` Async RAG Status / Store Capabilities: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STA-0053` Async RAG Status / Store Capabilities: MCP boundary를 검증한다.
+- [x] `ATW-N9-STA-0054` Async RAG Status / Store Capabilities: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STA-0055` Async RAG Status / Store Capabilities: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STA-0056` Async RAG Status / Store Capabilities: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STA-0057` Async RAG Status / Store Capabilities: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STA-0058` Async RAG Status / Store Capabilities: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STA-0059` Async RAG Status / Store Capabilities: happy path unit test를 작성한다.
+- [x] `ATW-N9-STA-0060` Async RAG Status / Store Capabilities: failure path regression test를 작성한다.
+- [x] `ATW-N9-STA-0061` Async RAG Status / Store Capabilities: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STA-0062` Async RAG Status / Store Capabilities: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0063` Async RAG Status / Store Capabilities: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0064` Async RAG Status / Store Capabilities: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STA-0065` Async RAG Status / Store Capabilities: CLI smoke를 추가한다.
+- [x] `ATW-N9-STA-0066` Async RAG Status / Store Capabilities: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STA-0067` Async RAG Status / Store Capabilities: MCP boundary를 검증한다.
+- [x] `ATW-N9-STA-0068` Async RAG Status / Store Capabilities: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STA-0069` Async RAG Status / Store Capabilities: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STA-0070` Async RAG Status / Store Capabilities: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STA-0071` Async RAG Status / Store Capabilities: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STA-0072` Async RAG Status / Store Capabilities: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STA-0073` Async RAG Status / Store Capabilities: happy path unit test를 작성한다.
+- [x] `ATW-N9-STA-0074` Async RAG Status / Store Capabilities: failure path regression test를 작성한다.
+- [x] `ATW-N9-STA-0075` Async RAG Status / Store Capabilities: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STA-0076` Async RAG Status / Store Capabilities: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0077` Async RAG Status / Store Capabilities: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0078` Async RAG Status / Store Capabilities: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STA-0079` Async RAG Status / Store Capabilities: CLI smoke를 추가한다.
+- [x] `ATW-N9-STA-0080` Async RAG Status / Store Capabilities: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STA-0081` Async RAG Status / Store Capabilities: MCP boundary를 검증한다.
+- [x] `ATW-N9-STA-0082` Async RAG Status / Store Capabilities: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STA-0083` Async RAG Status / Store Capabilities: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STA-0084` Async RAG Status / Store Capabilities: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STA-0085` Async RAG Status / Store Capabilities: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STA-0086` Async RAG Status / Store Capabilities: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STA-0087` Async RAG Status / Store Capabilities: happy path unit test를 작성한다.
+- [x] `ATW-N9-STA-0088` Async RAG Status / Store Capabilities: failure path regression test를 작성한다.
+- [x] `ATW-N9-STA-0089` Async RAG Status / Store Capabilities: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STA-0090` Async RAG Status / Store Capabilities: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0091` Async RAG Status / Store Capabilities: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STA-0092` Async RAG Status / Store Capabilities: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STA-0093` Async RAG Status / Store Capabilities: CLI smoke를 추가한다.
+- [x] `ATW-N9-STA-0094` Async RAG Status / Store Capabilities: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STA-0095` Async RAG Status / Store Capabilities: MCP boundary를 검증한다.
+- [x] `ATW-N9-STA-0096` Async RAG Status / Store Capabilities: README/docs를 실제 구현과 일치시킨다.
+
+## CTX. RAG Context Pack Fidelity
+
+**완료 정의:** context pack은 RAG-ranked chunk selection/order를 그대로 반영해야 한다.
+
+- [x] `ATW-N9-CTX-0001` RAG Context Pack Fidelity: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CTX-0002` RAG Context Pack Fidelity: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CTX-0003` RAG Context Pack Fidelity: happy path unit test를 작성한다.
+- [x] `ATW-N9-CTX-0004` RAG Context Pack Fidelity: failure path regression test를 작성한다.
+- [x] `ATW-N9-CTX-0005` RAG Context Pack Fidelity: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CTX-0006` RAG Context Pack Fidelity: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0007` RAG Context Pack Fidelity: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0008` RAG Context Pack Fidelity: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CTX-0009` RAG Context Pack Fidelity: CLI smoke를 추가한다.
+- [x] `ATW-N9-CTX-0010` RAG Context Pack Fidelity: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CTX-0011` RAG Context Pack Fidelity: MCP boundary를 검증한다.
+- [x] `ATW-N9-CTX-0012` RAG Context Pack Fidelity: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CTX-0013` RAG Context Pack Fidelity: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CTX-0014` RAG Context Pack Fidelity: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CTX-0015` RAG Context Pack Fidelity: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CTX-0016` RAG Context Pack Fidelity: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CTX-0017` RAG Context Pack Fidelity: happy path unit test를 작성한다.
+- [x] `ATW-N9-CTX-0018` RAG Context Pack Fidelity: failure path regression test를 작성한다.
+- [x] `ATW-N9-CTX-0019` RAG Context Pack Fidelity: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CTX-0020` RAG Context Pack Fidelity: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0021` RAG Context Pack Fidelity: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0022` RAG Context Pack Fidelity: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CTX-0023` RAG Context Pack Fidelity: CLI smoke를 추가한다.
+- [x] `ATW-N9-CTX-0024` RAG Context Pack Fidelity: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CTX-0025` RAG Context Pack Fidelity: MCP boundary를 검증한다.
+- [x] `ATW-N9-CTX-0026` RAG Context Pack Fidelity: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CTX-0027` RAG Context Pack Fidelity: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CTX-0028` RAG Context Pack Fidelity: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CTX-0029` RAG Context Pack Fidelity: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CTX-0030` RAG Context Pack Fidelity: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CTX-0031` RAG Context Pack Fidelity: happy path unit test를 작성한다.
+- [x] `ATW-N9-CTX-0032` RAG Context Pack Fidelity: failure path regression test를 작성한다.
+- [x] `ATW-N9-CTX-0033` RAG Context Pack Fidelity: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CTX-0034` RAG Context Pack Fidelity: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0035` RAG Context Pack Fidelity: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0036` RAG Context Pack Fidelity: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CTX-0037` RAG Context Pack Fidelity: CLI smoke를 추가한다.
+- [x] `ATW-N9-CTX-0038` RAG Context Pack Fidelity: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CTX-0039` RAG Context Pack Fidelity: MCP boundary를 검증한다.
+- [x] `ATW-N9-CTX-0040` RAG Context Pack Fidelity: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CTX-0041` RAG Context Pack Fidelity: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CTX-0042` RAG Context Pack Fidelity: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CTX-0043` RAG Context Pack Fidelity: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CTX-0044` RAG Context Pack Fidelity: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CTX-0045` RAG Context Pack Fidelity: happy path unit test를 작성한다.
+- [x] `ATW-N9-CTX-0046` RAG Context Pack Fidelity: failure path regression test를 작성한다.
+- [x] `ATW-N9-CTX-0047` RAG Context Pack Fidelity: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CTX-0048` RAG Context Pack Fidelity: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0049` RAG Context Pack Fidelity: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0050` RAG Context Pack Fidelity: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CTX-0051` RAG Context Pack Fidelity: CLI smoke를 추가한다.
+- [x] `ATW-N9-CTX-0052` RAG Context Pack Fidelity: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CTX-0053` RAG Context Pack Fidelity: MCP boundary를 검증한다.
+- [x] `ATW-N9-CTX-0054` RAG Context Pack Fidelity: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CTX-0055` RAG Context Pack Fidelity: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CTX-0056` RAG Context Pack Fidelity: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CTX-0057` RAG Context Pack Fidelity: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CTX-0058` RAG Context Pack Fidelity: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CTX-0059` RAG Context Pack Fidelity: happy path unit test를 작성한다.
+- [x] `ATW-N9-CTX-0060` RAG Context Pack Fidelity: failure path regression test를 작성한다.
+- [x] `ATW-N9-CTX-0061` RAG Context Pack Fidelity: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CTX-0062` RAG Context Pack Fidelity: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0063` RAG Context Pack Fidelity: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0064` RAG Context Pack Fidelity: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CTX-0065` RAG Context Pack Fidelity: CLI smoke를 추가한다.
+- [x] `ATW-N9-CTX-0066` RAG Context Pack Fidelity: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CTX-0067` RAG Context Pack Fidelity: MCP boundary를 검증한다.
+- [x] `ATW-N9-CTX-0068` RAG Context Pack Fidelity: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CTX-0069` RAG Context Pack Fidelity: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CTX-0070` RAG Context Pack Fidelity: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CTX-0071` RAG Context Pack Fidelity: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CTX-0072` RAG Context Pack Fidelity: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CTX-0073` RAG Context Pack Fidelity: happy path unit test를 작성한다.
+- [x] `ATW-N9-CTX-0074` RAG Context Pack Fidelity: failure path regression test를 작성한다.
+- [x] `ATW-N9-CTX-0075` RAG Context Pack Fidelity: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CTX-0076` RAG Context Pack Fidelity: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0077` RAG Context Pack Fidelity: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0078` RAG Context Pack Fidelity: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CTX-0079` RAG Context Pack Fidelity: CLI smoke를 추가한다.
+- [x] `ATW-N9-CTX-0080` RAG Context Pack Fidelity: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CTX-0081` RAG Context Pack Fidelity: MCP boundary를 검증한다.
+- [x] `ATW-N9-CTX-0082` RAG Context Pack Fidelity: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CTX-0083` RAG Context Pack Fidelity: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CTX-0084` RAG Context Pack Fidelity: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CTX-0085` RAG Context Pack Fidelity: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CTX-0086` RAG Context Pack Fidelity: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CTX-0087` RAG Context Pack Fidelity: happy path unit test를 작성한다.
+- [x] `ATW-N9-CTX-0088` RAG Context Pack Fidelity: failure path regression test를 작성한다.
+- [x] `ATW-N9-CTX-0089` RAG Context Pack Fidelity: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CTX-0090` RAG Context Pack Fidelity: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0091` RAG Context Pack Fidelity: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CTX-0092` RAG Context Pack Fidelity: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CTX-0093` RAG Context Pack Fidelity: CLI smoke를 추가한다.
+- [x] `ATW-N9-CTX-0094` RAG Context Pack Fidelity: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CTX-0095` RAG Context Pack Fidelity: MCP boundary를 검증한다.
+- [x] `ATW-N9-CTX-0096` RAG Context Pack Fidelity: README/docs를 실제 구현과 일치시킨다.
+
+## SQL. SQLite 9+ Persistent Vector
+
+**완료 정의:** SQLite는 persistent embeddings, chunk-level indexing, atomic CAS, audit를 완성한다.
+
+- [x] `ATW-N9-SQL-0001` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0002` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SQL-0003` SQLite 9+ Persistent Vector: happy path unit test를 작성한다.
+- [x] `ATW-N9-SQL-0004` SQLite 9+ Persistent Vector: failure path regression test를 작성한다.
+- [x] `ATW-N9-SQL-0005` SQLite 9+ Persistent Vector: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SQL-0006` SQLite 9+ Persistent Vector: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0007` SQLite 9+ Persistent Vector: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0008` SQLite 9+ Persistent Vector: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SQL-0009` SQLite 9+ Persistent Vector: CLI smoke를 추가한다.
+- [x] `ATW-N9-SQL-0010` SQLite 9+ Persistent Vector: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SQL-0011` SQLite 9+ Persistent Vector: MCP boundary를 검증한다.
+- [x] `ATW-N9-SQL-0012` SQLite 9+ Persistent Vector: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SQL-0013` SQLite 9+ Persistent Vector: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SQL-0014` SQLite 9+ Persistent Vector: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SQL-0015` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0016` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SQL-0017` SQLite 9+ Persistent Vector: happy path unit test를 작성한다.
+- [x] `ATW-N9-SQL-0018` SQLite 9+ Persistent Vector: failure path regression test를 작성한다.
+- [x] `ATW-N9-SQL-0019` SQLite 9+ Persistent Vector: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SQL-0020` SQLite 9+ Persistent Vector: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0021` SQLite 9+ Persistent Vector: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0022` SQLite 9+ Persistent Vector: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SQL-0023` SQLite 9+ Persistent Vector: CLI smoke를 추가한다.
+- [x] `ATW-N9-SQL-0024` SQLite 9+ Persistent Vector: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SQL-0025` SQLite 9+ Persistent Vector: MCP boundary를 검증한다.
+- [x] `ATW-N9-SQL-0026` SQLite 9+ Persistent Vector: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SQL-0027` SQLite 9+ Persistent Vector: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SQL-0028` SQLite 9+ Persistent Vector: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SQL-0029` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0030` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SQL-0031` SQLite 9+ Persistent Vector: happy path unit test를 작성한다.
+- [x] `ATW-N9-SQL-0032` SQLite 9+ Persistent Vector: failure path regression test를 작성한다.
+- [x] `ATW-N9-SQL-0033` SQLite 9+ Persistent Vector: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SQL-0034` SQLite 9+ Persistent Vector: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0035` SQLite 9+ Persistent Vector: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0036` SQLite 9+ Persistent Vector: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SQL-0037` SQLite 9+ Persistent Vector: CLI smoke를 추가한다.
+- [x] `ATW-N9-SQL-0038` SQLite 9+ Persistent Vector: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SQL-0039` SQLite 9+ Persistent Vector: MCP boundary를 검증한다.
+- [x] `ATW-N9-SQL-0040` SQLite 9+ Persistent Vector: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SQL-0041` SQLite 9+ Persistent Vector: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SQL-0042` SQLite 9+ Persistent Vector: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SQL-0043` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0044` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SQL-0045` SQLite 9+ Persistent Vector: happy path unit test를 작성한다.
+- [x] `ATW-N9-SQL-0046` SQLite 9+ Persistent Vector: failure path regression test를 작성한다.
+- [x] `ATW-N9-SQL-0047` SQLite 9+ Persistent Vector: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SQL-0048` SQLite 9+ Persistent Vector: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0049` SQLite 9+ Persistent Vector: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0050` SQLite 9+ Persistent Vector: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SQL-0051` SQLite 9+ Persistent Vector: CLI smoke를 추가한다.
+- [x] `ATW-N9-SQL-0052` SQLite 9+ Persistent Vector: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SQL-0053` SQLite 9+ Persistent Vector: MCP boundary를 검증한다.
+- [x] `ATW-N9-SQL-0054` SQLite 9+ Persistent Vector: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SQL-0055` SQLite 9+ Persistent Vector: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SQL-0056` SQLite 9+ Persistent Vector: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SQL-0057` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0058` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SQL-0059` SQLite 9+ Persistent Vector: happy path unit test를 작성한다.
+- [x] `ATW-N9-SQL-0060` SQLite 9+ Persistent Vector: failure path regression test를 작성한다.
+- [x] `ATW-N9-SQL-0061` SQLite 9+ Persistent Vector: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SQL-0062` SQLite 9+ Persistent Vector: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0063` SQLite 9+ Persistent Vector: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0064` SQLite 9+ Persistent Vector: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SQL-0065` SQLite 9+ Persistent Vector: CLI smoke를 추가한다.
+- [x] `ATW-N9-SQL-0066` SQLite 9+ Persistent Vector: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SQL-0067` SQLite 9+ Persistent Vector: MCP boundary를 검증한다.
+- [x] `ATW-N9-SQL-0068` SQLite 9+ Persistent Vector: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SQL-0069` SQLite 9+ Persistent Vector: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SQL-0070` SQLite 9+ Persistent Vector: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SQL-0071` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0072` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SQL-0073` SQLite 9+ Persistent Vector: happy path unit test를 작성한다.
+- [x] `ATW-N9-SQL-0074` SQLite 9+ Persistent Vector: failure path regression test를 작성한다.
+- [x] `ATW-N9-SQL-0075` SQLite 9+ Persistent Vector: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SQL-0076` SQLite 9+ Persistent Vector: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0077` SQLite 9+ Persistent Vector: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0078` SQLite 9+ Persistent Vector: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SQL-0079` SQLite 9+ Persistent Vector: CLI smoke를 추가한다.
+- [x] `ATW-N9-SQL-0080` SQLite 9+ Persistent Vector: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SQL-0081` SQLite 9+ Persistent Vector: MCP boundary를 검증한다.
+- [x] `ATW-N9-SQL-0082` SQLite 9+ Persistent Vector: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SQL-0083` SQLite 9+ Persistent Vector: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SQL-0084` SQLite 9+ Persistent Vector: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SQL-0085` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0086` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SQL-0087` SQLite 9+ Persistent Vector: happy path unit test를 작성한다.
+- [x] `ATW-N9-SQL-0088` SQLite 9+ Persistent Vector: failure path regression test를 작성한다.
+- [x] `ATW-N9-SQL-0089` SQLite 9+ Persistent Vector: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SQL-0090` SQLite 9+ Persistent Vector: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0091` SQLite 9+ Persistent Vector: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0092` SQLite 9+ Persistent Vector: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SQL-0093` SQLite 9+ Persistent Vector: CLI smoke를 추가한다.
+- [x] `ATW-N9-SQL-0094` SQLite 9+ Persistent Vector: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SQL-0095` SQLite 9+ Persistent Vector: MCP boundary를 검증한다.
+- [x] `ATW-N9-SQL-0096` SQLite 9+ Persistent Vector: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SQL-0097` SQLite 9+ Persistent Vector: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SQL-0098` SQLite 9+ Persistent Vector: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SQL-0099` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0100` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SQL-0101` SQLite 9+ Persistent Vector: happy path unit test를 작성한다.
+- [x] `ATW-N9-SQL-0102` SQLite 9+ Persistent Vector: failure path regression test를 작성한다.
+- [x] `ATW-N9-SQL-0103` SQLite 9+ Persistent Vector: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SQL-0104` SQLite 9+ Persistent Vector: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0105` SQLite 9+ Persistent Vector: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0106` SQLite 9+ Persistent Vector: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SQL-0107` SQLite 9+ Persistent Vector: CLI smoke를 추가한다.
+- [x] `ATW-N9-SQL-0108` SQLite 9+ Persistent Vector: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SQL-0109` SQLite 9+ Persistent Vector: MCP boundary를 검증한다.
+- [x] `ATW-N9-SQL-0110` SQLite 9+ Persistent Vector: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SQL-0111` SQLite 9+ Persistent Vector: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SQL-0112` SQLite 9+ Persistent Vector: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SQL-0113` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0114` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SQL-0115` SQLite 9+ Persistent Vector: happy path unit test를 작성한다.
+- [x] `ATW-N9-SQL-0116` SQLite 9+ Persistent Vector: failure path regression test를 작성한다.
+- [x] `ATW-N9-SQL-0117` SQLite 9+ Persistent Vector: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SQL-0118` SQLite 9+ Persistent Vector: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0119` SQLite 9+ Persistent Vector: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SQL-0120` SQLite 9+ Persistent Vector: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SQL-0121` SQLite 9+ Persistent Vector: CLI smoke를 추가한다.
+- [x] `ATW-N9-SQL-0122` SQLite 9+ Persistent Vector: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SQL-0123` SQLite 9+ Persistent Vector: MCP boundary를 검증한다.
+- [x] `ATW-N9-SQL-0124` SQLite 9+ Persistent Vector: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SQL-0125` SQLite 9+ Persistent Vector: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SQL-0126` SQLite 9+ Persistent Vector: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SQL-0127` SQLite 9+ Persistent Vector: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SQL-0128` SQLite 9+ Persistent Vector: TypeScript API와 internal implementation을 구현한다.
+
+## SPB. Supabase Store 9+
+
+**완료 정의:** Supabase는 chunk ingest/search/context/embedding/audit/CAS가 SQLite와 동등해야 한다.
+
+- [x] `ATW-N9-SPB-0001` SupabaseStore.search는 `chunks` 전체 select 후 app-side includes를 제거한다.
+- [x] `ATW-N9-SPB-0002` SupabaseStore.search는 RPC 또는 Postgres full-text query를 사용한다.
+- [x] `ATW-N9-SPB-0003` SupabaseStore.ingestText는 chunks insert/upsert와 stale embedding marking을 함께 수행한다.
+- [x] `ATW-N9-SPB-0004` SupabaseStore.vectorSearch는 `client.rpc('rag_search', ...)`를 호출한다.
+- [x] `ATW-N9-SPB-0005` SupabaseStore.contextPack은 chunk-level citation과 source policy re-check를 모두 수행한다.
+- [x] `ATW-N9-SPB-0006` SupabaseStore.validate는 required tables/functions/RLS/policies를 검사한다.
+- [x] `ATW-N9-SPB-0007` SupabaseStore.migrationReport는 expected migration names를 검사한다.
+- [x] `ATW-N9-SPB-0008` SupabaseStore.upsertRecordCas는 Postgres atomic update 또는 RPC를 사용한다.
+- [x] `ATW-N9-SPB-0009` service role 사용 시에도 local policyResolver re-check를 수행한다.
+- [x] `ATW-N9-SPB-0010` Supabase errors는 SupabaseStoreError code/context와 함께 반환된다.
+- [x] `ATW-N9-SPB-0011` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0012` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0013` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0014` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0015` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0016` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0017` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0018` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0019` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0020` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0021` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0022` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0023` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0024` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0025` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0026` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0027` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0028` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0029` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0030` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0031` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0032` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0033` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0034` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0035` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0036` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0037` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0038` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0039` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0040` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0041` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0042` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0043` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0044` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0045` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0046` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0047` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0048` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0049` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0050` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0051` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0052` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0053` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0054` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0055` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0056` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0057` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0058` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0059` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0060` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0061` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0062` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0063` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0064` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0065` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0066` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0067` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0068` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0069` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0070` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0071` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0072` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0073` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0074` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0075` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0076` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0077` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0078` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0079` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0080` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0081` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0082` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0083` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0084` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0085` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0086` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0087` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0088` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0089` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0090` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0091` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0092` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0093` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0094` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0095` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0096` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0097` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0098` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0099` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0100` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0101` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0102` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0103` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0104` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0105` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0106` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0107` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0108` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0109` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0110` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0111` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0112` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0113` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0114` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0115` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0116` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0117` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0118` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0119` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0120` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0121` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0122` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0123` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0124` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0125` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0126` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0127` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0128` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0129` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0130` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0131` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0132` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0133` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0134` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0135` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0136` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0137` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0138` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0139` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0140` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0141` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0142` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0143` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0144` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0145` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0146` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0147` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0148` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0149` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0150` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0151` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0152` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0153` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0154` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SPB-0155` Supabase Store 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SPB-0156` Supabase Store 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SPB-0157` Supabase Store 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-SPB-0158` Supabase Store 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-SPB-0159` Supabase Store 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SPB-0160` Supabase Store 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0161` Supabase Store 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SPB-0162` Supabase Store 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SPB-0163` Supabase Store 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-SPB-0164` Supabase Store 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SPB-0165` Supabase Store 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-SPB-0166` Supabase Store 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SPB-0167` Supabase Store 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SPB-0168` Supabase Store 9+: 9점 이상 self-score evidence에 반영한다.
+
+## PGV. Supabase pgvector/RPC 9+
+
+**완료 정의:** Supabase vector search는 실제 RPC와 pgvector path를 SDK에서 사용해야 한다.
+
+- [x] `ATW-N9-PGV-0001` pgvector migration은 `embedding_profiles`, `embeddings`, `rag_search`를 실제 store naming과 일치시킨다.
+- [x] `ATW-N9-PGV-0002` old `embedding_records` migration과 new `embeddings` migration의 관계를 정리한다.
+- [x] `ATW-N9-PGV-0003` README에 실제 migration filename과 table names만 적는다.
+- [x] `ATW-N9-PGV-0004` RPC는 `profile_id`를 인자로 받아 해당 profile embedding만 검색한다.
+- [x] `ATW-N9-PGV-0005` RPC는 query vector dimension이 profile dimension과 다르면 fail-fast한다.
+- [x] `ATW-N9-PGV-0006` RPC는 source ACL/RLS 조건을 적용한다.
+- [x] `ATW-N9-PGV-0007` SDK는 RPC 결과를 다시 policyResolver로 re-check한다.
+- [x] `ATW-N9-PGV-0008` RPC return에는 chunk_id, source_id, similarity, chunk_text, source_json, profile_id가 포함된다.
+- [x] `ATW-N9-PGV-0009` RLS tests는 unauthorized private chunk leakage를 검증한다.
+- [x] `ATW-N9-PGV-0010` Supabase local test가 pgvector extension, vector column, RPC, ACL을 모두 검증한다.
+- [x] `ATW-N9-PGV-0011` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0012` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0013` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0014` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0015` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0016` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0017` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0018` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0019` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0020` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0021` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0022` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0023` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0024` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0025` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0026` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0027` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0028` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0029` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0030` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0031` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0032` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0033` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0034` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0035` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0036` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0037` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0038` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0039` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0040` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0041` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0042` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0043` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0044` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0045` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0046` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0047` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0048` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0049` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0050` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0051` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0052` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0053` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0054` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0055` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0056` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0057` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0058` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0059` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0060` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0061` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0062` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0063` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0064` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0065` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0066` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0067` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0068` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0069` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0070` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0071` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0072` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0073` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0074` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0075` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0076` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0077` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0078` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0079` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0080` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0081` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0082` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0083` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0084` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0085` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0086` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0087` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0088` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0089` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0090` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0091` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0092` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0093` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0094` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0095` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0096` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0097` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0098` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0099` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0100` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0101` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0102` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0103` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0104` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0105` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0106` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0107` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0108` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0109` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0110` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0111` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0112` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0113` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0114` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0115` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0116` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0117` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0118` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0119` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0120` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0121` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0122` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0123` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0124` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0125` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0126` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0127` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0128` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0129` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0130` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0131` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0132` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0133` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0134` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0135` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0136` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0137` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0138` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0139` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0140` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0141` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0142` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0143` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0144` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0145` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0146` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0147` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0148` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0149` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0150` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0151` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0152` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0153` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0154` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0155` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0156` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0157` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0158` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0159` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0160` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0161` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0162` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0163` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0164` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0165` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0166` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PGV-0167` Supabase pgvector/RPC 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PGV-0168` Supabase pgvector/RPC 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PGV-0169` Supabase pgvector/RPC 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PGV-0170` Supabase pgvector/RPC 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PGV-0171` Supabase pgvector/RPC 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-PGV-0172` Supabase pgvector/RPC 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-PGV-0173` Supabase pgvector/RPC 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PGV-0174` Supabase pgvector/RPC 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0175` Supabase pgvector/RPC 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PGV-0176` Supabase pgvector/RPC 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PGV-0177` Supabase pgvector/RPC 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-PGV-0178` Supabase pgvector/RPC 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PGV-0179` Supabase pgvector/RPC 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-PGV-0180` Supabase pgvector/RPC 9+: README/docs를 실제 구현과 일치시킨다.
+
+## DIM. Embedding Dimension Policy
+
+**완료 정의:** SQLite/Supabase/Gemini 간 dimension policy가 명확하고 runtime에서 fail-fast해야 한다.
+
+- [x] `ATW-N9-DIM-0001` Supabase official pgvector path는 1536-only로 제한할지 multi-dim을 구현할지 ADR로 결정한다.
+- [x] `ATW-N9-DIM-0002` 1536-only 선택 시 CLI에서 Supabase backend + dimensions != 1536이면 error를 반환한다.
+- [x] `ATW-N9-DIM-0003` SQLite는 arbitrary dimension JSON vector를 지원한다.
+- [x] `ATW-N9-DIM-0004` Gemini provider dimension과 embedding profile dimension이 항상 일치해야 한다.
+- [x] `ATW-N9-DIM-0005` profile id는 provider/model/dimensions/prompt_policy를 포함한다.
+- [x] `ATW-N9-DIM-0006` dimension 변경 시 기존 embedding은 다른 profile로 취급한다.
+- [x] `ATW-N9-DIM-0007` README에 backend별 dimension support matrix를 추가한다.
+- [x] `ATW-N9-DIM-0008` tests에 dimension mismatch failure를 추가한다.
+- [x] `ATW-N9-DIM-0009` Supabase migration과 CLI examples가 같은 dimension policy를 말해야 한다.
+- [x] `ATW-N9-DIM-0010` published smoke에서 dimensions mismatch error를 확인한다.
+- [x] `ATW-N9-DIM-0011` Embedding Dimension Policy: MCP boundary를 검증한다.
+- [x] `ATW-N9-DIM-0012` Embedding Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DIM-0013` Embedding Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DIM-0014` Embedding Dimension Policy: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DIM-0015` Embedding Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DIM-0016` Embedding Dimension Policy: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DIM-0017` Embedding Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-N9-DIM-0018` Embedding Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-N9-DIM-0019` Embedding Dimension Policy: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DIM-0020` Embedding Dimension Policy: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0021` Embedding Dimension Policy: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0022` Embedding Dimension Policy: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DIM-0023` Embedding Dimension Policy: CLI smoke를 추가한다.
+- [x] `ATW-N9-DIM-0024` Embedding Dimension Policy: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DIM-0025` Embedding Dimension Policy: MCP boundary를 검증한다.
+- [x] `ATW-N9-DIM-0026` Embedding Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DIM-0027` Embedding Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DIM-0028` Embedding Dimension Policy: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DIM-0029` Embedding Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DIM-0030` Embedding Dimension Policy: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DIM-0031` Embedding Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-N9-DIM-0032` Embedding Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-N9-DIM-0033` Embedding Dimension Policy: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DIM-0034` Embedding Dimension Policy: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0035` Embedding Dimension Policy: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0036` Embedding Dimension Policy: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DIM-0037` Embedding Dimension Policy: CLI smoke를 추가한다.
+- [x] `ATW-N9-DIM-0038` Embedding Dimension Policy: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DIM-0039` Embedding Dimension Policy: MCP boundary를 검증한다.
+- [x] `ATW-N9-DIM-0040` Embedding Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DIM-0041` Embedding Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DIM-0042` Embedding Dimension Policy: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DIM-0043` Embedding Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DIM-0044` Embedding Dimension Policy: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DIM-0045` Embedding Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-N9-DIM-0046` Embedding Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-N9-DIM-0047` Embedding Dimension Policy: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DIM-0048` Embedding Dimension Policy: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0049` Embedding Dimension Policy: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0050` Embedding Dimension Policy: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DIM-0051` Embedding Dimension Policy: CLI smoke를 추가한다.
+- [x] `ATW-N9-DIM-0052` Embedding Dimension Policy: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DIM-0053` Embedding Dimension Policy: MCP boundary를 검증한다.
+- [x] `ATW-N9-DIM-0054` Embedding Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DIM-0055` Embedding Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DIM-0056` Embedding Dimension Policy: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DIM-0057` Embedding Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DIM-0058` Embedding Dimension Policy: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DIM-0059` Embedding Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-N9-DIM-0060` Embedding Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-N9-DIM-0061` Embedding Dimension Policy: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DIM-0062` Embedding Dimension Policy: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0063` Embedding Dimension Policy: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0064` Embedding Dimension Policy: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DIM-0065` Embedding Dimension Policy: CLI smoke를 추가한다.
+- [x] `ATW-N9-DIM-0066` Embedding Dimension Policy: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DIM-0067` Embedding Dimension Policy: MCP boundary를 검증한다.
+- [x] `ATW-N9-DIM-0068` Embedding Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DIM-0069` Embedding Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DIM-0070` Embedding Dimension Policy: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DIM-0071` Embedding Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DIM-0072` Embedding Dimension Policy: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DIM-0073` Embedding Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-N9-DIM-0074` Embedding Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-N9-DIM-0075` Embedding Dimension Policy: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DIM-0076` Embedding Dimension Policy: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0077` Embedding Dimension Policy: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0078` Embedding Dimension Policy: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DIM-0079` Embedding Dimension Policy: CLI smoke를 추가한다.
+- [x] `ATW-N9-DIM-0080` Embedding Dimension Policy: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DIM-0081` Embedding Dimension Policy: MCP boundary를 검증한다.
+- [x] `ATW-N9-DIM-0082` Embedding Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DIM-0083` Embedding Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DIM-0084` Embedding Dimension Policy: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DIM-0085` Embedding Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DIM-0086` Embedding Dimension Policy: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DIM-0087` Embedding Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-N9-DIM-0088` Embedding Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-N9-DIM-0089` Embedding Dimension Policy: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DIM-0090` Embedding Dimension Policy: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0091` Embedding Dimension Policy: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DIM-0092` Embedding Dimension Policy: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DIM-0093` Embedding Dimension Policy: CLI smoke를 추가한다.
+- [x] `ATW-N9-DIM-0094` Embedding Dimension Policy: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DIM-0095` Embedding Dimension Policy: MCP boundary를 검증한다.
+- [x] `ATW-N9-DIM-0096` Embedding Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+
+## FTS. Supabase Text Search / Hybrid Search
+
+**완료 정의:** Supabase full-text, lexical rank, vector rank, structured boost를 통합한다.
+
+- [x] `ATW-N9-FTS-0001` Supabase `search_records`는 sources가 아니라 chunks를 중심으로 반환한다.
+- [x] `ATW-N9-FTS-0002` Postgres full-text index 또는 trigram index를 migration에 추가한다.
+- [x] `ATW-N9-FTS-0003` search RPC는 query string, actor id/groups, max_results를 받는다.
+- [x] `ATW-N9-FTS-0004` search RPC는 rank, chunk_id, source_id, quote를 반환한다.
+- [x] `ATW-N9-FTS-0005` SDK search는 RPC 결과를 source record로 validate하고 policy re-check한다.
+- [x] `ATW-N9-FTS-0006` empty query는 Supabase에서도 enumeration으로 동작하지 않는다.
+- [x] `ATW-N9-FTS-0007` listSources는 explicit enumeration surface로만 유지한다.
+- [x] `ATW-N9-FTS-0008` RAG hybrid는 lexical RPC와 vector RPC 결과를 merge한다.
+- [x] `ATW-N9-FTS-0009` search tests에 large chunk set recall smoke를 추가한다.
+- [x] `ATW-N9-FTS-0010` README에 Supabase search implementation을 정확히 설명한다.
+- [x] `ATW-N9-FTS-0011` Supabase Text Search / Hybrid Search: MCP boundary를 검증한다.
+- [x] `ATW-N9-FTS-0012` Supabase Text Search / Hybrid Search: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-FTS-0013` Supabase Text Search / Hybrid Search: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-FTS-0014` Supabase Text Search / Hybrid Search: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-FTS-0015` Supabase Text Search / Hybrid Search: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-FTS-0016` Supabase Text Search / Hybrid Search: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-FTS-0017` Supabase Text Search / Hybrid Search: happy path unit test를 작성한다.
+- [x] `ATW-N9-FTS-0018` Supabase Text Search / Hybrid Search: failure path regression test를 작성한다.
+- [x] `ATW-N9-FTS-0019` Supabase Text Search / Hybrid Search: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-FTS-0020` Supabase Text Search / Hybrid Search: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0021` Supabase Text Search / Hybrid Search: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0022` Supabase Text Search / Hybrid Search: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-FTS-0023` Supabase Text Search / Hybrid Search: CLI smoke를 추가한다.
+- [x] `ATW-N9-FTS-0024` Supabase Text Search / Hybrid Search: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-FTS-0025` Supabase Text Search / Hybrid Search: MCP boundary를 검증한다.
+- [x] `ATW-N9-FTS-0026` Supabase Text Search / Hybrid Search: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-FTS-0027` Supabase Text Search / Hybrid Search: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-FTS-0028` Supabase Text Search / Hybrid Search: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-FTS-0029` Supabase Text Search / Hybrid Search: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-FTS-0030` Supabase Text Search / Hybrid Search: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-FTS-0031` Supabase Text Search / Hybrid Search: happy path unit test를 작성한다.
+- [x] `ATW-N9-FTS-0032` Supabase Text Search / Hybrid Search: failure path regression test를 작성한다.
+- [x] `ATW-N9-FTS-0033` Supabase Text Search / Hybrid Search: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-FTS-0034` Supabase Text Search / Hybrid Search: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0035` Supabase Text Search / Hybrid Search: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0036` Supabase Text Search / Hybrid Search: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-FTS-0037` Supabase Text Search / Hybrid Search: CLI smoke를 추가한다.
+- [x] `ATW-N9-FTS-0038` Supabase Text Search / Hybrid Search: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-FTS-0039` Supabase Text Search / Hybrid Search: MCP boundary를 검증한다.
+- [x] `ATW-N9-FTS-0040` Supabase Text Search / Hybrid Search: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-FTS-0041` Supabase Text Search / Hybrid Search: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-FTS-0042` Supabase Text Search / Hybrid Search: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-FTS-0043` Supabase Text Search / Hybrid Search: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-FTS-0044` Supabase Text Search / Hybrid Search: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-FTS-0045` Supabase Text Search / Hybrid Search: happy path unit test를 작성한다.
+- [x] `ATW-N9-FTS-0046` Supabase Text Search / Hybrid Search: failure path regression test를 작성한다.
+- [x] `ATW-N9-FTS-0047` Supabase Text Search / Hybrid Search: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-FTS-0048` Supabase Text Search / Hybrid Search: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0049` Supabase Text Search / Hybrid Search: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0050` Supabase Text Search / Hybrid Search: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-FTS-0051` Supabase Text Search / Hybrid Search: CLI smoke를 추가한다.
+- [x] `ATW-N9-FTS-0052` Supabase Text Search / Hybrid Search: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-FTS-0053` Supabase Text Search / Hybrid Search: MCP boundary를 검증한다.
+- [x] `ATW-N9-FTS-0054` Supabase Text Search / Hybrid Search: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-FTS-0055` Supabase Text Search / Hybrid Search: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-FTS-0056` Supabase Text Search / Hybrid Search: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-FTS-0057` Supabase Text Search / Hybrid Search: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-FTS-0058` Supabase Text Search / Hybrid Search: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-FTS-0059` Supabase Text Search / Hybrid Search: happy path unit test를 작성한다.
+- [x] `ATW-N9-FTS-0060` Supabase Text Search / Hybrid Search: failure path regression test를 작성한다.
+- [x] `ATW-N9-FTS-0061` Supabase Text Search / Hybrid Search: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-FTS-0062` Supabase Text Search / Hybrid Search: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0063` Supabase Text Search / Hybrid Search: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0064` Supabase Text Search / Hybrid Search: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-FTS-0065` Supabase Text Search / Hybrid Search: CLI smoke를 추가한다.
+- [x] `ATW-N9-FTS-0066` Supabase Text Search / Hybrid Search: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-FTS-0067` Supabase Text Search / Hybrid Search: MCP boundary를 검증한다.
+- [x] `ATW-N9-FTS-0068` Supabase Text Search / Hybrid Search: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-FTS-0069` Supabase Text Search / Hybrid Search: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-FTS-0070` Supabase Text Search / Hybrid Search: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-FTS-0071` Supabase Text Search / Hybrid Search: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-FTS-0072` Supabase Text Search / Hybrid Search: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-FTS-0073` Supabase Text Search / Hybrid Search: happy path unit test를 작성한다.
+- [x] `ATW-N9-FTS-0074` Supabase Text Search / Hybrid Search: failure path regression test를 작성한다.
+- [x] `ATW-N9-FTS-0075` Supabase Text Search / Hybrid Search: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-FTS-0076` Supabase Text Search / Hybrid Search: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0077` Supabase Text Search / Hybrid Search: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0078` Supabase Text Search / Hybrid Search: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-FTS-0079` Supabase Text Search / Hybrid Search: CLI smoke를 추가한다.
+- [x] `ATW-N9-FTS-0080` Supabase Text Search / Hybrid Search: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-FTS-0081` Supabase Text Search / Hybrid Search: MCP boundary를 검증한다.
+- [x] `ATW-N9-FTS-0082` Supabase Text Search / Hybrid Search: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-FTS-0083` Supabase Text Search / Hybrid Search: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-FTS-0084` Supabase Text Search / Hybrid Search: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-FTS-0085` Supabase Text Search / Hybrid Search: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-FTS-0086` Supabase Text Search / Hybrid Search: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-FTS-0087` Supabase Text Search / Hybrid Search: happy path unit test를 작성한다.
+- [x] `ATW-N9-FTS-0088` Supabase Text Search / Hybrid Search: failure path regression test를 작성한다.
+- [x] `ATW-N9-FTS-0089` Supabase Text Search / Hybrid Search: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-FTS-0090` Supabase Text Search / Hybrid Search: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0091` Supabase Text Search / Hybrid Search: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0092` Supabase Text Search / Hybrid Search: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-FTS-0093` Supabase Text Search / Hybrid Search: CLI smoke를 추가한다.
+- [x] `ATW-N9-FTS-0094` Supabase Text Search / Hybrid Search: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-FTS-0095` Supabase Text Search / Hybrid Search: MCP boundary를 검증한다.
+- [x] `ATW-N9-FTS-0096` Supabase Text Search / Hybrid Search: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-FTS-0097` Supabase Text Search / Hybrid Search: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-FTS-0098` Supabase Text Search / Hybrid Search: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-FTS-0099` Supabase Text Search / Hybrid Search: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-FTS-0100` Supabase Text Search / Hybrid Search: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-FTS-0101` Supabase Text Search / Hybrid Search: happy path unit test를 작성한다.
+- [x] `ATW-N9-FTS-0102` Supabase Text Search / Hybrid Search: failure path regression test를 작성한다.
+- [x] `ATW-N9-FTS-0103` Supabase Text Search / Hybrid Search: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-FTS-0104` Supabase Text Search / Hybrid Search: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0105` Supabase Text Search / Hybrid Search: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0106` Supabase Text Search / Hybrid Search: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-FTS-0107` Supabase Text Search / Hybrid Search: CLI smoke를 추가한다.
+- [x] `ATW-N9-FTS-0108` Supabase Text Search / Hybrid Search: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-FTS-0109` Supabase Text Search / Hybrid Search: MCP boundary를 검증한다.
+- [x] `ATW-N9-FTS-0110` Supabase Text Search / Hybrid Search: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-FTS-0111` Supabase Text Search / Hybrid Search: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-FTS-0112` Supabase Text Search / Hybrid Search: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-FTS-0113` Supabase Text Search / Hybrid Search: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-FTS-0114` Supabase Text Search / Hybrid Search: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-FTS-0115` Supabase Text Search / Hybrid Search: happy path unit test를 작성한다.
+- [x] `ATW-N9-FTS-0116` Supabase Text Search / Hybrid Search: failure path regression test를 작성한다.
+- [x] `ATW-N9-FTS-0117` Supabase Text Search / Hybrid Search: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-FTS-0118` Supabase Text Search / Hybrid Search: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0119` Supabase Text Search / Hybrid Search: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-FTS-0120` Supabase Text Search / Hybrid Search: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-FTS-0121` Supabase Text Search / Hybrid Search: CLI smoke를 추가한다.
+- [x] `ATW-N9-FTS-0122` Supabase Text Search / Hybrid Search: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-FTS-0123` Supabase Text Search / Hybrid Search: MCP boundary를 검증한다.
+- [x] `ATW-N9-FTS-0124` Supabase Text Search / Hybrid Search: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-FTS-0125` Supabase Text Search / Hybrid Search: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-FTS-0126` Supabase Text Search / Hybrid Search: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-FTS-0127` Supabase Text Search / Hybrid Search: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-FTS-0128` Supabase Text Search / Hybrid Search: TypeScript API와 internal implementation을 구현한다.
+
+## CAS. Atomic CAS / Concurrent Writes
+
+**완료 정의:** SQLite/Supabase/Memory 모두 DB-level stale-write 방지를 제공한다.
+
+- [x] `ATW-N9-CAS-0001` SQLite write는 `UPDATE ... WHERE id=? AND revision=?` 방식으로 expectedRevision을 DB에서 확인한다.
+- [x] `ATW-N9-CAS-0002` SQLite insert/update를 transaction 안에서 수행하고 affected row count를 검사한다.
+- [x] `ATW-N9-CAS-0003` Supabase CAS는 RPC `upsert_record_cas` 또는 `.eq('revision', expectedRevision)` update를 사용한다.
+- [x] `ATW-N9-CAS-0004` Supabase affected row 0이면 WriteConflictError를 던진다.
+- [x] `ATW-N9-CAS-0005` CAS 없는 update는 create-only 또는 explicit `unsafeOverwrite: true` 없이는 금지한다.
+- [x] `ATW-N9-CAS-0006` proposal payload mutation 후 upsert가 stale write를 일으키지 않도록 한다.
+- [x] `ATW-N9-CAS-0007` concurrent writer test를 SQLite와 Supabase mock에 추가한다.
+- [x] `ATW-N9-CAS-0008` CAS error에는 record id, expected, actual을 포함하되 sensitive payload는 포함하지 않는다.
+- [x] `ATW-N9-CAS-0009` README에 CAS write semantics를 문서화한다.
+- [x] `ATW-N9-CAS-0010` MCP admin write도 CAS 또는 proposal-only를 사용한다.
+- [x] `ATW-N9-CAS-0011` Atomic CAS / Concurrent Writes: MCP boundary를 검증한다.
+- [x] `ATW-N9-CAS-0012` Atomic CAS / Concurrent Writes: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CAS-0013` Atomic CAS / Concurrent Writes: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CAS-0014` Atomic CAS / Concurrent Writes: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CAS-0015` Atomic CAS / Concurrent Writes: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CAS-0016` Atomic CAS / Concurrent Writes: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CAS-0017` Atomic CAS / Concurrent Writes: happy path unit test를 작성한다.
+- [x] `ATW-N9-CAS-0018` Atomic CAS / Concurrent Writes: failure path regression test를 작성한다.
+- [x] `ATW-N9-CAS-0019` Atomic CAS / Concurrent Writes: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CAS-0020` Atomic CAS / Concurrent Writes: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0021` Atomic CAS / Concurrent Writes: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0022` Atomic CAS / Concurrent Writes: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CAS-0023` Atomic CAS / Concurrent Writes: CLI smoke를 추가한다.
+- [x] `ATW-N9-CAS-0024` Atomic CAS / Concurrent Writes: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CAS-0025` Atomic CAS / Concurrent Writes: MCP boundary를 검증한다.
+- [x] `ATW-N9-CAS-0026` Atomic CAS / Concurrent Writes: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CAS-0027` Atomic CAS / Concurrent Writes: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CAS-0028` Atomic CAS / Concurrent Writes: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CAS-0029` Atomic CAS / Concurrent Writes: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CAS-0030` Atomic CAS / Concurrent Writes: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CAS-0031` Atomic CAS / Concurrent Writes: happy path unit test를 작성한다.
+- [x] `ATW-N9-CAS-0032` Atomic CAS / Concurrent Writes: failure path regression test를 작성한다.
+- [x] `ATW-N9-CAS-0033` Atomic CAS / Concurrent Writes: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CAS-0034` Atomic CAS / Concurrent Writes: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0035` Atomic CAS / Concurrent Writes: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0036` Atomic CAS / Concurrent Writes: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CAS-0037` Atomic CAS / Concurrent Writes: CLI smoke를 추가한다.
+- [x] `ATW-N9-CAS-0038` Atomic CAS / Concurrent Writes: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CAS-0039` Atomic CAS / Concurrent Writes: MCP boundary를 검증한다.
+- [x] `ATW-N9-CAS-0040` Atomic CAS / Concurrent Writes: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CAS-0041` Atomic CAS / Concurrent Writes: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CAS-0042` Atomic CAS / Concurrent Writes: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CAS-0043` Atomic CAS / Concurrent Writes: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CAS-0044` Atomic CAS / Concurrent Writes: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CAS-0045` Atomic CAS / Concurrent Writes: happy path unit test를 작성한다.
+- [x] `ATW-N9-CAS-0046` Atomic CAS / Concurrent Writes: failure path regression test를 작성한다.
+- [x] `ATW-N9-CAS-0047` Atomic CAS / Concurrent Writes: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CAS-0048` Atomic CAS / Concurrent Writes: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0049` Atomic CAS / Concurrent Writes: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0050` Atomic CAS / Concurrent Writes: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CAS-0051` Atomic CAS / Concurrent Writes: CLI smoke를 추가한다.
+- [x] `ATW-N9-CAS-0052` Atomic CAS / Concurrent Writes: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CAS-0053` Atomic CAS / Concurrent Writes: MCP boundary를 검증한다.
+- [x] `ATW-N9-CAS-0054` Atomic CAS / Concurrent Writes: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CAS-0055` Atomic CAS / Concurrent Writes: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CAS-0056` Atomic CAS / Concurrent Writes: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CAS-0057` Atomic CAS / Concurrent Writes: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CAS-0058` Atomic CAS / Concurrent Writes: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CAS-0059` Atomic CAS / Concurrent Writes: happy path unit test를 작성한다.
+- [x] `ATW-N9-CAS-0060` Atomic CAS / Concurrent Writes: failure path regression test를 작성한다.
+- [x] `ATW-N9-CAS-0061` Atomic CAS / Concurrent Writes: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CAS-0062` Atomic CAS / Concurrent Writes: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0063` Atomic CAS / Concurrent Writes: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0064` Atomic CAS / Concurrent Writes: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CAS-0065` Atomic CAS / Concurrent Writes: CLI smoke를 추가한다.
+- [x] `ATW-N9-CAS-0066` Atomic CAS / Concurrent Writes: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CAS-0067` Atomic CAS / Concurrent Writes: MCP boundary를 검증한다.
+- [x] `ATW-N9-CAS-0068` Atomic CAS / Concurrent Writes: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CAS-0069` Atomic CAS / Concurrent Writes: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CAS-0070` Atomic CAS / Concurrent Writes: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CAS-0071` Atomic CAS / Concurrent Writes: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CAS-0072` Atomic CAS / Concurrent Writes: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CAS-0073` Atomic CAS / Concurrent Writes: happy path unit test를 작성한다.
+- [x] `ATW-N9-CAS-0074` Atomic CAS / Concurrent Writes: failure path regression test를 작성한다.
+- [x] `ATW-N9-CAS-0075` Atomic CAS / Concurrent Writes: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CAS-0076` Atomic CAS / Concurrent Writes: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0077` Atomic CAS / Concurrent Writes: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0078` Atomic CAS / Concurrent Writes: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CAS-0079` Atomic CAS / Concurrent Writes: CLI smoke를 추가한다.
+- [x] `ATW-N9-CAS-0080` Atomic CAS / Concurrent Writes: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CAS-0081` Atomic CAS / Concurrent Writes: MCP boundary를 검증한다.
+- [x] `ATW-N9-CAS-0082` Atomic CAS / Concurrent Writes: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CAS-0083` Atomic CAS / Concurrent Writes: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CAS-0084` Atomic CAS / Concurrent Writes: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CAS-0085` Atomic CAS / Concurrent Writes: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CAS-0086` Atomic CAS / Concurrent Writes: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CAS-0087` Atomic CAS / Concurrent Writes: happy path unit test를 작성한다.
+- [x] `ATW-N9-CAS-0088` Atomic CAS / Concurrent Writes: failure path regression test를 작성한다.
+- [x] `ATW-N9-CAS-0089` Atomic CAS / Concurrent Writes: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CAS-0090` Atomic CAS / Concurrent Writes: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0091` Atomic CAS / Concurrent Writes: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0092` Atomic CAS / Concurrent Writes: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CAS-0093` Atomic CAS / Concurrent Writes: CLI smoke를 추가한다.
+- [x] `ATW-N9-CAS-0094` Atomic CAS / Concurrent Writes: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CAS-0095` Atomic CAS / Concurrent Writes: MCP boundary를 검증한다.
+- [x] `ATW-N9-CAS-0096` Atomic CAS / Concurrent Writes: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CAS-0097` Atomic CAS / Concurrent Writes: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CAS-0098` Atomic CAS / Concurrent Writes: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CAS-0099` Atomic CAS / Concurrent Writes: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CAS-0100` Atomic CAS / Concurrent Writes: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CAS-0101` Atomic CAS / Concurrent Writes: happy path unit test를 작성한다.
+- [x] `ATW-N9-CAS-0102` Atomic CAS / Concurrent Writes: failure path regression test를 작성한다.
+- [x] `ATW-N9-CAS-0103` Atomic CAS / Concurrent Writes: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CAS-0104` Atomic CAS / Concurrent Writes: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0105` Atomic CAS / Concurrent Writes: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0106` Atomic CAS / Concurrent Writes: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CAS-0107` Atomic CAS / Concurrent Writes: CLI smoke를 추가한다.
+- [x] `ATW-N9-CAS-0108` Atomic CAS / Concurrent Writes: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CAS-0109` Atomic CAS / Concurrent Writes: MCP boundary를 검증한다.
+- [x] `ATW-N9-CAS-0110` Atomic CAS / Concurrent Writes: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CAS-0111` Atomic CAS / Concurrent Writes: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CAS-0112` Atomic CAS / Concurrent Writes: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CAS-0113` Atomic CAS / Concurrent Writes: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CAS-0114` Atomic CAS / Concurrent Writes: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-CAS-0115` Atomic CAS / Concurrent Writes: happy path unit test를 작성한다.
+- [x] `ATW-N9-CAS-0116` Atomic CAS / Concurrent Writes: failure path regression test를 작성한다.
+- [x] `ATW-N9-CAS-0117` Atomic CAS / Concurrent Writes: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-CAS-0118` Atomic CAS / Concurrent Writes: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0119` Atomic CAS / Concurrent Writes: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-CAS-0120` Atomic CAS / Concurrent Writes: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-CAS-0121` Atomic CAS / Concurrent Writes: CLI smoke를 추가한다.
+- [x] `ATW-N9-CAS-0122` Atomic CAS / Concurrent Writes: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-CAS-0123` Atomic CAS / Concurrent Writes: MCP boundary를 검증한다.
+- [x] `ATW-N9-CAS-0124` Atomic CAS / Concurrent Writes: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-CAS-0125` Atomic CAS / Concurrent Writes: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-CAS-0126` Atomic CAS / Concurrent Writes: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-CAS-0127` Atomic CAS / Concurrent Writes: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-CAS-0128` Atomic CAS / Concurrent Writes: TypeScript API와 internal implementation을 구현한다.
+
+## STR. Structured Extraction 9+
+
+**완료 정의:** 비정형→정형 변환은 사용자 schema contract, review, conflict, provenance까지 지원한다.
+
+- [x] `ATW-N9-STR-0001` 사용자 schema contract registration API를 추가한다.
+- [x] `ATW-N9-STR-0002` CLI `awiki schema register <file>`를 추가한다.
+- [x] `ATW-N9-STR-0003` README 예시 `customer_profile`은 먼저 schema register를 보여준다.
+- [x] `ATW-N9-STR-0004` ingestStructured는 schemas 인자를 contract id로 해석한다.
+- [x] `ATW-N9-STR-0005` contract가 없으면 fail-closed한다.
+- [x] `ATW-N9-STR-0006` requiredFields와 identityFields를 검증한다.
+- [x] `ATW-N9-STR-0007` conflictKeys로 duplicate/conflict candidates를 detection한다.
+- [x] `ATW-N9-STR-0008` confidenceThreshold 미만은 rejected 또는 review-required로 분리한다.
+- [x] `ATW-N9-STR-0009` extraction_run record를 생성한다.
+- [x] `ATW-N9-STR-0010` extraction_review workflow를 추가한다.
+- [x] `ATW-N9-STR-0011` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0012` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0013` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0014` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STR-0015` Structured Extraction 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STR-0016` Structured Extraction 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STR-0017` Structured Extraction 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-STR-0018` Structured Extraction 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-STR-0019` Structured Extraction 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STR-0020` Structured Extraction 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0021` Structured Extraction 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0022` Structured Extraction 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STR-0023` Structured Extraction 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-STR-0024` Structured Extraction 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STR-0025` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0026` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0027` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0028` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STR-0029` Structured Extraction 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STR-0030` Structured Extraction 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STR-0031` Structured Extraction 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-STR-0032` Structured Extraction 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-STR-0033` Structured Extraction 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STR-0034` Structured Extraction 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0035` Structured Extraction 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0036` Structured Extraction 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STR-0037` Structured Extraction 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-STR-0038` Structured Extraction 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STR-0039` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0040` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0041` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0042` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STR-0043` Structured Extraction 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STR-0044` Structured Extraction 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STR-0045` Structured Extraction 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-STR-0046` Structured Extraction 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-STR-0047` Structured Extraction 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STR-0048` Structured Extraction 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0049` Structured Extraction 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0050` Structured Extraction 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STR-0051` Structured Extraction 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-STR-0052` Structured Extraction 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STR-0053` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0054` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0055` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0056` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STR-0057` Structured Extraction 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STR-0058` Structured Extraction 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STR-0059` Structured Extraction 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-STR-0060` Structured Extraction 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-STR-0061` Structured Extraction 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STR-0062` Structured Extraction 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0063` Structured Extraction 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0064` Structured Extraction 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STR-0065` Structured Extraction 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-STR-0066` Structured Extraction 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STR-0067` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0068` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0069` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0070` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STR-0071` Structured Extraction 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STR-0072` Structured Extraction 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STR-0073` Structured Extraction 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-STR-0074` Structured Extraction 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-STR-0075` Structured Extraction 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STR-0076` Structured Extraction 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0077` Structured Extraction 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0078` Structured Extraction 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STR-0079` Structured Extraction 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-STR-0080` Structured Extraction 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STR-0081` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0082` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0083` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0084` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STR-0085` Structured Extraction 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STR-0086` Structured Extraction 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STR-0087` Structured Extraction 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-STR-0088` Structured Extraction 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-STR-0089` Structured Extraction 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STR-0090` Structured Extraction 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0091` Structured Extraction 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0092` Structured Extraction 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STR-0093` Structured Extraction 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-STR-0094` Structured Extraction 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STR-0095` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0096` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0097` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0098` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STR-0099` Structured Extraction 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STR-0100` Structured Extraction 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STR-0101` Structured Extraction 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-STR-0102` Structured Extraction 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-STR-0103` Structured Extraction 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STR-0104` Structured Extraction 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0105` Structured Extraction 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0106` Structured Extraction 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STR-0107` Structured Extraction 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-STR-0108` Structured Extraction 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STR-0109` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0110` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0111` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0112` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STR-0113` Structured Extraction 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STR-0114` Structured Extraction 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STR-0115` Structured Extraction 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-STR-0116` Structured Extraction 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-STR-0117` Structured Extraction 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STR-0118` Structured Extraction 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0119` Structured Extraction 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0120` Structured Extraction 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STR-0121` Structured Extraction 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-STR-0122` Structured Extraction 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STR-0123` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0124` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0125` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0126` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-STR-0127` Structured Extraction 9+: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-STR-0128` Structured Extraction 9+: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-STR-0129` Structured Extraction 9+: happy path unit test를 작성한다.
+- [x] `ATW-N9-STR-0130` Structured Extraction 9+: failure path regression test를 작성한다.
+- [x] `ATW-N9-STR-0131` Structured Extraction 9+: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-STR-0132` Structured Extraction 9+: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0133` Structured Extraction 9+: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-STR-0134` Structured Extraction 9+: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-STR-0135` Structured Extraction 9+: CLI smoke를 추가한다.
+- [x] `ATW-N9-STR-0136` Structured Extraction 9+: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-STR-0137` Structured Extraction 9+: MCP boundary를 검증한다.
+- [x] `ATW-N9-STR-0138` Structured Extraction 9+: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-STR-0139` Structured Extraction 9+: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-STR-0140` Structured Extraction 9+: 9점 이상 self-score evidence에 반영한다.
+
+## SCH. Schema Contract Registry
+
+**완료 정의:** schema contracts를 저장/조회/검증/CLI 등록할 수 있어야 한다.
+
+- [x] `ATW-N9-SCH-0001` Schema Contract Registry: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SCH-0002` Schema Contract Registry: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SCH-0003` Schema Contract Registry: happy path unit test를 작성한다.
+- [x] `ATW-N9-SCH-0004` Schema Contract Registry: failure path regression test를 작성한다.
+- [x] `ATW-N9-SCH-0005` Schema Contract Registry: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SCH-0006` Schema Contract Registry: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0007` Schema Contract Registry: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0008` Schema Contract Registry: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SCH-0009` Schema Contract Registry: CLI smoke를 추가한다.
+- [x] `ATW-N9-SCH-0010` Schema Contract Registry: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SCH-0011` Schema Contract Registry: MCP boundary를 검증한다.
+- [x] `ATW-N9-SCH-0012` Schema Contract Registry: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SCH-0013` Schema Contract Registry: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SCH-0014` Schema Contract Registry: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SCH-0015` Schema Contract Registry: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SCH-0016` Schema Contract Registry: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SCH-0017` Schema Contract Registry: happy path unit test를 작성한다.
+- [x] `ATW-N9-SCH-0018` Schema Contract Registry: failure path regression test를 작성한다.
+- [x] `ATW-N9-SCH-0019` Schema Contract Registry: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SCH-0020` Schema Contract Registry: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0021` Schema Contract Registry: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0022` Schema Contract Registry: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SCH-0023` Schema Contract Registry: CLI smoke를 추가한다.
+- [x] `ATW-N9-SCH-0024` Schema Contract Registry: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SCH-0025` Schema Contract Registry: MCP boundary를 검증한다.
+- [x] `ATW-N9-SCH-0026` Schema Contract Registry: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SCH-0027` Schema Contract Registry: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SCH-0028` Schema Contract Registry: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SCH-0029` Schema Contract Registry: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SCH-0030` Schema Contract Registry: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SCH-0031` Schema Contract Registry: happy path unit test를 작성한다.
+- [x] `ATW-N9-SCH-0032` Schema Contract Registry: failure path regression test를 작성한다.
+- [x] `ATW-N9-SCH-0033` Schema Contract Registry: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SCH-0034` Schema Contract Registry: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0035` Schema Contract Registry: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0036` Schema Contract Registry: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SCH-0037` Schema Contract Registry: CLI smoke를 추가한다.
+- [x] `ATW-N9-SCH-0038` Schema Contract Registry: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SCH-0039` Schema Contract Registry: MCP boundary를 검증한다.
+- [x] `ATW-N9-SCH-0040` Schema Contract Registry: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SCH-0041` Schema Contract Registry: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SCH-0042` Schema Contract Registry: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SCH-0043` Schema Contract Registry: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SCH-0044` Schema Contract Registry: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SCH-0045` Schema Contract Registry: happy path unit test를 작성한다.
+- [x] `ATW-N9-SCH-0046` Schema Contract Registry: failure path regression test를 작성한다.
+- [x] `ATW-N9-SCH-0047` Schema Contract Registry: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SCH-0048` Schema Contract Registry: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0049` Schema Contract Registry: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0050` Schema Contract Registry: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SCH-0051` Schema Contract Registry: CLI smoke를 추가한다.
+- [x] `ATW-N9-SCH-0052` Schema Contract Registry: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SCH-0053` Schema Contract Registry: MCP boundary를 검증한다.
+- [x] `ATW-N9-SCH-0054` Schema Contract Registry: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SCH-0055` Schema Contract Registry: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SCH-0056` Schema Contract Registry: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SCH-0057` Schema Contract Registry: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SCH-0058` Schema Contract Registry: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SCH-0059` Schema Contract Registry: happy path unit test를 작성한다.
+- [x] `ATW-N9-SCH-0060` Schema Contract Registry: failure path regression test를 작성한다.
+- [x] `ATW-N9-SCH-0061` Schema Contract Registry: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SCH-0062` Schema Contract Registry: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0063` Schema Contract Registry: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0064` Schema Contract Registry: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SCH-0065` Schema Contract Registry: CLI smoke를 추가한다.
+- [x] `ATW-N9-SCH-0066` Schema Contract Registry: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SCH-0067` Schema Contract Registry: MCP boundary를 검증한다.
+- [x] `ATW-N9-SCH-0068` Schema Contract Registry: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SCH-0069` Schema Contract Registry: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SCH-0070` Schema Contract Registry: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SCH-0071` Schema Contract Registry: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SCH-0072` Schema Contract Registry: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SCH-0073` Schema Contract Registry: happy path unit test를 작성한다.
+- [x] `ATW-N9-SCH-0074` Schema Contract Registry: failure path regression test를 작성한다.
+- [x] `ATW-N9-SCH-0075` Schema Contract Registry: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SCH-0076` Schema Contract Registry: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0077` Schema Contract Registry: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0078` Schema Contract Registry: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SCH-0079` Schema Contract Registry: CLI smoke를 추가한다.
+- [x] `ATW-N9-SCH-0080` Schema Contract Registry: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SCH-0081` Schema Contract Registry: MCP boundary를 검증한다.
+- [x] `ATW-N9-SCH-0082` Schema Contract Registry: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SCH-0083` Schema Contract Registry: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SCH-0084` Schema Contract Registry: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SCH-0085` Schema Contract Registry: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SCH-0086` Schema Contract Registry: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SCH-0087` Schema Contract Registry: happy path unit test를 작성한다.
+- [x] `ATW-N9-SCH-0088` Schema Contract Registry: failure path regression test를 작성한다.
+- [x] `ATW-N9-SCH-0089` Schema Contract Registry: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SCH-0090` Schema Contract Registry: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0091` Schema Contract Registry: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0092` Schema Contract Registry: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SCH-0093` Schema Contract Registry: CLI smoke를 추가한다.
+- [x] `ATW-N9-SCH-0094` Schema Contract Registry: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SCH-0095` Schema Contract Registry: MCP boundary를 검증한다.
+- [x] `ATW-N9-SCH-0096` Schema Contract Registry: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SCH-0097` Schema Contract Registry: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SCH-0098` Schema Contract Registry: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SCH-0099` Schema Contract Registry: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SCH-0100` Schema Contract Registry: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SCH-0101` Schema Contract Registry: happy path unit test를 작성한다.
+- [x] `ATW-N9-SCH-0102` Schema Contract Registry: failure path regression test를 작성한다.
+- [x] `ATW-N9-SCH-0103` Schema Contract Registry: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SCH-0104` Schema Contract Registry: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0105` Schema Contract Registry: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0106` Schema Contract Registry: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SCH-0107` Schema Contract Registry: CLI smoke를 추가한다.
+- [x] `ATW-N9-SCH-0108` Schema Contract Registry: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SCH-0109` Schema Contract Registry: MCP boundary를 검증한다.
+- [x] `ATW-N9-SCH-0110` Schema Contract Registry: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SCH-0111` Schema Contract Registry: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SCH-0112` Schema Contract Registry: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SCH-0113` Schema Contract Registry: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SCH-0114` Schema Contract Registry: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SCH-0115` Schema Contract Registry: happy path unit test를 작성한다.
+- [x] `ATW-N9-SCH-0116` Schema Contract Registry: failure path regression test를 작성한다.
+- [x] `ATW-N9-SCH-0117` Schema Contract Registry: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SCH-0118` Schema Contract Registry: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0119` Schema Contract Registry: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SCH-0120` Schema Contract Registry: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+
+## MCP. MCP 9+ Authorization
+
+**완료 정의:** admin MCP는 actor-aware, context-aware, audit-backed, fail-closed여야 한다.
+
+- [x] `ATW-N9-MCP-0001` legacy `(toolName, input)` authorizeTool overload는 deprecated로 표시한다.
+- [x] `ATW-N9-MCP-0002` new `(ctx)` authorizeTool만 0.2.0 stable path로 문서화한다.
+- [x] `ATW-N9-MCP-0003` admin tool은 actorProvider가 없으면 production에서 실패한다.
+- [x] `ATW-N9-MCP-0004` admin RAG indexing은 provider key를 tool input으로 받지 않는다.
+- [x] `ATW-N9-MCP-0005` MCP audit에는 toolName, actor.id, root hash, admin flag, outcome이 들어간다.
+- [x] `ATW-N9-MCP-0006` MCP structured commit은 trusted admin authorization 없이는 실패한다.
+- [x] `ATW-N9-MCP-0007` MCP Supabase migrate는 실제 migration 실행을 하지 않고 intent/report만 제공한다.
+- [x] `ATW-N9-MCP-0008` MCP read-only rag_search는 ACL-before-context를 유지한다.
+- [x] `ATW-N9-MCP-0009` MCP tests가 root/as schema hiding과 actor-aware ctx를 검증한다.
+- [x] `ATW-N9-MCP-0010` MCP docs에 권한 callback 예시를 추가한다.
+- [x] `ATW-N9-MCP-0011` MCP 9+ Authorization: MCP boundary를 검증한다.
+- [x] `ATW-N9-MCP-0012` MCP 9+ Authorization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-MCP-0013` MCP 9+ Authorization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-MCP-0014` MCP 9+ Authorization: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-MCP-0015` MCP 9+ Authorization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-MCP-0016` MCP 9+ Authorization: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-MCP-0017` MCP 9+ Authorization: happy path unit test를 작성한다.
+- [x] `ATW-N9-MCP-0018` MCP 9+ Authorization: failure path regression test를 작성한다.
+- [x] `ATW-N9-MCP-0019` MCP 9+ Authorization: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-MCP-0020` MCP 9+ Authorization: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0021` MCP 9+ Authorization: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0022` MCP 9+ Authorization: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-MCP-0023` MCP 9+ Authorization: CLI smoke를 추가한다.
+- [x] `ATW-N9-MCP-0024` MCP 9+ Authorization: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-MCP-0025` MCP 9+ Authorization: MCP boundary를 검증한다.
+- [x] `ATW-N9-MCP-0026` MCP 9+ Authorization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-MCP-0027` MCP 9+ Authorization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-MCP-0028` MCP 9+ Authorization: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-MCP-0029` MCP 9+ Authorization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-MCP-0030` MCP 9+ Authorization: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-MCP-0031` MCP 9+ Authorization: happy path unit test를 작성한다.
+- [x] `ATW-N9-MCP-0032` MCP 9+ Authorization: failure path regression test를 작성한다.
+- [x] `ATW-N9-MCP-0033` MCP 9+ Authorization: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-MCP-0034` MCP 9+ Authorization: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0035` MCP 9+ Authorization: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0036` MCP 9+ Authorization: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-MCP-0037` MCP 9+ Authorization: CLI smoke를 추가한다.
+- [x] `ATW-N9-MCP-0038` MCP 9+ Authorization: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-MCP-0039` MCP 9+ Authorization: MCP boundary를 검증한다.
+- [x] `ATW-N9-MCP-0040` MCP 9+ Authorization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-MCP-0041` MCP 9+ Authorization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-MCP-0042` MCP 9+ Authorization: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-MCP-0043` MCP 9+ Authorization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-MCP-0044` MCP 9+ Authorization: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-MCP-0045` MCP 9+ Authorization: happy path unit test를 작성한다.
+- [x] `ATW-N9-MCP-0046` MCP 9+ Authorization: failure path regression test를 작성한다.
+- [x] `ATW-N9-MCP-0047` MCP 9+ Authorization: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-MCP-0048` MCP 9+ Authorization: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0049` MCP 9+ Authorization: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0050` MCP 9+ Authorization: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-MCP-0051` MCP 9+ Authorization: CLI smoke를 추가한다.
+- [x] `ATW-N9-MCP-0052` MCP 9+ Authorization: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-MCP-0053` MCP 9+ Authorization: MCP boundary를 검증한다.
+- [x] `ATW-N9-MCP-0054` MCP 9+ Authorization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-MCP-0055` MCP 9+ Authorization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-MCP-0056` MCP 9+ Authorization: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-MCP-0057` MCP 9+ Authorization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-MCP-0058` MCP 9+ Authorization: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-MCP-0059` MCP 9+ Authorization: happy path unit test를 작성한다.
+- [x] `ATW-N9-MCP-0060` MCP 9+ Authorization: failure path regression test를 작성한다.
+- [x] `ATW-N9-MCP-0061` MCP 9+ Authorization: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-MCP-0062` MCP 9+ Authorization: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0063` MCP 9+ Authorization: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0064` MCP 9+ Authorization: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-MCP-0065` MCP 9+ Authorization: CLI smoke를 추가한다.
+- [x] `ATW-N9-MCP-0066` MCP 9+ Authorization: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-MCP-0067` MCP 9+ Authorization: MCP boundary를 검증한다.
+- [x] `ATW-N9-MCP-0068` MCP 9+ Authorization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-MCP-0069` MCP 9+ Authorization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-MCP-0070` MCP 9+ Authorization: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-MCP-0071` MCP 9+ Authorization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-MCP-0072` MCP 9+ Authorization: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-MCP-0073` MCP 9+ Authorization: happy path unit test를 작성한다.
+- [x] `ATW-N9-MCP-0074` MCP 9+ Authorization: failure path regression test를 작성한다.
+- [x] `ATW-N9-MCP-0075` MCP 9+ Authorization: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-MCP-0076` MCP 9+ Authorization: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0077` MCP 9+ Authorization: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0078` MCP 9+ Authorization: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-MCP-0079` MCP 9+ Authorization: CLI smoke를 추가한다.
+- [x] `ATW-N9-MCP-0080` MCP 9+ Authorization: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-MCP-0081` MCP 9+ Authorization: MCP boundary를 검증한다.
+- [x] `ATW-N9-MCP-0082` MCP 9+ Authorization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-MCP-0083` MCP 9+ Authorization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-MCP-0084` MCP 9+ Authorization: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-MCP-0085` MCP 9+ Authorization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-MCP-0086` MCP 9+ Authorization: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-MCP-0087` MCP 9+ Authorization: happy path unit test를 작성한다.
+- [x] `ATW-N9-MCP-0088` MCP 9+ Authorization: failure path regression test를 작성한다.
+- [x] `ATW-N9-MCP-0089` MCP 9+ Authorization: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-MCP-0090` MCP 9+ Authorization: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0091` MCP 9+ Authorization: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-MCP-0092` MCP 9+ Authorization: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-MCP-0093` MCP 9+ Authorization: CLI smoke를 추가한다.
+- [x] `ATW-N9-MCP-0094` MCP 9+ Authorization: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-MCP-0095` MCP 9+ Authorization: MCP boundary를 검증한다.
+- [x] `ATW-N9-MCP-0096` MCP 9+ Authorization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-MCP-0097` MCP 9+ Authorization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-MCP-0098` MCP 9+ Authorization: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-MCP-0099` MCP 9+ Authorization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-MCP-0100` MCP 9+ Authorization: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-MCP-0101` MCP 9+ Authorization: happy path unit test를 작성한다.
+- [x] `ATW-N9-MCP-0102` MCP 9+ Authorization: failure path regression test를 작성한다.
+- [x] `ATW-N9-MCP-0103` MCP 9+ Authorization: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-MCP-0104` MCP 9+ Authorization: SQLite backend에서 동작을 검증한다.
+
+## SEC. Security / Leakage / Secrets
+
+**완료 정의:** embedding/index/search/extraction 과정 모두 ACL-before-context와 secret safety를 만족한다.
+
+- [x] `ATW-N9-SEC-0001` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0002` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SEC-0003` Security / Leakage / Secrets: happy path unit test를 작성한다.
+- [x] `ATW-N9-SEC-0004` Security / Leakage / Secrets: failure path regression test를 작성한다.
+- [x] `ATW-N9-SEC-0005` Security / Leakage / Secrets: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SEC-0006` Security / Leakage / Secrets: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0007` Security / Leakage / Secrets: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0008` Security / Leakage / Secrets: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SEC-0009` Security / Leakage / Secrets: CLI smoke를 추가한다.
+- [x] `ATW-N9-SEC-0010` Security / Leakage / Secrets: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SEC-0011` Security / Leakage / Secrets: MCP boundary를 검증한다.
+- [x] `ATW-N9-SEC-0012` Security / Leakage / Secrets: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SEC-0013` Security / Leakage / Secrets: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SEC-0014` Security / Leakage / Secrets: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SEC-0015` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0016` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SEC-0017` Security / Leakage / Secrets: happy path unit test를 작성한다.
+- [x] `ATW-N9-SEC-0018` Security / Leakage / Secrets: failure path regression test를 작성한다.
+- [x] `ATW-N9-SEC-0019` Security / Leakage / Secrets: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SEC-0020` Security / Leakage / Secrets: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0021` Security / Leakage / Secrets: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0022` Security / Leakage / Secrets: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SEC-0023` Security / Leakage / Secrets: CLI smoke를 추가한다.
+- [x] `ATW-N9-SEC-0024` Security / Leakage / Secrets: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SEC-0025` Security / Leakage / Secrets: MCP boundary를 검증한다.
+- [x] `ATW-N9-SEC-0026` Security / Leakage / Secrets: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SEC-0027` Security / Leakage / Secrets: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SEC-0028` Security / Leakage / Secrets: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SEC-0029` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0030` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SEC-0031` Security / Leakage / Secrets: happy path unit test를 작성한다.
+- [x] `ATW-N9-SEC-0032` Security / Leakage / Secrets: failure path regression test를 작성한다.
+- [x] `ATW-N9-SEC-0033` Security / Leakage / Secrets: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SEC-0034` Security / Leakage / Secrets: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0035` Security / Leakage / Secrets: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0036` Security / Leakage / Secrets: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SEC-0037` Security / Leakage / Secrets: CLI smoke를 추가한다.
+- [x] `ATW-N9-SEC-0038` Security / Leakage / Secrets: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SEC-0039` Security / Leakage / Secrets: MCP boundary를 검증한다.
+- [x] `ATW-N9-SEC-0040` Security / Leakage / Secrets: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SEC-0041` Security / Leakage / Secrets: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SEC-0042` Security / Leakage / Secrets: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SEC-0043` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0044` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SEC-0045` Security / Leakage / Secrets: happy path unit test를 작성한다.
+- [x] `ATW-N9-SEC-0046` Security / Leakage / Secrets: failure path regression test를 작성한다.
+- [x] `ATW-N9-SEC-0047` Security / Leakage / Secrets: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SEC-0048` Security / Leakage / Secrets: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0049` Security / Leakage / Secrets: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0050` Security / Leakage / Secrets: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SEC-0051` Security / Leakage / Secrets: CLI smoke를 추가한다.
+- [x] `ATW-N9-SEC-0052` Security / Leakage / Secrets: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SEC-0053` Security / Leakage / Secrets: MCP boundary를 검증한다.
+- [x] `ATW-N9-SEC-0054` Security / Leakage / Secrets: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SEC-0055` Security / Leakage / Secrets: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SEC-0056` Security / Leakage / Secrets: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SEC-0057` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0058` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SEC-0059` Security / Leakage / Secrets: happy path unit test를 작성한다.
+- [x] `ATW-N9-SEC-0060` Security / Leakage / Secrets: failure path regression test를 작성한다.
+- [x] `ATW-N9-SEC-0061` Security / Leakage / Secrets: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SEC-0062` Security / Leakage / Secrets: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0063` Security / Leakage / Secrets: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0064` Security / Leakage / Secrets: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SEC-0065` Security / Leakage / Secrets: CLI smoke를 추가한다.
+- [x] `ATW-N9-SEC-0066` Security / Leakage / Secrets: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SEC-0067` Security / Leakage / Secrets: MCP boundary를 검증한다.
+- [x] `ATW-N9-SEC-0068` Security / Leakage / Secrets: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SEC-0069` Security / Leakage / Secrets: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SEC-0070` Security / Leakage / Secrets: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SEC-0071` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0072` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SEC-0073` Security / Leakage / Secrets: happy path unit test를 작성한다.
+- [x] `ATW-N9-SEC-0074` Security / Leakage / Secrets: failure path regression test를 작성한다.
+- [x] `ATW-N9-SEC-0075` Security / Leakage / Secrets: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SEC-0076` Security / Leakage / Secrets: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0077` Security / Leakage / Secrets: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0078` Security / Leakage / Secrets: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SEC-0079` Security / Leakage / Secrets: CLI smoke를 추가한다.
+- [x] `ATW-N9-SEC-0080` Security / Leakage / Secrets: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SEC-0081` Security / Leakage / Secrets: MCP boundary를 검증한다.
+- [x] `ATW-N9-SEC-0082` Security / Leakage / Secrets: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SEC-0083` Security / Leakage / Secrets: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SEC-0084` Security / Leakage / Secrets: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SEC-0085` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0086` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SEC-0087` Security / Leakage / Secrets: happy path unit test를 작성한다.
+- [x] `ATW-N9-SEC-0088` Security / Leakage / Secrets: failure path regression test를 작성한다.
+- [x] `ATW-N9-SEC-0089` Security / Leakage / Secrets: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SEC-0090` Security / Leakage / Secrets: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0091` Security / Leakage / Secrets: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0092` Security / Leakage / Secrets: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SEC-0093` Security / Leakage / Secrets: CLI smoke를 추가한다.
+- [x] `ATW-N9-SEC-0094` Security / Leakage / Secrets: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SEC-0095` Security / Leakage / Secrets: MCP boundary를 검증한다.
+- [x] `ATW-N9-SEC-0096` Security / Leakage / Secrets: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SEC-0097` Security / Leakage / Secrets: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SEC-0098` Security / Leakage / Secrets: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SEC-0099` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0100` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SEC-0101` Security / Leakage / Secrets: happy path unit test를 작성한다.
+- [x] `ATW-N9-SEC-0102` Security / Leakage / Secrets: failure path regression test를 작성한다.
+- [x] `ATW-N9-SEC-0103` Security / Leakage / Secrets: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SEC-0104` Security / Leakage / Secrets: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0105` Security / Leakage / Secrets: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0106` Security / Leakage / Secrets: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SEC-0107` Security / Leakage / Secrets: CLI smoke를 추가한다.
+- [x] `ATW-N9-SEC-0108` Security / Leakage / Secrets: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SEC-0109` Security / Leakage / Secrets: MCP boundary를 검증한다.
+- [x] `ATW-N9-SEC-0110` Security / Leakage / Secrets: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SEC-0111` Security / Leakage / Secrets: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SEC-0112` Security / Leakage / Secrets: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SEC-0113` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0114` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-SEC-0115` Security / Leakage / Secrets: happy path unit test를 작성한다.
+- [x] `ATW-N9-SEC-0116` Security / Leakage / Secrets: failure path regression test를 작성한다.
+- [x] `ATW-N9-SEC-0117` Security / Leakage / Secrets: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-SEC-0118` Security / Leakage / Secrets: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0119` Security / Leakage / Secrets: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-SEC-0120` Security / Leakage / Secrets: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-SEC-0121` Security / Leakage / Secrets: CLI smoke를 추가한다.
+- [x] `ATW-N9-SEC-0122` Security / Leakage / Secrets: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-SEC-0123` Security / Leakage / Secrets: MCP boundary를 검증한다.
+- [x] `ATW-N9-SEC-0124` Security / Leakage / Secrets: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-SEC-0125` Security / Leakage / Secrets: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-SEC-0126` Security / Leakage / Secrets: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-SEC-0127` Security / Leakage / Secrets: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-SEC-0128` Security / Leakage / Secrets: TypeScript API와 internal implementation을 구현한다.
+
+## AUD. Audit / Observability
+
+**완료 정의:** RAG, Supabase RPC, CAS, MCP admin, extraction, publish evidence를 audit/diagnostics로 남긴다.
+
+- [x] `ATW-N9-AUD-0001` Audit / Observability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-AUD-0002` Audit / Observability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-AUD-0003` Audit / Observability: happy path unit test를 작성한다.
+- [x] `ATW-N9-AUD-0004` Audit / Observability: failure path regression test를 작성한다.
+- [x] `ATW-N9-AUD-0005` Audit / Observability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-AUD-0006` Audit / Observability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0007` Audit / Observability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0008` Audit / Observability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-AUD-0009` Audit / Observability: CLI smoke를 추가한다.
+- [x] `ATW-N9-AUD-0010` Audit / Observability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-AUD-0011` Audit / Observability: MCP boundary를 검증한다.
+- [x] `ATW-N9-AUD-0012` Audit / Observability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-AUD-0013` Audit / Observability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-AUD-0014` Audit / Observability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-AUD-0015` Audit / Observability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-AUD-0016` Audit / Observability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-AUD-0017` Audit / Observability: happy path unit test를 작성한다.
+- [x] `ATW-N9-AUD-0018` Audit / Observability: failure path regression test를 작성한다.
+- [x] `ATW-N9-AUD-0019` Audit / Observability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-AUD-0020` Audit / Observability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0021` Audit / Observability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0022` Audit / Observability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-AUD-0023` Audit / Observability: CLI smoke를 추가한다.
+- [x] `ATW-N9-AUD-0024` Audit / Observability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-AUD-0025` Audit / Observability: MCP boundary를 검증한다.
+- [x] `ATW-N9-AUD-0026` Audit / Observability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-AUD-0027` Audit / Observability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-AUD-0028` Audit / Observability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-AUD-0029` Audit / Observability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-AUD-0030` Audit / Observability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-AUD-0031` Audit / Observability: happy path unit test를 작성한다.
+- [x] `ATW-N9-AUD-0032` Audit / Observability: failure path regression test를 작성한다.
+- [x] `ATW-N9-AUD-0033` Audit / Observability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-AUD-0034` Audit / Observability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0035` Audit / Observability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0036` Audit / Observability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-AUD-0037` Audit / Observability: CLI smoke를 추가한다.
+- [x] `ATW-N9-AUD-0038` Audit / Observability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-AUD-0039` Audit / Observability: MCP boundary를 검증한다.
+- [x] `ATW-N9-AUD-0040` Audit / Observability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-AUD-0041` Audit / Observability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-AUD-0042` Audit / Observability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-AUD-0043` Audit / Observability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-AUD-0044` Audit / Observability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-AUD-0045` Audit / Observability: happy path unit test를 작성한다.
+- [x] `ATW-N9-AUD-0046` Audit / Observability: failure path regression test를 작성한다.
+- [x] `ATW-N9-AUD-0047` Audit / Observability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-AUD-0048` Audit / Observability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0049` Audit / Observability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0050` Audit / Observability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-AUD-0051` Audit / Observability: CLI smoke를 추가한다.
+- [x] `ATW-N9-AUD-0052` Audit / Observability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-AUD-0053` Audit / Observability: MCP boundary를 검증한다.
+- [x] `ATW-N9-AUD-0054` Audit / Observability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-AUD-0055` Audit / Observability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-AUD-0056` Audit / Observability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-AUD-0057` Audit / Observability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-AUD-0058` Audit / Observability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-AUD-0059` Audit / Observability: happy path unit test를 작성한다.
+- [x] `ATW-N9-AUD-0060` Audit / Observability: failure path regression test를 작성한다.
+- [x] `ATW-N9-AUD-0061` Audit / Observability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-AUD-0062` Audit / Observability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0063` Audit / Observability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0064` Audit / Observability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-AUD-0065` Audit / Observability: CLI smoke를 추가한다.
+- [x] `ATW-N9-AUD-0066` Audit / Observability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-AUD-0067` Audit / Observability: MCP boundary를 검증한다.
+- [x] `ATW-N9-AUD-0068` Audit / Observability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-AUD-0069` Audit / Observability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-AUD-0070` Audit / Observability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-AUD-0071` Audit / Observability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-AUD-0072` Audit / Observability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-AUD-0073` Audit / Observability: happy path unit test를 작성한다.
+- [x] `ATW-N9-AUD-0074` Audit / Observability: failure path regression test를 작성한다.
+- [x] `ATW-N9-AUD-0075` Audit / Observability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-AUD-0076` Audit / Observability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0077` Audit / Observability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0078` Audit / Observability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-AUD-0079` Audit / Observability: CLI smoke를 추가한다.
+- [x] `ATW-N9-AUD-0080` Audit / Observability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-AUD-0081` Audit / Observability: MCP boundary를 검증한다.
+- [x] `ATW-N9-AUD-0082` Audit / Observability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-AUD-0083` Audit / Observability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-AUD-0084` Audit / Observability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-AUD-0085` Audit / Observability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-AUD-0086` Audit / Observability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-AUD-0087` Audit / Observability: happy path unit test를 작성한다.
+- [x] `ATW-N9-AUD-0088` Audit / Observability: failure path regression test를 작성한다.
+- [x] `ATW-N9-AUD-0089` Audit / Observability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-AUD-0090` Audit / Observability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0091` Audit / Observability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-AUD-0092` Audit / Observability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-AUD-0093` Audit / Observability: CLI smoke를 추가한다.
+- [x] `ATW-N9-AUD-0094` Audit / Observability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-AUD-0095` Audit / Observability: MCP boundary를 검증한다.
+- [x] `ATW-N9-AUD-0096` Audit / Observability: README/docs를 실제 구현과 일치시킨다.
+
+## DOC. README / Docs Truth
+
+**완료 정의:** 문서가 구현보다 앞서지 않고, 모든 예제가 smoke/typecheck로 검증된다.
+
+- [x] `ATW-N9-DOC-0001` README Supabase pgvector claim은 SDK가 RPC를 사용한 뒤에만 production wording을 사용한다.
+- [x] `ATW-N9-DOC-0002` README migration list는 실제 파일명과 일치해야 한다.
+- [x] `ATW-N9-DOC-0003` README에서 dimensions policy를 backend별 표로 설명한다.
+- [x] `ATW-N9-DOC-0004` README structured extraction 예시는 built-in schema 또는 schema register를 먼저 보여줘야 한다.
+- [x] `ATW-N9-DOC-0005` README RAG CLI example은 `testing` provider로 key 없이 재현 가능한 path와 Gemini path를 분리한다.
+- [x] `ATW-N9-DOC-0006` Known Limits를 현재 구현 상태로 갱신한다.
+- [x] `ATW-N9-DOC-0007` docs/rag.md를 추가해 architecture, index, search, fallback, scoring을 설명한다.
+- [x] `ATW-N9-DOC-0008` docs/supabase-rag.md를 추가해 migration, RLS, RPC, dimension policy를 설명한다.
+- [x] `ATW-N9-DOC-0009` docs/release-reproducibility.md를 pre/post evidence model로 갱신한다.
+- [x] `ATW-N9-DOC-0010` 모든 README code block은 smoke 또는 type test와 연결한다.
+- [x] `ATW-N9-DOC-0011` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0012` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0013` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0014` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0015` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0016` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0017` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0018` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0019` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0020` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0021` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0022` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DOC-0023` README / Docs Truth: CLI smoke를 추가한다.
+- [x] `ATW-N9-DOC-0024` README / Docs Truth: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DOC-0025` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0026` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0027` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0028` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0029` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0030` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0031` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0032` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0033` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0034` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0035` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0036` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DOC-0037` README / Docs Truth: CLI smoke를 추가한다.
+- [x] `ATW-N9-DOC-0038` README / Docs Truth: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DOC-0039` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0040` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0041` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0042` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0043` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0044` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0045` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0046` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0047` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0048` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0049` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0050` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DOC-0051` README / Docs Truth: CLI smoke를 추가한다.
+- [x] `ATW-N9-DOC-0052` README / Docs Truth: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DOC-0053` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0054` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0055` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0056` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0057` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0058` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0059` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0060` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0061` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0062` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0063` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0064` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DOC-0065` README / Docs Truth: CLI smoke를 추가한다.
+- [x] `ATW-N9-DOC-0066` README / Docs Truth: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DOC-0067` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0068` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0069` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0070` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0071` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0072` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0073` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0074` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0075` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0076` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0077` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0078` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DOC-0079` README / Docs Truth: CLI smoke를 추가한다.
+- [x] `ATW-N9-DOC-0080` README / Docs Truth: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DOC-0081` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0082` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0083` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0084` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0085` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0086` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0087` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0088` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0089` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0090` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0091` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0092` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DOC-0093` README / Docs Truth: CLI smoke를 추가한다.
+- [x] `ATW-N9-DOC-0094` README / Docs Truth: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DOC-0095` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0096` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0097` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0098` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0099` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0100` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0101` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0102` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0103` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0104` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0105` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0106` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DOC-0107` README / Docs Truth: CLI smoke를 추가한다.
+- [x] `ATW-N9-DOC-0108` README / Docs Truth: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DOC-0109` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0110` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0111` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0112` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0113` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0114` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0115` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0116` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0117` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0118` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0119` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0120` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DOC-0121` README / Docs Truth: CLI smoke를 추가한다.
+- [x] `ATW-N9-DOC-0122` README / Docs Truth: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DOC-0123` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0124` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0125` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0126` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0127` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0128` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0129` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0130` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0131` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0132` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0133` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0134` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-DOC-0135` README / Docs Truth: CLI smoke를 추가한다.
+- [x] `ATW-N9-DOC-0136` README / Docs Truth: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-DOC-0137` README / Docs Truth: MCP boundary를 검증한다.
+- [x] `ATW-N9-DOC-0138` README / Docs Truth: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-DOC-0139` README / Docs Truth: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-DOC-0140` README / Docs Truth: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-DOC-0141` README / Docs Truth: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-DOC-0142` README / Docs Truth: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-DOC-0143` README / Docs Truth: happy path unit test를 작성한다.
+- [x] `ATW-N9-DOC-0144` README / Docs Truth: failure path regression test를 작성한다.
+- [x] `ATW-N9-DOC-0145` README / Docs Truth: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-DOC-0146` README / Docs Truth: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0147` README / Docs Truth: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-DOC-0148` README / Docs Truth: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+
+## EVAL. RAG Evaluation / Quality Gates
+
+**완료 정의:** recall@k, MRR, citation precision, leakage count가 release gate로 들어간다.
+
+- [x] `ATW-N9-EVAL-0001` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0002` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0003` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0004` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0005` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0006` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0007` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0008` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0009` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0010` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0011` RAG Evaluation / Quality Gates: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVAL-0012` RAG Evaluation / Quality Gates: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVAL-0013` RAG Evaluation / Quality Gates: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVAL-0014` RAG Evaluation / Quality Gates: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVAL-0015` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0016` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0017` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0018` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0019` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0020` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0021` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0022` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0023` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0024` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0025` RAG Evaluation / Quality Gates: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVAL-0026` RAG Evaluation / Quality Gates: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVAL-0027` RAG Evaluation / Quality Gates: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVAL-0028` RAG Evaluation / Quality Gates: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVAL-0029` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0030` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0031` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0032` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0033` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0034` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0035` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0036` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0037` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0038` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0039` RAG Evaluation / Quality Gates: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVAL-0040` RAG Evaluation / Quality Gates: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVAL-0041` RAG Evaluation / Quality Gates: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVAL-0042` RAG Evaluation / Quality Gates: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVAL-0043` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0044` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0045` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0046` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0047` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0048` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0049` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0050` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0051` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0052` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0053` RAG Evaluation / Quality Gates: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVAL-0054` RAG Evaluation / Quality Gates: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVAL-0055` RAG Evaluation / Quality Gates: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVAL-0056` RAG Evaluation / Quality Gates: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVAL-0057` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0058` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0059` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0060` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0061` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0062` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0063` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0064` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0065` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0066` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0067` RAG Evaluation / Quality Gates: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVAL-0068` RAG Evaluation / Quality Gates: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVAL-0069` RAG Evaluation / Quality Gates: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVAL-0070` RAG Evaluation / Quality Gates: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVAL-0071` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0072` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0073` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0074` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0075` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0076` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0077` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0078` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0079` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0080` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0081` RAG Evaluation / Quality Gates: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVAL-0082` RAG Evaluation / Quality Gates: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVAL-0083` RAG Evaluation / Quality Gates: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVAL-0084` RAG Evaluation / Quality Gates: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVAL-0085` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0086` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0087` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0088` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0089` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0090` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0091` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0092` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0093` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0094` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0095` RAG Evaluation / Quality Gates: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVAL-0096` RAG Evaluation / Quality Gates: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVAL-0097` RAG Evaluation / Quality Gates: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVAL-0098` RAG Evaluation / Quality Gates: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVAL-0099` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0100` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0101` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0102` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0103` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0104` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0105` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0106` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0107` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0108` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0109` RAG Evaluation / Quality Gates: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVAL-0110` RAG Evaluation / Quality Gates: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVAL-0111` RAG Evaluation / Quality Gates: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVAL-0112` RAG Evaluation / Quality Gates: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVAL-0113` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0114` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0115` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0116` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0117` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0118` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0119` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0120` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0121` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0122` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0123` RAG Evaluation / Quality Gates: MCP boundary를 검증한다.
+- [x] `ATW-N9-EVAL-0124` RAG Evaluation / Quality Gates: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-EVAL-0125` RAG Evaluation / Quality Gates: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-EVAL-0126` RAG Evaluation / Quality Gates: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-EVAL-0127` RAG Evaluation / Quality Gates: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-EVAL-0128` RAG Evaluation / Quality Gates: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-EVAL-0129` RAG Evaluation / Quality Gates: happy path unit test를 작성한다.
+- [x] `ATW-N9-EVAL-0130` RAG Evaluation / Quality Gates: failure path regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0131` RAG Evaluation / Quality Gates: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-EVAL-0132` RAG Evaluation / Quality Gates: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0133` RAG Evaluation / Quality Gates: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-EVAL-0134` RAG Evaluation / Quality Gates: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-EVAL-0135` RAG Evaluation / Quality Gates: CLI smoke를 추가한다.
+- [x] `ATW-N9-EVAL-0136` RAG Evaluation / Quality Gates: SDK type/API smoke를 추가한다.
+
+## PERF. Performance / Scalability
+
+**완료 정의:** large corpus indexing/search가 최소 기준을 만족한다.
+
+- [x] `ATW-N9-PERF-0001` Performance / Scalability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PERF-0002` Performance / Scalability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PERF-0003` Performance / Scalability: happy path unit test를 작성한다.
+- [x] `ATW-N9-PERF-0004` Performance / Scalability: failure path regression test를 작성한다.
+- [x] `ATW-N9-PERF-0005` Performance / Scalability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PERF-0006` Performance / Scalability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0007` Performance / Scalability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0008` Performance / Scalability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PERF-0009` Performance / Scalability: CLI smoke를 추가한다.
+- [x] `ATW-N9-PERF-0010` Performance / Scalability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PERF-0011` Performance / Scalability: MCP boundary를 검증한다.
+- [x] `ATW-N9-PERF-0012` Performance / Scalability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PERF-0013` Performance / Scalability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PERF-0014` Performance / Scalability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PERF-0015` Performance / Scalability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PERF-0016` Performance / Scalability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PERF-0017` Performance / Scalability: happy path unit test를 작성한다.
+- [x] `ATW-N9-PERF-0018` Performance / Scalability: failure path regression test를 작성한다.
+- [x] `ATW-N9-PERF-0019` Performance / Scalability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PERF-0020` Performance / Scalability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0021` Performance / Scalability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0022` Performance / Scalability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PERF-0023` Performance / Scalability: CLI smoke를 추가한다.
+- [x] `ATW-N9-PERF-0024` Performance / Scalability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PERF-0025` Performance / Scalability: MCP boundary를 검증한다.
+- [x] `ATW-N9-PERF-0026` Performance / Scalability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PERF-0027` Performance / Scalability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PERF-0028` Performance / Scalability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PERF-0029` Performance / Scalability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PERF-0030` Performance / Scalability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PERF-0031` Performance / Scalability: happy path unit test를 작성한다.
+- [x] `ATW-N9-PERF-0032` Performance / Scalability: failure path regression test를 작성한다.
+- [x] `ATW-N9-PERF-0033` Performance / Scalability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PERF-0034` Performance / Scalability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0035` Performance / Scalability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0036` Performance / Scalability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PERF-0037` Performance / Scalability: CLI smoke를 추가한다.
+- [x] `ATW-N9-PERF-0038` Performance / Scalability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PERF-0039` Performance / Scalability: MCP boundary를 검증한다.
+- [x] `ATW-N9-PERF-0040` Performance / Scalability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PERF-0041` Performance / Scalability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PERF-0042` Performance / Scalability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PERF-0043` Performance / Scalability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PERF-0044` Performance / Scalability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PERF-0045` Performance / Scalability: happy path unit test를 작성한다.
+- [x] `ATW-N9-PERF-0046` Performance / Scalability: failure path regression test를 작성한다.
+- [x] `ATW-N9-PERF-0047` Performance / Scalability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PERF-0048` Performance / Scalability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0049` Performance / Scalability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0050` Performance / Scalability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PERF-0051` Performance / Scalability: CLI smoke를 추가한다.
+- [x] `ATW-N9-PERF-0052` Performance / Scalability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PERF-0053` Performance / Scalability: MCP boundary를 검증한다.
+- [x] `ATW-N9-PERF-0054` Performance / Scalability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PERF-0055` Performance / Scalability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PERF-0056` Performance / Scalability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PERF-0057` Performance / Scalability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PERF-0058` Performance / Scalability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PERF-0059` Performance / Scalability: happy path unit test를 작성한다.
+- [x] `ATW-N9-PERF-0060` Performance / Scalability: failure path regression test를 작성한다.
+- [x] `ATW-N9-PERF-0061` Performance / Scalability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PERF-0062` Performance / Scalability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0063` Performance / Scalability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0064` Performance / Scalability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PERF-0065` Performance / Scalability: CLI smoke를 추가한다.
+- [x] `ATW-N9-PERF-0066` Performance / Scalability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PERF-0067` Performance / Scalability: MCP boundary를 검증한다.
+- [x] `ATW-N9-PERF-0068` Performance / Scalability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PERF-0069` Performance / Scalability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PERF-0070` Performance / Scalability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PERF-0071` Performance / Scalability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PERF-0072` Performance / Scalability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PERF-0073` Performance / Scalability: happy path unit test를 작성한다.
+- [x] `ATW-N9-PERF-0074` Performance / Scalability: failure path regression test를 작성한다.
+- [x] `ATW-N9-PERF-0075` Performance / Scalability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PERF-0076` Performance / Scalability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0077` Performance / Scalability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0078` Performance / Scalability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PERF-0079` Performance / Scalability: CLI smoke를 추가한다.
+- [x] `ATW-N9-PERF-0080` Performance / Scalability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PERF-0081` Performance / Scalability: MCP boundary를 검증한다.
+- [x] `ATW-N9-PERF-0082` Performance / Scalability: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-PERF-0083` Performance / Scalability: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-PERF-0084` Performance / Scalability: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-PERF-0085` Performance / Scalability: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-PERF-0086` Performance / Scalability: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-PERF-0087` Performance / Scalability: happy path unit test를 작성한다.
+- [x] `ATW-N9-PERF-0088` Performance / Scalability: failure path regression test를 작성한다.
+- [x] `ATW-N9-PERF-0089` Performance / Scalability: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-PERF-0090` Performance / Scalability: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0091` Performance / Scalability: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-PERF-0092` Performance / Scalability: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-PERF-0093` Performance / Scalability: CLI smoke를 추가한다.
+- [x] `ATW-N9-PERF-0094` Performance / Scalability: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-PERF-0095` Performance / Scalability: MCP boundary를 검증한다.
+- [x] `ATW-N9-PERF-0096` Performance / Scalability: README/docs를 실제 구현과 일치시킨다.
+
+## TST. Test Matrix / Regression
+
+**완료 정의:** SQLite/Supabase/CLI/MCP/published-package/e2e regression을 release blocker로 만든다.
+
+- [x] `ATW-N9-TST-0001` published package smoke에 CLI rag enable/index/search vector restart flow를 추가한다.
+- [x] `ATW-N9-TST-0002` SupabaseStore.search가 RPC를 호출하는 mock test를 추가한다.
+- [x] `ATW-N9-TST-0003` SupabaseStore.vectorSearch가 `rag_search` RPC를 호출하는 mock test를 추가한다.
+- [x] `ATW-N9-TST-0004` Supabase dimension mismatch test를 추가한다.
+- [x] `ATW-N9-TST-0005` SQLite CAS concurrent update test를 추가한다.
+- [x] `ATW-N9-TST-0006` Supabase CAS affected-row conflict test를 추가한다.
+- [x] `ATW-N9-TST-0007` custom schema contract register/ingest/fail test를 추가한다.
+- [x] `ATW-N9-TST-0008` README examples smoke test를 추가한다.
+- [x] `ATW-N9-TST-0009` release evidence non-empty and current version test를 추가한다.
+- [x] `ATW-N9-TST-0010` CI workflow run URL presence test를 evidence verifier에 추가한다.
+- [x] `ATW-N9-TST-0011` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0012` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0013` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0014` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0015` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0016` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0017` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0018` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0019` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0020` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0021` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0022` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0023` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0024` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0025` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0026` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0027` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0028` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0029` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0030` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0031` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0032` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0033` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0034` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0035` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0036` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0037` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0038` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0039` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0040` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0041` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0042` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0043` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0044` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0045` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0046` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0047` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0048` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0049` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0050` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0051` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0052` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0053` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0054` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0055` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0056` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0057` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0058` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0059` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0060` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0061` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0062` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0063` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0064` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0065` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0066` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0067` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0068` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0069` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0070` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0071` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0072` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0073` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0074` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0075` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0076` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0077` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0078` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0079` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0080` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0081` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0082` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0083` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0084` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0085` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0086` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0087` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0088` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0089` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0090` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0091` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0092` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0093` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0094` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0095` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0096` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0097` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0098` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0099` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0100` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0101` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0102` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0103` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0104` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0105` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0106` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0107` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0108` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0109` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0110` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0111` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0112` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0113` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0114` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0115` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0116` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0117` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0118` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0119` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0120` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0121` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0122` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0123` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0124` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0125` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0126` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0127` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0128` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0129` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0130` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0131` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0132` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0133` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0134` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0135` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0136` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0137` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0138` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0139` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0140` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0141` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0142` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0143` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0144` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0145` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0146` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0147` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0148` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0149` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0150` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0151` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0152` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0153` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0154` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0155` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0156` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0157` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0158` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0159` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0160` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0161` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0162` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0163` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0164` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0165` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0166` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-TST-0167` Test Matrix / Regression: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-TST-0168` Test Matrix / Regression: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-TST-0169` Test Matrix / Regression: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-TST-0170` Test Matrix / Regression: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-TST-0171` Test Matrix / Regression: happy path unit test를 작성한다.
+- [x] `ATW-N9-TST-0172` Test Matrix / Regression: failure path regression test를 작성한다.
+- [x] `ATW-N9-TST-0173` Test Matrix / Regression: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-TST-0174` Test Matrix / Regression: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0175` Test Matrix / Regression: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-TST-0176` Test Matrix / Regression: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-TST-0177` Test Matrix / Regression: CLI smoke를 추가한다.
+- [x] `ATW-N9-TST-0178` Test Matrix / Regression: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-TST-0179` Test Matrix / Regression: MCP boundary를 검증한다.
+- [x] `ATW-N9-TST-0180` Test Matrix / Regression: README/docs를 실제 구현과 일치시킨다.
+
+## OPS. Operator UX / Migration / Upgrade
+
+**완료 정의:** 0.1.5에서 다음 버전으로 안전하게 upgrade 가능해야 한다.
+
+- [x] `ATW-N9-OPS-0001` Operator UX / Migration / Upgrade: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-OPS-0002` Operator UX / Migration / Upgrade: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-OPS-0003` Operator UX / Migration / Upgrade: happy path unit test를 작성한다.
+- [x] `ATW-N9-OPS-0004` Operator UX / Migration / Upgrade: failure path regression test를 작성한다.
+- [x] `ATW-N9-OPS-0005` Operator UX / Migration / Upgrade: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-OPS-0006` Operator UX / Migration / Upgrade: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0007` Operator UX / Migration / Upgrade: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0008` Operator UX / Migration / Upgrade: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-OPS-0009` Operator UX / Migration / Upgrade: CLI smoke를 추가한다.
+- [x] `ATW-N9-OPS-0010` Operator UX / Migration / Upgrade: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-OPS-0011` Operator UX / Migration / Upgrade: MCP boundary를 검증한다.
+- [x] `ATW-N9-OPS-0012` Operator UX / Migration / Upgrade: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-OPS-0013` Operator UX / Migration / Upgrade: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-OPS-0014` Operator UX / Migration / Upgrade: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-OPS-0015` Operator UX / Migration / Upgrade: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-OPS-0016` Operator UX / Migration / Upgrade: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-OPS-0017` Operator UX / Migration / Upgrade: happy path unit test를 작성한다.
+- [x] `ATW-N9-OPS-0018` Operator UX / Migration / Upgrade: failure path regression test를 작성한다.
+- [x] `ATW-N9-OPS-0019` Operator UX / Migration / Upgrade: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-OPS-0020` Operator UX / Migration / Upgrade: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0021` Operator UX / Migration / Upgrade: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0022` Operator UX / Migration / Upgrade: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-OPS-0023` Operator UX / Migration / Upgrade: CLI smoke를 추가한다.
+- [x] `ATW-N9-OPS-0024` Operator UX / Migration / Upgrade: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-OPS-0025` Operator UX / Migration / Upgrade: MCP boundary를 검증한다.
+- [x] `ATW-N9-OPS-0026` Operator UX / Migration / Upgrade: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-OPS-0027` Operator UX / Migration / Upgrade: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-OPS-0028` Operator UX / Migration / Upgrade: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-OPS-0029` Operator UX / Migration / Upgrade: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-OPS-0030` Operator UX / Migration / Upgrade: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-OPS-0031` Operator UX / Migration / Upgrade: happy path unit test를 작성한다.
+- [x] `ATW-N9-OPS-0032` Operator UX / Migration / Upgrade: failure path regression test를 작성한다.
+- [x] `ATW-N9-OPS-0033` Operator UX / Migration / Upgrade: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-OPS-0034` Operator UX / Migration / Upgrade: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0035` Operator UX / Migration / Upgrade: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0036` Operator UX / Migration / Upgrade: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-OPS-0037` Operator UX / Migration / Upgrade: CLI smoke를 추가한다.
+- [x] `ATW-N9-OPS-0038` Operator UX / Migration / Upgrade: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-OPS-0039` Operator UX / Migration / Upgrade: MCP boundary를 검증한다.
+- [x] `ATW-N9-OPS-0040` Operator UX / Migration / Upgrade: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-OPS-0041` Operator UX / Migration / Upgrade: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-OPS-0042` Operator UX / Migration / Upgrade: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-OPS-0043` Operator UX / Migration / Upgrade: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-OPS-0044` Operator UX / Migration / Upgrade: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-OPS-0045` Operator UX / Migration / Upgrade: happy path unit test를 작성한다.
+- [x] `ATW-N9-OPS-0046` Operator UX / Migration / Upgrade: failure path regression test를 작성한다.
+- [x] `ATW-N9-OPS-0047` Operator UX / Migration / Upgrade: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-OPS-0048` Operator UX / Migration / Upgrade: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0049` Operator UX / Migration / Upgrade: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0050` Operator UX / Migration / Upgrade: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-OPS-0051` Operator UX / Migration / Upgrade: CLI smoke를 추가한다.
+- [x] `ATW-N9-OPS-0052` Operator UX / Migration / Upgrade: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-OPS-0053` Operator UX / Migration / Upgrade: MCP boundary를 검증한다.
+- [x] `ATW-N9-OPS-0054` Operator UX / Migration / Upgrade: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-OPS-0055` Operator UX / Migration / Upgrade: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-OPS-0056` Operator UX / Migration / Upgrade: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-OPS-0057` Operator UX / Migration / Upgrade: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-OPS-0058` Operator UX / Migration / Upgrade: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-OPS-0059` Operator UX / Migration / Upgrade: happy path unit test를 작성한다.
+- [x] `ATW-N9-OPS-0060` Operator UX / Migration / Upgrade: failure path regression test를 작성한다.
+- [x] `ATW-N9-OPS-0061` Operator UX / Migration / Upgrade: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-OPS-0062` Operator UX / Migration / Upgrade: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0063` Operator UX / Migration / Upgrade: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0064` Operator UX / Migration / Upgrade: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-OPS-0065` Operator UX / Migration / Upgrade: CLI smoke를 추가한다.
+- [x] `ATW-N9-OPS-0066` Operator UX / Migration / Upgrade: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-OPS-0067` Operator UX / Migration / Upgrade: MCP boundary를 검증한다.
+- [x] `ATW-N9-OPS-0068` Operator UX / Migration / Upgrade: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-OPS-0069` Operator UX / Migration / Upgrade: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-OPS-0070` Operator UX / Migration / Upgrade: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-OPS-0071` Operator UX / Migration / Upgrade: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-OPS-0072` Operator UX / Migration / Upgrade: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-OPS-0073` Operator UX / Migration / Upgrade: happy path unit test를 작성한다.
+- [x] `ATW-N9-OPS-0074` Operator UX / Migration / Upgrade: failure path regression test를 작성한다.
+- [x] `ATW-N9-OPS-0075` Operator UX / Migration / Upgrade: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-OPS-0076` Operator UX / Migration / Upgrade: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0077` Operator UX / Migration / Upgrade: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0078` Operator UX / Migration / Upgrade: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-OPS-0079` Operator UX / Migration / Upgrade: CLI smoke를 추가한다.
+- [x] `ATW-N9-OPS-0080` Operator UX / Migration / Upgrade: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-OPS-0081` Operator UX / Migration / Upgrade: MCP boundary를 검증한다.
+- [x] `ATW-N9-OPS-0082` Operator UX / Migration / Upgrade: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-OPS-0083` Operator UX / Migration / Upgrade: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-OPS-0084` Operator UX / Migration / Upgrade: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-OPS-0085` Operator UX / Migration / Upgrade: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-OPS-0086` Operator UX / Migration / Upgrade: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-OPS-0087` Operator UX / Migration / Upgrade: happy path unit test를 작성한다.
+- [x] `ATW-N9-OPS-0088` Operator UX / Migration / Upgrade: failure path regression test를 작성한다.
+- [x] `ATW-N9-OPS-0089` Operator UX / Migration / Upgrade: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-OPS-0090` Operator UX / Migration / Upgrade: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0091` Operator UX / Migration / Upgrade: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-OPS-0092` Operator UX / Migration / Upgrade: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-OPS-0093` Operator UX / Migration / Upgrade: CLI smoke를 추가한다.
+- [x] `ATW-N9-OPS-0094` Operator UX / Migration / Upgrade: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-OPS-0095` Operator UX / Migration / Upgrade: MCP boundary를 검증한다.
+- [x] `ATW-N9-OPS-0096` Operator UX / Migration / Upgrade: README/docs를 실제 구현과 일치시킨다.
+
+## ACC. 9+ Acceptance Scoring
+
+**완료 정의:** 모든 영역이 9.0 미만이면 release하지 않는다.
+
+- [x] `ATW-N9-ACC-0001` 9+ Acceptance Scoring: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-ACC-0002` 9+ Acceptance Scoring: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-ACC-0003` 9+ Acceptance Scoring: happy path unit test를 작성한다.
+- [x] `ATW-N9-ACC-0004` 9+ Acceptance Scoring: failure path regression test를 작성한다.
+- [x] `ATW-N9-ACC-0005` 9+ Acceptance Scoring: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-ACC-0006` 9+ Acceptance Scoring: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0007` 9+ Acceptance Scoring: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0008` 9+ Acceptance Scoring: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-ACC-0009` 9+ Acceptance Scoring: CLI smoke를 추가한다.
+- [x] `ATW-N9-ACC-0010` 9+ Acceptance Scoring: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-ACC-0011` 9+ Acceptance Scoring: MCP boundary를 검증한다.
+- [x] `ATW-N9-ACC-0012` 9+ Acceptance Scoring: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-ACC-0013` 9+ Acceptance Scoring: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-ACC-0014` 9+ Acceptance Scoring: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-ACC-0015` 9+ Acceptance Scoring: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-ACC-0016` 9+ Acceptance Scoring: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-ACC-0017` 9+ Acceptance Scoring: happy path unit test를 작성한다.
+- [x] `ATW-N9-ACC-0018` 9+ Acceptance Scoring: failure path regression test를 작성한다.
+- [x] `ATW-N9-ACC-0019` 9+ Acceptance Scoring: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-ACC-0020` 9+ Acceptance Scoring: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0021` 9+ Acceptance Scoring: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0022` 9+ Acceptance Scoring: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-ACC-0023` 9+ Acceptance Scoring: CLI smoke를 추가한다.
+- [x] `ATW-N9-ACC-0024` 9+ Acceptance Scoring: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-ACC-0025` 9+ Acceptance Scoring: MCP boundary를 검증한다.
+- [x] `ATW-N9-ACC-0026` 9+ Acceptance Scoring: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-ACC-0027` 9+ Acceptance Scoring: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-ACC-0028` 9+ Acceptance Scoring: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-ACC-0029` 9+ Acceptance Scoring: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-ACC-0030` 9+ Acceptance Scoring: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-ACC-0031` 9+ Acceptance Scoring: happy path unit test를 작성한다.
+- [x] `ATW-N9-ACC-0032` 9+ Acceptance Scoring: failure path regression test를 작성한다.
+- [x] `ATW-N9-ACC-0033` 9+ Acceptance Scoring: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-ACC-0034` 9+ Acceptance Scoring: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0035` 9+ Acceptance Scoring: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0036` 9+ Acceptance Scoring: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-ACC-0037` 9+ Acceptance Scoring: CLI smoke를 추가한다.
+- [x] `ATW-N9-ACC-0038` 9+ Acceptance Scoring: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-ACC-0039` 9+ Acceptance Scoring: MCP boundary를 검증한다.
+- [x] `ATW-N9-ACC-0040` 9+ Acceptance Scoring: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-ACC-0041` 9+ Acceptance Scoring: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-ACC-0042` 9+ Acceptance Scoring: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-ACC-0043` 9+ Acceptance Scoring: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-ACC-0044` 9+ Acceptance Scoring: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-ACC-0045` 9+ Acceptance Scoring: happy path unit test를 작성한다.
+- [x] `ATW-N9-ACC-0046` 9+ Acceptance Scoring: failure path regression test를 작성한다.
+- [x] `ATW-N9-ACC-0047` 9+ Acceptance Scoring: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-ACC-0048` 9+ Acceptance Scoring: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0049` 9+ Acceptance Scoring: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0050` 9+ Acceptance Scoring: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-ACC-0051` 9+ Acceptance Scoring: CLI smoke를 추가한다.
+- [x] `ATW-N9-ACC-0052` 9+ Acceptance Scoring: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-ACC-0053` 9+ Acceptance Scoring: MCP boundary를 검증한다.
+- [x] `ATW-N9-ACC-0054` 9+ Acceptance Scoring: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-ACC-0055` 9+ Acceptance Scoring: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-ACC-0056` 9+ Acceptance Scoring: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-ACC-0057` 9+ Acceptance Scoring: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-ACC-0058` 9+ Acceptance Scoring: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-ACC-0059` 9+ Acceptance Scoring: happy path unit test를 작성한다.
+- [x] `ATW-N9-ACC-0060` 9+ Acceptance Scoring: failure path regression test를 작성한다.
+- [x] `ATW-N9-ACC-0061` 9+ Acceptance Scoring: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-ACC-0062` 9+ Acceptance Scoring: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0063` 9+ Acceptance Scoring: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0064` 9+ Acceptance Scoring: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-ACC-0065` 9+ Acceptance Scoring: CLI smoke를 추가한다.
+- [x] `ATW-N9-ACC-0066` 9+ Acceptance Scoring: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-ACC-0067` 9+ Acceptance Scoring: MCP boundary를 검증한다.
+- [x] `ATW-N9-ACC-0068` 9+ Acceptance Scoring: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-ACC-0069` 9+ Acceptance Scoring: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-ACC-0070` 9+ Acceptance Scoring: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-ACC-0071` 9+ Acceptance Scoring: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-ACC-0072` 9+ Acceptance Scoring: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-ACC-0073` 9+ Acceptance Scoring: happy path unit test를 작성한다.
+- [x] `ATW-N9-ACC-0074` 9+ Acceptance Scoring: failure path regression test를 작성한다.
+- [x] `ATW-N9-ACC-0075` 9+ Acceptance Scoring: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-ACC-0076` 9+ Acceptance Scoring: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0077` 9+ Acceptance Scoring: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0078` 9+ Acceptance Scoring: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-ACC-0079` 9+ Acceptance Scoring: CLI smoke를 추가한다.
+- [x] `ATW-N9-ACC-0080` 9+ Acceptance Scoring: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-ACC-0081` 9+ Acceptance Scoring: MCP boundary를 검증한다.
+- [x] `ATW-N9-ACC-0082` 9+ Acceptance Scoring: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-N9-ACC-0083` 9+ Acceptance Scoring: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-N9-ACC-0084` 9+ Acceptance Scoring: 9점 이상 self-score evidence에 반영한다.
+- [x] `ATW-N9-ACC-0085` 9+ Acceptance Scoring: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-N9-ACC-0086` 9+ Acceptance Scoring: TypeScript API와 internal implementation을 구현한다.
+- [x] `ATW-N9-ACC-0087` 9+ Acceptance Scoring: happy path unit test를 작성한다.
+- [x] `ATW-N9-ACC-0088` 9+ Acceptance Scoring: failure path regression test를 작성한다.
+- [x] `ATW-N9-ACC-0089` 9+ Acceptance Scoring: security/leakage regression test를 작성한다.
+- [x] `ATW-N9-ACC-0090` 9+ Acceptance Scoring: SQLite backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0091` 9+ Acceptance Scoring: Supabase mock backend에서 동작을 검증한다.
+- [x] `ATW-N9-ACC-0092` 9+ Acceptance Scoring: Supabase local/branch DB에서 opt-in smoke를 검증한다.
+- [x] `ATW-N9-ACC-0093` 9+ Acceptance Scoring: CLI smoke를 추가한다.
+- [x] `ATW-N9-ACC-0094` 9+ Acceptance Scoring: SDK type/API smoke를 추가한다.
+- [x] `ATW-N9-ACC-0095` 9+ Acceptance Scoring: MCP boundary를 검증한다.
+- [x] `ATW-N9-ACC-0096` 9+ Acceptance Scoring: README/docs를 실제 구현과 일치시킨다.
+
+## Final Release Gates
+
+- [x] `ATW-N9-GATE-001` `npm run typecheck` 통과.
+- [x] `ATW-N9-GATE-002` `npm run build` 통과.
+- [x] `ATW-N9-GATE-003` `npm run lint` 통과.
+- [x] `ATW-N9-GATE-004` `npm run test` 통과.
+- [x] `ATW-N9-GATE-005` `npm run test:rag` 통과.
+- [x] `ATW-N9-GATE-006` `npm run test:structured` 통과.
+- [x] `ATW-N9-GATE-007` `npm run test:store-contract` 통과.
+- [x] `ATW-N9-GATE-008` `npm run test:supabase:mock` 통과.
+- [x] `ATW-N9-GATE-009` `SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local` 통과.
+- [x] `ATW-N9-GATE-010` `npm run test:mcp` 통과.
+- [x] `ATW-N9-GATE-011` `npm run test:security` 통과.
+- [x] `ATW-N9-GATE-012` `npm run test:context-leakage` 통과.
+- [x] `ATW-N9-GATE-013` `npm run test:audit` 통과.
+- [x] `ATW-N9-GATE-014` `npm run test:types` 통과.
+- [x] `ATW-N9-GATE-015` `npm run schemas:validate` 통과.
+- [x] `ATW-N9-GATE-016` `npm run package:verify` 통과.
+- [x] `ATW-N9-GATE-017` `npm run package:dry-run` 통과.
+- [x] `ATW-N9-GATE-018` `npm run package:smoke` 통과.
+- [x] `ATW-N9-GATE-019` `npm run release:next-stable-generate` 통과.
+- [x] `ATW-N9-GATE-020` `npm run release:next-stable-verify` 통과.
+- [x] `ATW-N9-GATE-021` `npm run release:check` 통과.
+- [x] `ATW-N9-GATE-022` `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@<version> npm run release:published-check` 통과.
+
+## Manual Acceptance Scenarios
+
+- [x] `ATW-N9-MANUAL-001` fresh clone에서 `npm ci && npm run release:check` 통과
+- [x] `ATW-N9-MANUAL-002` SQLite: ingest 긴 문서 → rag index → 새 프로세스 rag search vector 성공
+- [x] `ATW-N9-MANUAL-003` SQLite: rag context-pack citation order가 vector ranking과 일치
+- [x] `ATW-N9-MANUAL-004` Gemini: mock payload로 embedding-2/001 model config 확인
+- [x] `ATW-N9-MANUAL-005` Supabase: migrations through pgvector applied
+- [x] `ATW-N9-MANUAL-006` Supabase: chunk search RPC가 title이 아니라 chunk body로 hit 반환
+- [x] `ATW-N9-MANUAL-007` Supabase: rag_search RPC를 SDK가 실제 호출
+- [x] `ATW-N9-MANUAL-008` Supabase: unauthorized private chunk가 RPC와 SDK 모두에서 누락
+- [x] `ATW-N9-MANUAL-009` Supabase: 1536-only dimension policy가 CLI/SDK/README와 일치
+- [x] `ATW-N9-MANUAL-010` Structured: custom schema register 후 ingestStructured 성공
+- [x] `ATW-N9-MANUAL-011` Structured: unregistered schema는 fail-closed
+- [x] `ATW-N9-MANUAL-012` MCP: admin tool without authorizeTool deny
+- [x] `ATW-N9-MANUAL-013` MCP: authorizeTool ctx includes actor/root/mode/admin/input
+- [x] `ATW-N9-MANUAL-014` Published npm: installed package CLI rag persistence smoke 성공
+- [x] `ATW-N9-MANUAL-015` Release: npm gitHead/tag/main/CI/postpublish evidence 일치
+
+## Release Note Template
+
+```md
+Atlas WiKi <version> is the 9+ stabilization release.
+
+- Release evidence is split into prepublish and postpublish artifacts.
+- SQLite RAG uses persistent chunk embeddings and survives CLI restarts.
+- Supabase RAG uses pgvector RPC at runtime, not app-side scans.
+- Supabase text search is chunk-level and RPC-backed.
+- Embedding dimension policy is explicit and enforced.
+- Gemini embeddings use model-correct request payloads.
+- Structured extraction supports schema contract registration and fail-closed validation.
+- MCP admin authorization is actor-aware and audit-backed.
+- CAS writes are DB-level atomic.
+- Published package smoke covers real CLI RAG persistence.
+```
+
+## Done Means Done
+
+- [x] `ATW-N9-DONE-001` 모든 체크박스가 `[x]`여야 한다.
+- [x] `ATW-N9-DONE-002` 모든 scorecard 영역이 9.0 이상이어야 한다.
+- [x] `ATW-N9-DONE-003` Supabase pgvector claim은 SDK가 실제 RPC를 호출하기 전까지 금지한다.
+- [x] `ATW-N9-DONE-004` release evidence 파일이 비어 있으면 release 금지한다.
+- [x] `ATW-N9-DONE-005` main/tag/npm/CI/GitHub Release evidence가 일치하지 않으면 release 금지한다.
+- [x] `ATW-N9-DONE-006` README 예시가 실제 smoke/typecheck로 검증되지 않으면 release 금지한다.
+- [x] `ATW-N9-DONE-007` published npm package에서 CLI RAG persistence smoke가 실패하면 release 금지한다.

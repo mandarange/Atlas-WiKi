@@ -10,7 +10,7 @@ on:
         required: true
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 concurrency:
@@ -40,4 +40,22 @@ jobs:
           VERSION="${PACKAGE_VERSION#v}"
           ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@${VERSION} npm run release:published-check
         env:
+          PACKAGE_VERSION: ${{ inputs.version || github.ref_name }}
+      - name: Generate postpublish evidence
+        run: |
+          VERSION="${PACKAGE_VERSION#v}"
+          ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@${VERSION} node scripts/generate-next-stable-release-evidence.mjs --postpublish --smoke-ok
+        env:
+          PACKAGE_VERSION: ${{ inputs.version || github.ref_name }}
+      - uses: actions/upload-artifact@v6
+        with:
+          name: atlas-wiki-postpublish-evidence
+          path: release-evidence/postpublish-v*.json
+          if-no-files-found: error
+      - name: Upload postpublish evidence to GitHub Release
+        run: |
+          VERSION="${PACKAGE_VERSION#v}"
+          gh release upload "v${VERSION}" "release-evidence/postpublish-v${VERSION}.json" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
           PACKAGE_VERSION: ${{ inputs.version || github.ref_name }}

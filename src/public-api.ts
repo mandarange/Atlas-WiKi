@@ -15,7 +15,7 @@ export { canonicalize, contentHash, sha256 } from "./core/hash/index.js";
 export { canAccess, defaultAccessPolicy, policyResolver } from "./core/policy/index.js";
 export { validateRecord } from "./core/validation/index.js";
 export { redactText } from "./security/redaction.js";
-export { builtInExtractors, builtInSchemaContracts, extractStructured, StructuredSchemaContractError, validateStructuredCandidate } from "./structured/index.js";
+export { builtInExtractors, builtInSchemaContracts, extractStructured, normalizeSchemaContract, SchemaContractRegistry, StructuredSchemaContractError, validateStructuredCandidate } from "./structured/index.js";
 export { DeterministicEmbeddingProvider, RagEmbeddingProviderError, RagService, RagVectorUnavailableError } from "./rag/index.js";
 export type * from "./core/records/index.js";
 export type * from "./rag/index.js";

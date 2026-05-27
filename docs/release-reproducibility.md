@@ -4,7 +4,7 @@ Atlas WiKi treats a stable release as reproducible only when the release commit,
 
 ## Core Link
 
-`scripts/generate-next-stable-release-evidence.mjs` captures the 0.1.5 stabilization checklist, npm view metadata, GitHub tag state, score evidence, and required artifact inventory. `scripts/verify-next-stable-release.mjs` binds that evidence to `npm run release:check`.
+`scripts/generate-next-stable-release-evidence.mjs` captures the N9 total-closure checklist, npm view metadata, GitHub tag state, score evidence, prepublish/postpublish manifests, and required artifact inventory. `scripts/verify-next-stable-release.mjs` binds that evidence to `npm run release:check`.
 
 ## Security
 
@@ -17,11 +17,11 @@ Run:
 ```bash
 npm run release:next-stable-generate
 npm run release:check
-ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.1.5 npm run release:published-check
+ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.2.0 npm run release:published-check
 npm view atlas-wiki version dist-tags gitHead dist.integrity dist.shasum time --json
 ```
 
-The `release-evidence/atlas-wiki-vNEXT.json` file records the registry version, integrity, shasum, npm `gitHead`, GitHub baseline tag/release state, self-scores, and the ATW-95 coverage ledger.
+The `release-evidence/atlas-wiki-vNEXT.json` file records the latest non-empty release summary. `release-evidence/prepublish-v<version>.json` is committed before tagging; `.github/workflows/publish.yml` generates `release-evidence/postpublish-v<version>.json` after npm publish and uploads it to the GitHub Release.
 
 ## Operator Notes
 

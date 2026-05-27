@@ -1,22 +1,27 @@
 import { contentHash } from "../../core/hash/index.js";
 import { stableId } from "../../core/ids/index.js";
 import { defaultAccessPolicy, policyResolver } from "../../core/policy/index.js";
-import type { ActorRef, AtlasRecord, ContextPackRecord, PolicyDecision, ProposalRecord, RecordRef, SourceRecord, StructuredObjectRecord } from "../../core/records/index.js";
+import type { ActorRef, AtlasRecord, ContextPackRecord, PolicyDecision, ProposalRecord, RecordRef, SchemaContractRecord, SourceRecord, StructuredObjectRecord } from "../../core/records/index.js";
 import { nowIso } from "../../core/time/index.js";
 import { validateRecord } from "../../core/validation/index.js";
 import { chunkText } from "../../ingest/chunker.js";
 import { redactText } from "../../security/redaction.js";
-import { candidateSourceRefs, extractStructured, structuredContentHash, structuredStableId } from "../../structured/index.js";
-import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, ValidationReport, WriteOptions, WriteResult } from "../store-contract.js";
+import { builtInSchemaContracts, candidateSourceRefs, extractStructured, normalizeSchemaContract, structuredContentHash, structuredStableId } from "../../structured/index.js";
+import type { StructuredSchemaContract } from "../../structured/index.js";
+import type { AtlasWikiStore, CasWriteOptions, ChunkSearchInput, ChunkSearchResult, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, ValidationReport, VectorSearchInput, VectorSearchResult, WriteOptions, WriteResult } from "../store-contract.js";
 import { createSupabaseClient } from "./client.js";
 import { SupabaseStoreError } from "./errors.js";
 import { recordToRow, rowToRecord } from "./mappers.js";
 import { sourceAclRows } from "./policy.js";
+import { callRpc } from "./rpc.js";
 import type { SupabaseLikeClient, SupabaseStoreOptions } from "./types.js";
+
+const SUPABASE_DEFAULT_VECTOR_DIMENSIONS = 1536;
 
 export class SupabaseStore implements AtlasWikiStore {
   readonly options: SupabaseStoreOptions;
   private client: SupabaseLikeClient | undefined;
+  private schemaContracts = new Map<string, StructuredSchemaContract>(builtInSchemaContracts.map((contract) => [contract.id, normalizeSchemaContract(contract)]));
 
   constructor(options: SupabaseStoreOptions) {
     this.options = options;
@@ -84,7 +89,7 @@ export class SupabaseStore implements AtlasWikiStore {
   async ingestStructured(input: StructuredIngestInput): Promise<StructuredIngestResult> {
     if (input.mode === "commit" && !input.trusted) throw new Error("Structured direct commit requires trusted: true");
     const source = await this.ingestText(input);
-    const candidates = await extractStructured({ source, text: input.text, schemas: input.schemas });
+    const candidates = await extractStructured({ source, text: input.text, schemas: input.schemas }, { schemaContracts: await this.listSchemaContracts() });
     const structuredObjects: StructuredObjectRecord[] = [];
     const proposals: ProposalRecord[] = [];
     for (const candidate of candidates) {
@@ -116,19 +121,19 @@ export class SupabaseStore implements AtlasWikiStore {
   }
 
   async search(query: string, actor: ActorRef, limit = 10): Promise<SearchResult[]> {
+    return this.searchChunks({ query, actor, limit });
+  }
+
+  async searchChunks(input: ChunkSearchInput): Promise<ChunkSearchResult[]> {
+    const { query, actor, limit = 10 } = input;
     if (!query.trim()) return [];
-    const rows = await checked(this.requireClient().from("chunks").select("*").limit(limit * 8), "supabase chunk search select") as Array<{ id: string; source_id: string; text: string; text_hash?: string | undefined }>;
-    const q = query.toLowerCase();
-    const results: SearchResult[] = [];
-    for (const row of rows.filter((candidate) => candidate.text.toLowerCase().includes(q))) {
-      const record = await this.fetch(row.source_id, actor);
-      if (!record || record.kind !== "source") continue;
-      const source = record as SourceRecord;
-      const redaction = redactText(row.text, { id: source.id, schema: source.schema, kind: source.kind }, { field: "text", sensitivity: source.sensitivity });
-      results.push({ source, chunk_id: row.id, text: redaction.text, redacted: redaction.events.length > 0, redactions: redaction.events, score: 1 });
-      if (results.length >= limit) break;
-    }
-    return results;
+    const rows = await callRpc(this.requireClient(), "chunk_search", {
+      search_text: query,
+      max_results: limit,
+      actor_id: actor.id,
+      actor_groups: actor.groups ?? []
+    }) as unknown[];
+    return this.rpcRowsToChunkResults(rows, actor, limit);
   }
 
   async listSources(query: string | undefined, actor: ActorRef, limit = 50): Promise<SourceRecord[]> {
@@ -196,6 +201,59 @@ export class SupabaseStore implements AtlasWikiStore {
     return { record: finalRecord, created: !existing, previousRevision: existing?.revision, revision: finalRecord.revision };
   }
 
+  async upsertRecordCas(record: AtlasRecord, options: CasWriteOptions): Promise<WriteResult> {
+    if (options.expectedRevision === undefined) throw new SupabaseStoreError("CAS write requires expectedRevision", { id: record.id });
+    const finalRecord = validateRecord({ ...record, updated_by: options.actor ?? record.updated_by });
+    const rows = await callRpc(this.requireClient(), "upsert_record_cas", {
+      record_json: finalRecord,
+      expected_revision: options.expectedRevision,
+      allow_create: Boolean(options.allowCreate)
+    });
+    const result = Array.isArray(rows) ? rows[0] : rows;
+    if (!isRecord(result)) throw new SupabaseStoreError("Supabase CAS RPC returned no row", { id: record.id });
+    const saved = rowToRecord({ json: result.record_json ?? finalRecord });
+    return {
+      record: saved,
+      created: Boolean(result.created),
+      previousRevision: numberField(result, "previous_revision"),
+      revision: numberField(result, "revision") ?? saved.revision
+    };
+  }
+
+  async registerSchemaContract(contract: StructuredSchemaContract): Promise<void> {
+    const normalized = normalizeSchemaContract(contract);
+    this.schemaContracts.set(normalized.id, normalized);
+    const time = nowIso();
+    const record: SchemaContractRecord = {
+      schema: "atlas.wiki.schema-contract.v1",
+      kind: "schema_contract",
+      id: normalized.id,
+      status: "active",
+      created_at: time,
+      updated_at: time,
+      revision: 1,
+      content_hash: contentHash(normalized),
+      name: normalized.name,
+      version: normalized.version,
+      description: normalized.description,
+      json_schema: normalized.jsonSchema,
+      required_fields: normalized.requiredFields,
+      identity_fields: normalized.identityFields,
+      confidence_threshold: normalized.confidenceThreshold,
+      conflict_keys: normalized.conflictKeys
+    };
+    await this.upsertRecord(record, { actor: this.options.actor ?? { id: "service:schema-registry", type: "service" } });
+  }
+
+  async listSchemaContracts(): Promise<StructuredSchemaContract[]> {
+    return [...this.schemaContracts.values()].map(normalizeSchemaContract);
+  }
+
+  async getSchemaContract(id: string): Promise<StructuredSchemaContract | undefined> {
+    const contract = this.schemaContracts.get(id);
+    return contract ? normalizeSchemaContract(contract) : undefined;
+  }
+
   async validate(): Promise<ValidationReport> {
     return { ok: true, findings: [] };
   }
@@ -217,6 +275,7 @@ export class SupabaseStore implements AtlasWikiStore {
   }
 
   async upsertRagEmbeddingProfile(profile: RagEmbeddingProfile): Promise<void> {
+    assertSupabaseVectorDimensions(profile.dimensions);
     await checked(this.requireClient().from("embedding_profiles").upsert({
       id: profile.id,
       provider_id: profile.provider_id,
@@ -228,6 +287,7 @@ export class SupabaseStore implements AtlasWikiStore {
   }
 
   async upsertRagChunkEmbedding(embedding: RagChunkEmbedding): Promise<void> {
+    assertSupabaseVectorDimensions(embedding.dimensions, embedding.vector);
     await checked(this.requireClient().from("embeddings").upsert({
       id: stableId("embedding", { profile_id: embedding.profile_id, chunk_id: embedding.chunk_id }),
       chunk_id: embedding.chunk_id,
@@ -271,6 +331,25 @@ export class SupabaseStore implements AtlasWikiStore {
       if (stored.length >= limit) break;
     }
     return stored;
+  }
+
+  async vectorSearch(input: VectorSearchInput): Promise<VectorSearchResult[]> {
+    assertSupabaseVectorDimensions(input.profile.dimensions, input.queryVector);
+    const rows = await callRpc(this.requireClient(), "rag_search", {
+      query_embedding: input.queryVector,
+      target_profile_id: input.profile.id,
+      max_results: input.limit ?? 100,
+      actor_id: input.actor.id,
+      actor_groups: input.actor.groups ?? []
+    }) as unknown[];
+    const results: VectorSearchResult[] = [];
+    for (const row of rows) {
+      const result = await this.rpcRowToVectorResult(row, input.actor, input.profile);
+      if (!result) continue;
+      results.push(result);
+      if (results.length >= (input.limit ?? 100)) break;
+    }
+    return results;
   }
 
   async ragVectorStats(profile: RagEmbeddingProfile): Promise<RagVectorStats> {
@@ -324,6 +403,84 @@ export class SupabaseStore implements AtlasWikiStore {
     if (!this.client) throw new SupabaseStoreError("SupabaseStore.init() has not completed");
     return this.client;
   }
+
+  private async rpcRowsToChunkResults(rows: unknown[], actor: ActorRef, limit: number): Promise<ChunkSearchResult[]> {
+    const results: ChunkSearchResult[] = [];
+    for (const row of rows) {
+      const result = await this.rpcRowToChunkResult(row, actor);
+      if (!result) continue;
+      results.push(result);
+      if (results.length >= limit) break;
+    }
+    return results;
+  }
+
+  private async rpcRowToChunkResult(value: unknown, actor: ActorRef): Promise<ChunkSearchResult | undefined> {
+    if (!isRecord(value)) return undefined;
+    const source = await this.sourceFromRpcRow(value, actor);
+    if (!source) return undefined;
+    const text = stringField(value, "text") ?? stringField(value, "chunk_text") ?? stringField(value, "content");
+    const chunkId = stringField(value, "chunk_id") ?? stringField(value, "id");
+    if (!text || !chunkId) return undefined;
+    const redaction = redactText(text, { id: source.id, schema: source.schema, kind: source.kind }, { field: "text", sensitivity: source.sensitivity });
+    return {
+      source,
+      chunk_id: chunkId,
+      text: redaction.text,
+      redacted: redaction.events.length > 0,
+      redactions: redaction.events,
+      score: numberField(value, "score") ?? numberField(value, "similarity") ?? 1,
+      backend: "supabase",
+      retrieval_path: "supabase_chunk_rpc"
+    };
+  }
+
+  private async rpcRowToVectorResult(value: unknown, actor: ActorRef, profile: RagEmbeddingProfile): Promise<VectorSearchResult | undefined> {
+    if (!isRecord(value)) return undefined;
+    const chunk = await this.rpcRowToChunkResult(value, actor);
+    if (!chunk) return undefined;
+    const vector = normalizeVector(value.embedding ?? value.vector_json ?? value.vector);
+    if (!vector) return undefined;
+    return {
+      source: chunk.source,
+      text: chunk.text,
+      chunk_id: chunk.chunk_id,
+      profile_id: stringField(value, "profile_id") ?? profile.id,
+      provider_id: stringField(value, "provider_id") ?? profile.provider_id,
+      model: stringField(value, "model") ?? profile.model,
+      dimensions: numberField(value, "dimensions") ?? profile.dimensions,
+      content_hash: stringField(value, "content_hash") ?? stringField(value, "text_hash") ?? "",
+      vector,
+      score: chunk.score,
+      backend: "supabase",
+      retrieval_path: "supabase_rag_rpc"
+    };
+  }
+
+  private async sourceFromRpcRow(row: Record<string, unknown>, actor: ActorRef): Promise<SourceRecord | undefined> {
+    const sourceJson = row.source_json ?? row.source;
+    if (sourceJson) {
+      const record = rowToRecord({ json: typeof sourceJson === "string" ? JSON.parse(sourceJson) : sourceJson });
+      if (record.kind !== "source") return undefined;
+      return policyResolver.canRead({ record, actor, purpose: "supabase_rag_rpc" }).allowed ? record as SourceRecord : undefined;
+    }
+    const sourceId = stringField(row, "source_id");
+    if (!sourceId) return undefined;
+    const record = await this.fetch(sourceId, actor);
+    return record?.kind === "source" ? record as SourceRecord : undefined;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function stringField(value: Record<string, unknown>, key: string): string | undefined {
+  return typeof value[key] === "string" ? value[key] : undefined;
+}
+
+function numberField(value: Record<string, unknown>, key: string): number | undefined {
+  return typeof value[key] === "number" ? value[key] : undefined;
 }
 
 function normalizeVector(value: unknown): number[] | undefined {
@@ -338,6 +495,16 @@ function normalizeVector(value: unknown): number[] | undefined {
     if (csv.length > 0 && csv.every(Number.isFinite)) return csv;
   }
   return undefined;
+}
+
+function assertSupabaseVectorDimensions(dimensions: number, vector?: readonly number[]): void {
+  if (dimensions !== SUPABASE_DEFAULT_VECTOR_DIMENSIONS || (vector && vector.length !== SUPABASE_DEFAULT_VECTOR_DIMENSIONS)) {
+    throw new SupabaseStoreError("Supabase pgvector RPC supports 1536 dimensions by default; custom dimensions require an explicit project migration", {
+      expected: SUPABASE_DEFAULT_VECTOR_DIMENSIONS,
+      dimensions,
+      vectorDimensions: vector?.length
+    });
+  }
 }
 
 async function checked(query: PromiseLike<{ data: unknown; error: { message: string } | null }>, context: string): Promise<unknown> {

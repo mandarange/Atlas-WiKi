@@ -31,12 +31,13 @@ try {
   let releaseExport = "not_published_in_baseline";
   if (installedPkg.exports?.["./release"]) {
     releaseExport = execFileSync("node", ["--input-type=module", "-e", "import { releaseEvidenceSchema } from 'atlas-wiki/release'; console.log(releaseEvidenceSchema)"], { cwd: dir, encoding: "utf8" }).trim();
-    if (releaseExport !== "atlas-wiki.release-evidence.v1") throw new Error("Published release export smoke failed");
+    const expectedReleaseSchema = compareSemver(installedPkg.version, "0.2.0") >= 0 ? "atlas-wiki.release-evidence.v2" : "atlas-wiki.release-evidence.v1";
+    if (releaseExport !== expectedReleaseSchema) throw new Error("Published release export smoke failed");
   }
   const root = join(dir, "wiki");
   for (const args of [
     ["awiki", "init", "--root", root, "--json"],
-    ["awiki", "ingest", join(dir, "handbook.md"), "--root", root, "--owner", "team:ops", "--visibility", "internal", "--json"],
+    ["awiki", "ingest", join(dir, "handbook.md"), "--root", root, "--owner", "user:alice@example.com", "--visibility", "public", "--json"],
     ["awiki", "search", "remote work", "--root", root, "--as", "user:alice@example.com", "--json"],
     ["awiki", "context-pack", "remote work", "--root", root, "--as", "user:alice@example.com", "--json"],
     ["awiki", "validate", "--root", root, "--json"],
@@ -44,7 +45,28 @@ try {
   ]) {
     execFileSync("npx", args, { cwd: dir, stdio: "pipe" });
   }
-  console.log(JSON.stringify({ ok: true, packageSpec, imports: parsed, releaseExport }, null, 2));
+  execFileSync("npx", ["awiki", "rag", "index", "--root", root, "--provider", "testing", "--dimensions", "16", "--fallback", "testing_deterministic_embeddings", "--json"], { cwd: dir, stdio: "pipe" });
+  const ragSearch = execFileSync("npx", ["awiki", "rag", "search", "manager approval", "--root", root, "--as", "user:alice@example.com", "--mode", "vector", "--provider", "testing", "--dimensions", "16", "--fallback", "testing_deterministic_embeddings", "--json"], { cwd: dir, encoding: "utf8" });
+  const parsedRagSearch = JSON.parse(ragSearch);
+  if (!Array.isArray(parsedRagSearch.items) || parsedRagSearch.items.length < 1 || !parsedRagSearch.items[0].citation?.quote?.includes("manager approval")) throw new Error("Published CLI RAG vector restart smoke failed");
+  console.log(JSON.stringify({ ok: true, packageSpec, imports: parsed, releaseExport, rag: parsedRagSearch.metadata.rag }, null, 2));
 } finally {
   rmSync(dir, { recursive: true, force: true });
+}
+
+function compareSemver(left, right) {
+  const a = parseSemver(left);
+  const b = parseSemver(right);
+  if (!a || !b) return 0;
+  for (let i = 0; i < 3; i += 1) {
+    if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+  }
+  return 0;
+}
+
+function parseSemver(version) {
+  if (typeof version !== "string") return null;
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
+  if (!match) return null;
+  return match.slice(1, 4).map((part) => Number(part));
 }

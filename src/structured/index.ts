@@ -205,17 +205,48 @@ export const builtInSchemaContracts: readonly StructuredSchemaContract[] = [
 
 const schemaContractsById = new Map(builtInSchemaContracts.map((contract) => [contract.id, contract]));
 
-export async function extractStructured(input: ExtractorInput, extractors: readonly Extractor[] = builtInExtractors): Promise<ExtractionCandidate[]> {
+export interface ExtractStructuredOptions {
+  extractors?: readonly Extractor[] | undefined;
+  schemaContracts?: readonly StructuredSchemaContract[] | undefined;
+}
+
+export class SchemaContractRegistry {
+  private readonly contracts = new Map<string, StructuredSchemaContract>();
+
+  constructor(initialContracts: readonly StructuredSchemaContract[] = builtInSchemaContracts) {
+    for (const contract of initialContracts) this.register(contract);
+  }
+
+  register(contract: StructuredSchemaContract): void {
+    this.contracts.set(contract.id, normalizeSchemaContract(contract));
+  }
+
+  list(): StructuredSchemaContract[] {
+    return [...this.contracts.values()].map(cloneSchemaContract);
+  }
+
+  get(id: string): StructuredSchemaContract | undefined {
+    const contract = this.contracts.get(id);
+    return contract ? cloneSchemaContract(contract) : undefined;
+  }
+}
+
+export async function extractStructured(input: ExtractorInput, optionsOrExtractors: ExtractStructuredOptions | readonly Extractor[] = {}): Promise<ExtractionCandidate[]> {
+  let options: ExtractStructuredOptions;
+  if (isExtractorList(optionsOrExtractors)) options = { extractors: optionsOrExtractors };
+  else options = optionsOrExtractors;
+  const extractors = options.extractors ?? builtInExtractors;
+  const registry = new SchemaContractRegistry(options.schemaContracts ?? builtInSchemaContracts);
   const candidates: ExtractionCandidate[] = [];
   for (const extractor of extractors) {
     if (!extractor.supports(input)) continue;
     candidates.push(...await extractor.extract(input));
   }
-  return candidates.filter((candidate) => candidate.evidence.length > 0).map(validateStructuredCandidate);
+  return candidates.filter((candidate) => candidate.evidence.length > 0).map((candidate) => validateStructuredCandidate(candidate, registry));
 }
 
-export function validateStructuredCandidate(candidate: ExtractionCandidate): ExtractionCandidate {
-  const contract = schemaContractsById.get(candidate.schemaId);
+export function validateStructuredCandidate(candidate: ExtractionCandidate, registry = new SchemaContractRegistry([...schemaContractsById.values()])): ExtractionCandidate {
+  const contract = registry.get(candidate.schemaId);
   if (!contract) throw new StructuredSchemaContractError(`Missing schema contract for ${candidate.schemaId}`, candidate.schemaId);
   if (candidate.confidence < contract.confidenceThreshold) {
     throw new StructuredSchemaContractError(`Candidate confidence ${candidate.confidence} is below ${contract.confidenceThreshold}`, candidate.schemaId);
@@ -244,6 +275,28 @@ export function structuredStableId(source: SourceRecord, candidate: ExtractionCa
 
 function normalizeFieldName(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "field";
+}
+
+export function normalizeSchemaContract(contract: StructuredSchemaContract): StructuredSchemaContract {
+  if (!contract.id.trim()) throw new StructuredSchemaContractError("Schema contract id is required", contract.id);
+  if (!contract.name.trim()) throw new StructuredSchemaContractError("Schema contract name is required", contract.id);
+  if (!contract.version.trim()) throw new StructuredSchemaContractError("Schema contract version is required", contract.id);
+  if (contract.confidenceThreshold < 0 || contract.confidenceThreshold > 1) throw new StructuredSchemaContractError("Schema contract confidenceThreshold must be between 0 and 1", contract.id);
+  return {
+    ...contract,
+    jsonSchema: { ...contract.jsonSchema },
+    requiredFields: [...contract.requiredFields],
+    identityFields: [...contract.identityFields],
+    conflictKeys: [...contract.conflictKeys]
+  };
+}
+
+function cloneSchemaContract(contract: StructuredSchemaContract): StructuredSchemaContract {
+  return normalizeSchemaContract(contract);
+}
+
+function isExtractorList(value: ExtractStructuredOptions | readonly Extractor[]): value is readonly Extractor[] {
+  return Array.isArray(value);
 }
 
 function normalizeScalar(value: string): unknown {

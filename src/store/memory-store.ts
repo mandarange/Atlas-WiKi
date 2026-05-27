@@ -7,8 +7,9 @@ import { isPastIso, nowIso } from "../core/time/index.js";
 import { validateRecord } from "../core/validation/index.js";
 import { chunkText } from "../ingest/chunker.js";
 import { redactText } from "../security/redaction.js";
-import { candidateSourceRefs, extractStructured, structuredContentHash, structuredStableId } from "../structured/index.js";
-import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, WriteOptions, WriteResult } from "./store-contract.js";
+import { builtInSchemaContracts, candidateSourceRefs, extractStructured, normalizeSchemaContract, structuredContentHash, structuredStableId } from "../structured/index.js";
+import type { StructuredSchemaContract } from "../structured/index.js";
+import type { AtlasWikiStore, CasWriteOptions, ChunkSearchInput, ChunkSearchResult, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, VectorSearchInput, VectorSearchResult, WriteOptions, WriteResult } from "./store-contract.js";
 
 export class MemoryStore implements AtlasWikiStore {
   private sources: Array<{ source: SourceRecord; text: string }> = [];
@@ -16,6 +17,7 @@ export class MemoryStore implements AtlasWikiStore {
   private auditEvents: Array<{ event_type: string; actor: ActorRef; refs: RecordRef[]; decisions: PolicyDecision[]; outcome: "success" | "denied" | "error" }> = [];
   private embeddingProfiles = new Map<string, RagEmbeddingProfile>();
   private chunkEmbeddings = new Map<string, RagChunkEmbedding>();
+  private schemaContracts = new Map<string, StructuredSchemaContract>(builtInSchemaContracts.map((contract) => [contract.id, normalizeSchemaContract(contract)]));
 
   async init(): Promise<void> {}
 
@@ -52,7 +54,7 @@ export class MemoryStore implements AtlasWikiStore {
   async ingestStructured(input: StructuredIngestInput): Promise<StructuredIngestResult> {
     if (input.mode === "commit" && !input.trusted) throw new Error("Structured direct commit requires trusted: true");
     const source = await this.ingestText(input);
-    const candidates = await extractStructured({ source, text: input.text, schemas: input.schemas });
+    const candidates = await extractStructured({ source, text: input.text, schemas: input.schemas }, { schemaContracts: await this.listSchemaContracts() });
     const structuredObjects: StructuredObjectRecord[] = [];
     const proposals: ProposalRecord[] = [];
     const warnings = candidates.flatMap((candidate) => candidate.warnings);
@@ -97,16 +99,34 @@ export class MemoryStore implements AtlasWikiStore {
   }
 
   async search(query: string, actor: ActorRef, limit = 10): Promise<SearchResult[]> {
+    return this.searchChunks({ query, actor, limit });
+  }
+
+  async searchChunks(input: ChunkSearchInput): Promise<ChunkSearchResult[]> {
+    const { query, actor, limit = 10 } = input;
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return this.sources
-      .filter(({ source }) => sourcePolicyDecision(source, actor).allowed)
-      .filter(({ text, source }) => text.toLowerCase().includes(q) || source.title.toLowerCase().includes(q))
-      .slice(0, limit)
-      .map(({ source, text }) => {
-        const redacted = redactText(text, { id: source.id, schema: source.schema, kind: source.kind });
-        return { source, chunk_id: `${source.id}_chunk`, text: redacted.text, redacted: redacted.events.length > 0, score: 1 };
-      });
+    const results: ChunkSearchResult[] = [];
+    for (const { source, text } of this.sources) {
+      if (!sourcePolicyDecision(source, actor).allowed) continue;
+      for (const chunk of chunkText(text)) {
+        if (!chunk.text.toLowerCase().includes(q) && !source.title.toLowerCase().includes(q)) continue;
+        const ref = { id: source.id, schema: source.schema, kind: source.kind };
+        const redacted = redactText(chunk.text, ref, { field: "text", sensitivity: source.sensitivity });
+        results.push({
+          source,
+          chunk_id: stableId("chunk", { source_id: source.id, ordinal: chunk.ordinal, text_hash: chunk.text_hash }),
+          text: redacted.text,
+          redacted: redacted.events.length > 0,
+          redactions: redacted.events,
+          score: 1,
+          backend: "memory",
+          retrieval_path: "chunk_scan"
+        });
+        if (results.length >= limit) return results;
+      }
+    }
+    return results;
   }
 
   async listSources(query: string | undefined, actor: ActorRef, limit = 50): Promise<SourceRecord[]> {
@@ -251,7 +271,24 @@ export class MemoryStore implements AtlasWikiStore {
     return entries;
   }
 
-  ragVectorStats(profile: RagEmbeddingProfile): RagVectorStats {
+  async vectorSearch(input: VectorSearchInput): Promise<VectorSearchResult[]> {
+    return (await this.listRagChunkEmbeddings(input.profile, input.actor, input.limit ?? 100))
+      .map((entry) => ({
+        ...entry,
+        score: cosineSimilarity(input.queryVector, entry.vector),
+        backend: "memory" as const,
+        retrieval_path: "sqlite_vector_json" as const,
+        profile_id: input.profile.id
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, input.limit ?? 100);
+  }
+
+  async ragVectorStats(profile: RagEmbeddingProfile): Promise<RagVectorStats> {
+    return this.ragVectorStatsSync(profile);
+  }
+
+  ragVectorStatsSync(profile: RagEmbeddingProfile): RagVectorStats {
     const currentChunks = new Map<string, string>();
     for (const { source, text } of this.sources) {
       for (const chunk of chunkText(text)) {
@@ -267,6 +304,31 @@ export class MemoryStore implements AtlasWikiStore {
       else stale += 1;
     }
     return { indexed_chunks: indexed, stale_chunks: stale };
+  }
+
+  async upsertRecordCas(record: AtlasRecord, options: CasWriteOptions): Promise<WriteResult> {
+    const existing = this.records.get(record.id);
+    if (!existing && !(options.allowCreate && options.expectedRevision === 0)) {
+      throw new WriteConflictError(record.id, options.expectedRevision, undefined);
+    }
+    if (existing && existing.revision !== options.expectedRevision) {
+      throw new WriteConflictError(record.id, options.expectedRevision, existing.revision);
+    }
+    return this.upsertRecord(record, existing ? options : { ...options, expectedRevision: undefined });
+  }
+
+  async registerSchemaContract(contract: StructuredSchemaContract): Promise<void> {
+    const normalized = normalizeSchemaContract(contract);
+    this.schemaContracts.set(normalized.id, normalized);
+  }
+
+  async listSchemaContracts(): Promise<StructuredSchemaContract[]> {
+    return [...this.schemaContracts.values()].map(normalizeSchemaContract);
+  }
+
+  async getSchemaContract(id: string): Promise<StructuredSchemaContract | undefined> {
+    const contract = this.schemaContracts.get(id);
+    return contract ? normalizeSchemaContract(contract) : undefined;
   }
 
   audit(event_type: string, actor: ActorRef, refs: RecordRef[], decisions: PolicyDecision[], outcome: "success" | "denied" | "error"): void {
@@ -295,4 +357,19 @@ export class MemoryStore implements AtlasWikiStore {
     this.audit(`proposal.${proposal_type}`, input.requested_by, [{ id: proposal.id, schema: proposal.schema, kind: proposal.kind }], [{ allowed: true, reason: "write_as_proposal" }], "success");
     return proposal;
   }
+}
+
+function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
+  const length = Math.min(a.length, b.length);
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < length; i += 1) {
+    const av = a[i] ?? 0;
+    const bv = b[i] ?? 0;
+    dot += av * bv;
+    normA += av * av;
+    normB += bv * bv;
+  }
+  return normA === 0 || normB === 0 ? 0 : dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }

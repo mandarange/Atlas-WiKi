@@ -108,6 +108,17 @@ RLS is enabled and forced on exposed Atlas tables. Policies use explicit `anon` 
 ## Structured Extraction
 
 ```ts
+await wiki.schema.register({
+  id: "customer_profile",
+  name: "Customer Profile",
+  version: "1",
+  jsonSchema: { type: "object", required: ["name"] },
+  requiredFields: ["name"],
+  identityFields: ["name"],
+  confidenceThreshold: 0.8,
+  conflictKeys: ["name"]
+});
+
 const result = await wiki.ingestStructured({
   title: "Customer notes",
   text: "...",
@@ -117,13 +128,14 @@ const result = await wiki.ingestStructured({
 
 console.log(result.structuredObjects);
 console.log(result.proposals);
+console.log(await wiki.schema.list());
 ```
 
-Built-in deterministic extractors cover JSON, markdown tables, markdown headings, and key-value text. They require no AI provider. Extracted candidates are validated against schema contracts before a structured object or proposal is created; missing contracts, missing required fields, and low confidence candidates fail closed. Optional AI adapters should live outside core, validate output against schema contracts, and create proposals by default; direct commit requires `trusted: true`.
+Built-in deterministic extractors cover JSON, markdown tables, markdown headings, and key-value text. They require no AI provider. Extracted candidates are validated against registered schema contracts before a structured object or proposal is created; unregistered schemas, missing required fields, and low confidence candidates fail closed. Optional AI adapters should live outside core, validate output against schema contracts, and create proposals by default; direct commit requires `trusted: true`.
 
 ## RAG
 
-Atlas WiKi 0.1.5 treats RAG as a core wiki capability: search and context packs return citations, source ids, chunk ids, redaction-safe quotes, and score breakdowns instead of unsupported generated answers. Embeddings improve ranking, but they are optional; without an embedding provider Atlas WiKi still uses lexical and structured retrieval.
+Atlas WiKi 0.2.0 treats RAG as a core wiki capability: search and context packs return citations, source ids, chunk ids, backend retrieval paths, redaction-safe quotes, and score breakdowns instead of unsupported generated answers. Embeddings improve ranking, but they are optional; without an embedding provider Atlas WiKi still uses lexical and structured retrieval.
 
 Default recommendation: Gemini Embeddings through the optional `atlas-wiki/rag/gemini` adapter. Install the peer dependency only when you want vector or hybrid embedding retrieval:
 
@@ -159,7 +171,7 @@ const result = await wiki.ragSearch({
 Persistent vector index:
 
 - SQLite stores embedding profiles and chunk embeddings in `embedding_profiles` and `chunk_embeddings`; `awiki rag index` persists vectors, so a later process can run `awiki rag search --mode vector`.
-- Supabase stores source chunks, embedding profiles, and embeddings through the adapter and committed migrations. The pgvector migration includes an `extensions.vector(1536)` column and `atlas_wiki.rag_search(...)` RPC for database-side similarity search; SDK and mock tests also re-check Atlas ACL policy after reading stored embeddings.
+- Supabase stores source chunks, embedding profiles, and embeddings through the adapter and committed migrations. The pgvector migrations include an `extensions.vector(1536)` column, `atlas_wiki.chunk_search(...)` text RPC, and `atlas_wiki.rag_search(...)` vector RPC for database-side retrieval; SDK and mock tests also re-check Atlas ACL policy after reading RPC results.
 - MemoryStore implements the same API for contract tests, but it is not durable.
 
 RAG modes:
@@ -185,11 +197,13 @@ awiki rag context-pack "remote work policy" --mode hybrid --json
 awiki rag disable --json
 ```
 
+SDK migration note: `await wiki.ragStatus()` is async in 0.2.0 so async stores can report real vector stats. `wiki.ragStatusSync()` remains available for sync-capable compatibility paths.
+
 `awiki setup` and `awiki configure` are interactive by default and write `.atlas-wiki/cli-config.json`. They store provider, model, dimensions, fallback policy, and environment variable names, but they do not store API keys. Prefer `--api-key-env` over inline `--api-key` so secrets do not appear in shell history. `awiki rag enable` and `awiki rag disable` are shortcut commands for custom CLI/bootstrap flows; after enabling, RAG commands reuse the saved provider settings so package users do not need to repeat `--provider` and `--model` on every command.
 
 MCP read-only tools include `atlas_wiki.rag_search`, `atlas_wiki.rag_context_pack`, `atlas_wiki.rag_explain`, `atlas_wiki.structured_lookup`, and `atlas_wiki.rag_status`. Admin RAG and structure tools require an actor-aware `authorizeTool` callback that receives the resolved tool name, input, actor, canonical root, mode, and admin flag.
 
-Supabase RAG uses committed SQL migrations under `supabase/migrations`, including pgvector setup, `atlas_wiki.embedding_profiles`, `atlas_wiki.embeddings`, RLS policies, and an RPC-style `atlas_wiki.rag_search(...)` function. Typical setup is:
+Supabase RAG uses committed SQL migrations under `supabase/migrations`, including pgvector setup, `atlas_wiki.embedding_profiles`, `atlas_wiki.embeddings`, RLS policies, and RPC-style `atlas_wiki.chunk_search(...)` / `atlas_wiki.rag_search(...)` functions. The default production profile is 1536 dimensions; custom dimensions require an explicit project migration. Typical setup is:
 
 ```bash
 supabase link --project-ref <project-ref>

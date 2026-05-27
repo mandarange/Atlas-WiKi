@@ -78,6 +78,17 @@ describe("RAG SDK", () => {
     await reopened.close();
   });
 
+  it("reports async RAG status and keeps sync status as a compatibility snapshot", async () => {
+    const actor = actorFromId("alice");
+    const wiki = await AtlasWiki.open({ root: root(), rag: { embeddingProvider: new DeterministicEmbeddingProvider() } });
+    await wiki.ingestText({ title: "Status", text: "Indexed status uses async store stats.", owner: actor.id, visibility: "private" });
+    await wiki.ragIndex({ actor });
+
+    await expect(wiki.ragStatus()).resolves.toMatchObject({ vector_index_status: "available", indexed_chunks: 1 });
+    expect(wiki.ragStatusSync()).toMatchObject({ enabled: true });
+    await wiki.close();
+  });
+
   it("attaches RAG metadata to context packs", async () => {
     const wiki = await AtlasWiki.open({ root: root() });
     const actor = actorFromId("alice");

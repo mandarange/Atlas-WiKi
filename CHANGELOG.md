@@ -6,6 +6,25 @@ All notable version changes should be recorded in this file before release.
 
 - Keep this section for changes that have landed but are not published yet.
 
+## [0.2.0] - 2026-05-27
+
+### Breaking
+
+- Promote StoreContract to the N9 v2 shape: async `ragVectorStats()`, chunk search, backend vector search, CAS writes, and schema contract registry methods.
+- Make `AtlasWiki.ragStatus()` async for all backends. Use `AtlasWiki.ragStatusSync()` only for sync-capable compatibility paths.
+
+### Added
+
+- Add Supabase runtime RPC search paths for `chunk_search` and `rag_search`, with committed N9 SQL contracts and adapter tests.
+- Add user-defined structured schema contract registration through the SDK and store backends.
+- Add v2 release evidence with prepublish/postpublish manifests, non-empty `vNEXT` summary, and GitHub Release asset upload wiring.
+- Add local and published package CLI RAG vector restart smoke coverage.
+
+### Changed
+
+- Route RAG vector retrieval through store-backed backend paths and include backend, retrieval path, profile, chunk, and citation fields in result items.
+- Document Supabase pgvector/RPC support, async RAG status migration, schema registry usage, and release evidence gates.
+
 ## [0.1.5] - 2026-05-27
 
 ### Added

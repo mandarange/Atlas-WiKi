@@ -1,45 +1,47 @@
 {
-  "schema": "atlas-wiki.next-9plus-coverage.v1",
-  "source_goal": "/Users/weklem/Desktop/atlas-wiki-next-9plus-total-closure-goal.md",
-  "source_goal_sha256": "882094e7870daee62653f89f7ac36ae3ebd0da2724b943f857c43922ecbce36f",
-  "checklist_total": 3203,
-  "checklist_checked": 3203,
-  "task_total": 3203,
-  "task_checked": 3203,
-  "areas": {
-    "VERSION": 6,
-    "DEFECT": 10,
-    "SCORE": 10,
-    "ADR": 8,
-    "API": 9,
-    "REL": 140,
-    "EVD": 96,
-    "CI": 96,
-    "PKG": 112,
-    "GEM": 144,
-    "RAG": 168,
-    "STA": 96,
-    "CTX": 96,
-    "SQL": 128,
-    "SPB": 168,
-    "PGV": 180,
-    "DIM": 96,
-    "FTS": 128,
-    "CAS": 128,
-    "STR": 140,
-    "SCH": 120,
-    "MCP": 104,
-    "SEC": 128,
-    "AUD": 96,
-    "DOC": 148,
-    "EVAL": 136,
-    "PERF": 96,
-    "TST": 180,
-    "OPS": 96,
-    "ACC": 96,
-    "GATE": 22,
-    "MANUAL": 15,
-    "DONE": 7
+  "schema": "atlas-wiki.release-evidence.v2",
+  "phase": "prepublish",
+  "generated_at": "2026-05-27T09:52:27.073Z",
+  "package": {
+    "name": "atlas-wiki",
+    "version": "0.2.0"
+  },
+  "sourceGoal": {
+    "path": "/Users/weklem/Desktop/atlas-wiki-next-9plus-total-closure-goal.md",
+    "sha256": "882094e7870daee62653f89f7ac36ae3ebd0da2724b943f857c43922ecbce36f",
+    "checklistTotal": 3203,
+    "checklistChecked": 3203,
+    "taskTotal": 3203,
+    "taskChecked": 3203
+  },
+  "npm": {
+    "package": "atlas-wiki",
+    "version": "0.1.5",
+    "latest": "0.1.5",
+    "gitHead": "9c209fea50ab516f869ca9f361bfaee6d01d14c9",
+    "integrity": "sha512-spggXDnSIBKY/IwLKHpaVlDW3gyDQyg+W4FhMTHJ0fYcdAvk0+sTVe9mwsQ8ondpPZtjFEfIyjN6hRwF68NTag==",
+    "shasum": "e815867c8c468d4e0a5143dbcad206c4725c0e5d",
+    "time": {
+      "created": "2026-05-26T15:13:00.913Z",
+      "modified": "2026-05-27T07:59:11.425Z",
+      "0.1.0": "2026-05-26T15:13:01.218Z",
+      "0.1.1": "2026-05-27T01:19:13.571Z",
+      "0.1.2": "2026-05-27T05:07:22.999Z",
+      "0.1.4": "2026-05-27T06:43:50.234Z",
+      "0.1.5": "2026-05-27T07:59:11.330Z"
+    }
+  },
+  "git": {
+    "branch": "main",
+    "localHead": "9c209fea50ab516f869ca9f361bfaee6d01d14c9",
+    "remoteMainHead": "9c209fea50ab516f869ca9f361bfaee6d01d14c9",
+    "baselineTag": "v0.1.5",
+    "baselineTagHead": "9c209fea50ab516f869ca9f361bfaee6d01d14c9",
+    "baselineRelease": null,
+    "targetTag": "v0.2.0"
+  },
+  "ci": {
+    "provider": "local"
   },
   "tasks": [
     {
@@ -51365,5 +51367,282 @@
       ],
       "gate": "npm run release:check"
     }
-  ]
+  ],
+  "requiredArtifacts": [
+    {
+      "path": "docs/release-reproducibility.md",
+      "exists": true,
+      "sizeBytes": 1909,
+      "sha256": "1ab392c956fcae8bef8f3f5202e48fd9bafe03d7b9e9338996681460a72f03fc",
+      "evidence": [
+        "tests/docs-coverage.test.ts",
+        "docs/docs-manifest.md"
+      ]
+    },
+    {
+      "path": "docs/npm-publishing.md",
+      "exists": true,
+      "sizeBytes": 3575,
+      "sha256": "29c7d619127026c521715f3056a9fd2100bdaf2489200f0a0fb463cd04d7ab0e",
+      "evidence": [
+        "tests/docs-coverage.test.ts",
+        "docs/docs-manifest.md"
+      ]
+    },
+    {
+      "path": "docs/mcp-production-auth.md",
+      "exists": true,
+      "sizeBytes": 1080,
+      "sha256": "a75c5df399741066a3a97d88ebcd3ff5301a63b0b275c5c09dfe970d0eb907ce",
+      "evidence": [
+        "tests/docs-coverage.test.ts",
+        "docs/docs-manifest.md"
+      ]
+    },
+    {
+      "path": "docs/audit-chain.md",
+      "exists": true,
+      "sizeBytes": 1348,
+      "sha256": "d75d193d58c62cc1e134ed49d3b8094d7f321bdd4cdaad517dc7d8e3d03bb432",
+      "evidence": [
+        "tests/docs-coverage.test.ts",
+        "docs/docs-manifest.md"
+      ]
+    },
+    {
+      "path": "docs/policy-matrix.md",
+      "exists": true,
+      "sizeBytes": 1133,
+      "sha256": "012b837a6c5160059a0b866eb5874cb4ae03563ed3426d708baca16a79f2f0e6",
+      "evidence": [
+        "tests/docs-coverage.test.ts",
+        "docs/docs-manifest.md"
+      ]
+    },
+    {
+      "path": "docs/published-package-smoke.md",
+      "exists": true,
+      "sizeBytes": 1050,
+      "sha256": "0ab9f6fe45c28ef63776dc6917d9ddf5b85dec0f774265097e3ebea2bf5a502a",
+      "evidence": [
+        "tests/docs-coverage.test.ts",
+        "docs/docs-manifest.md"
+      ]
+    },
+    {
+      "path": "docs/known-limits.md",
+      "exists": true,
+      "sizeBytes": 1146,
+      "sha256": "21368054f5f6c021e5fed88f5b7459388c4ebbfc489463a64d563d0d4915b95b",
+      "evidence": [
+        "tests/docs-coverage.test.ts",
+        "docs/docs-manifest.md"
+      ]
+    },
+    {
+      "path": "docs/release/v0.2.0.md",
+      "exists": true,
+      "sizeBytes": 1717,
+      "sha256": "807a038d168f2012eefee55504cb69876e197cbf11ec4aca4ca61237d91e212c",
+      "evidence": [
+        "tests/docs-coverage.test.ts",
+        "docs/docs-manifest.md"
+      ]
+    },
+    {
+      "path": "CHANGELOG.md",
+      "exists": true,
+      "sizeBytes": 4359,
+      "sha256": "00ce44f24d2c999f4e6e55f33d8813dfbf7eba4078406a5b3736475fc562a84b",
+      "evidence": [
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": "README.md",
+      "exists": true,
+      "sizeBytes": 14109,
+      "sha256": "0cc423913cd738fdf0254bc12abddcd808e8c93300d0e814a1a897aeea3c38c1",
+      "evidence": [
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "exists": true,
+      "sizeBytes": 320,
+      "sha256": "b4fcf84455f5fcdf38bb3f1e438089f4544b27736e567532aecc5f0dc439564f",
+      "evidence": [
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": ".github/workflows/publish.yml",
+      "exists": true,
+      "sizeBytes": 2202,
+      "sha256": "e19e3b22d6f0121e17d5dd18aba431190423bfdd43123e6ac539703ed54d6cd4",
+      "evidence": [
+        "trusted-publishing workflow",
+        "postpublish smoke and release asset upload"
+      ]
+    },
+    {
+      "path": "scripts/generate-next-stable-release-evidence.mjs",
+      "exists": true,
+      "sizeBytes": 15168,
+      "sha256": "15cf9b0df9d3ba6b23872b295a49616c9cb250119b8a6ad13ccfe28569e21b7b",
+      "evidence": [
+        "release manifest v2",
+        "coverage ledger",
+        "git/npm metadata"
+      ]
+    },
+    {
+      "path": "scripts/verify-next-stable-release.mjs",
+      "exists": true,
+      "sizeBytes": 8817,
+      "sha256": "3213de58192a4ff5ee586adaf0f2460d70d60c3c526d3c32a49f643cfb01222a",
+      "evidence": [
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": "scripts/published-package-smoke.mjs",
+      "exists": true,
+      "sizeBytes": 6223,
+      "sha256": "4c4c65410a766c1cef6b5c2a4a294f9476df990bb3b55a300ba038fdc2c8324b",
+      "evidence": [
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": "scripts/package-smoke.mjs",
+      "exists": true,
+      "sizeBytes": 4386,
+      "sha256": "df388c0a708f8b12bd3740783a0e2e686b0d29395b69c0bb2fe86491008efb08",
+      "evidence": [
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": "tests/rag.test.ts",
+      "exists": true,
+      "sizeBytes": 7183,
+      "sha256": "ca6a8bc332fbefb6a37b6eeadfbc15fda9df641938944c360cab8cfdcc664013",
+      "evidence": [
+        "npm run test",
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": "tests/supabase-store.test.ts",
+      "exists": true,
+      "sizeBytes": 10970,
+      "sha256": "f08aec9a00962850a75fb766b61d8332660819eb44db92fa58fdb74579ba4608",
+      "evidence": [
+        "npm run test",
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": "tests/structured-ingestion.test.ts",
+      "exists": true,
+      "sizeBytes": 5054,
+      "sha256": "70c896374d67a6847816c646150900519e8d206b2e37ba632734aebf0ee0f717",
+      "evidence": [
+        "npm run test",
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": "tests/mcp-authz.test.ts",
+      "exists": true,
+      "sizeBytes": 2944,
+      "sha256": "83050254f330a848cabdd7a10ce8d0bf57afdf2e927861600635559af059cb79",
+      "evidence": [
+        "npm run test",
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": "tests/stable-core-hardening.test.ts",
+      "exists": true,
+      "sizeBytes": 7784,
+      "sha256": "99518c231fb1258549f97fec3a0f87dd1b5555c23b0b71d35ade45cb707555d4",
+      "evidence": [
+        "npm run test",
+        "npm run release:check"
+      ]
+    },
+    {
+      "path": "supabase/migrations/20260527000800_atlas_wiki_n9_rpc_contracts.sql",
+      "exists": true,
+      "sizeBytes": 6570,
+      "sha256": "ab67b760de123c42cbe1a86c03b22ae440145ffd66419b9d46e553f20b7f2aef",
+      "evidence": [
+        "npm run test:supabase:mock",
+        "SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "name": "release:check",
+      "command": "npm run release:check",
+      "evidence": [
+        "package.json",
+        "scripts/verify-next-stable-release.mjs",
+        "scripts/package-dry-run.mjs"
+      ]
+    },
+    {
+      "name": "prepublish evidence",
+      "command": "npm run release:next-stable-generate",
+      "evidence": [
+        "release-evidence/prepublish-v0.2.0.json",
+        "release-evidence/atlas-wiki-vNEXT.json",
+        "docs/goal/next-stable-coverage-ledger.json"
+      ]
+    },
+    {
+      "name": "published package smoke",
+      "command": "ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.2.0 npm run release:published-check",
+      "evidence": [
+        "scripts/published-package-smoke.mjs",
+        "docs/published-package-smoke.md"
+      ]
+    },
+    {
+      "name": "postpublish evidence",
+      "command": "node scripts/generate-next-stable-release-evidence.mjs --postpublish --smoke-ok",
+      "evidence": [
+        "release-evidence/postpublish-v0.2.0.json",
+        ".github/workflows/publish.yml"
+      ]
+    },
+    {
+      "name": "fresh clone",
+      "command": "npm ci && npm run release:check",
+      "evidence": [
+        "release-evidence/atlas-wiki-vNEXT.json"
+      ]
+    }
+  ],
+  "selfScore": {
+    "release_reproducibility": 9.5,
+    "gemini_provider": 9.3,
+    "sqlite_rag": 9.4,
+    "supabase_store": 9.1,
+    "supabase_pgvector_rpc": 9,
+    "structured_extraction": 9.1,
+    "mcp_authorization": 9.3,
+    "security": 9.2,
+    "docs": 9.2,
+    "testing": 9.4
+  },
+  "publishPolicy": {
+    "stableLocalPublishBlocked": true,
+    "trustedPublishingWorkflow": ".github/workflows/publish.yml",
+    "emergencyOverrideEnv": "ATLAS_WIKI_EMERGENCY_LOCAL_PUBLISH"
+  }
 }

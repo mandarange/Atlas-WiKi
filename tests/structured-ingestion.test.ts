@@ -64,4 +64,60 @@ describe("structured ingestion", () => {
       }]
     }])).rejects.toBeInstanceOf(StructuredSchemaContractError);
   });
+
+  it("fails closed for unregistered requested schemas", async () => {
+    const wiki = await AtlasWiki.open({ store: new MemoryStore() });
+    await expect(wiki.ingestStructured({
+      title: "Unregistered customer",
+      text: "name: Acme",
+      schemas: ["customer_profile"],
+      mode: "proposal"
+    })).rejects.toThrow(/Missing schema contract for customer_profile/);
+    await wiki.close();
+  });
+
+  it("registers, lists, gets, and applies custom schema contracts through the SDK facade", async () => {
+    const wiki = await AtlasWiki.open({ store: new MemoryStore() });
+    await wiki.schema.register({
+      id: "customer_profile",
+      name: "Customer Profile",
+      version: "1",
+      jsonSchema: { type: "object", required: ["name"] },
+      requiredFields: ["name"],
+      identityFields: ["name"],
+      confidenceThreshold: 0.8,
+      conflictKeys: ["name"]
+    });
+    expect((await wiki.schema.get("customer_profile"))?.requiredFields).toEqual(["name"]);
+    expect((await wiki.schema.list()).map((contract) => contract.id)).toContain("customer_profile");
+    const result = await wiki.ingestStructured({
+      title: "Registered customer",
+      text: "name: Acme",
+      schemas: ["customer_profile"],
+      mode: "proposal"
+    });
+    expect(result.structuredObjects[0]?.schema_id).toBe("customer_profile");
+    await wiki.close();
+  });
+
+  it("rejects registered custom schema candidates missing required fields", async () => {
+    const wiki = await AtlasWiki.open({ store: new MemoryStore() });
+    await wiki.schema.register({
+      id: "customer_profile",
+      name: "Customer Profile",
+      version: "1",
+      jsonSchema: { type: "object", required: ["name"] },
+      requiredFields: ["name"],
+      identityFields: [],
+      confidenceThreshold: 0.8,
+      conflictKeys: []
+    });
+    await expect(wiki.ingestStructured({
+      title: "Incomplete customer",
+      text: "tier: gold",
+      schemas: ["customer_profile"],
+      mode: "proposal"
+    })).rejects.toThrow(/missing required contract fields: name/);
+    await wiki.close();
+  });
 });

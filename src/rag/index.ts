@@ -1,7 +1,7 @@
 import { contentHash, sha256 } from "../core/hash/index.js";
 import { stableId } from "../core/ids/index.js";
 import type { ActorRef } from "../core/records/index.js";
-import type { AtlasWikiStore, RagEmbeddingProfile, RagStoredEmbedding, SearchResult } from "../store/store-contract.js";
+import type { AtlasWikiStore, RagEmbeddingProfile, SearchResult, VectorSearchResult } from "../store/store-contract.js";
 
 export type RagMode = "lexical" | "structured" | "vector" | "hybrid";
 export type RagModeUsed = "lexical" | "structured" | "vector" | "hybrid" | "lexical_structured";
@@ -55,6 +55,9 @@ export interface RagSearchItem {
   chunk_id: string;
   text: string;
   title: string;
+  backend: string;
+  retrieval_path: string;
+  profile_id?: string | undefined;
   citation: RagCitation;
   score: number;
   score_breakdown: RagScoreBreakdown;
@@ -140,7 +143,7 @@ export class RagService {
       throw vectorUnavailable(this.embeddingProvider ? "vector_index_unavailable" : "embedding_provider_missing");
     }
 
-    const lexical = lexicalAllowed || structuredAllowed ? await this.store.search(options.query, options.actor, limit * 2) : [];
+    const lexical = lexicalAllowed || structuredAllowed ? await this.store.searchChunks({ query: options.query, actor: options.actor, limit: limit * 2 }) : [];
     const byChunk = new Map<string, RagSearchItem>();
     for (const result of lexical) {
       const item = toRagItem(result, options.query);
@@ -158,11 +161,14 @@ export class RagService {
       const profile = this.embeddingProfile();
       const queryVector = await safeEmbedQuery(this.embeddingProvider, options.query);
       assertVectorDimensions(queryVector, this.embeddingProvider.dimensions);
-      for (const entry of await this.store.listRagChunkEmbeddings(profile, options.actor, limit * 4)) {
-        const vectorScore = cosineSimilarity(queryVector, entry.vector);
-        const baseItem = toRagItem(storedEmbeddingToSearchResult(entry), options.query);
+      for (const entry of await this.store.vectorSearch({ query: options.query, queryVector, profile, actor: options.actor, limit: limit * 4 })) {
+        const vectorScore = entry.score;
+        const baseItem = toRagItem(vectorSearchResultToSearchResult(entry), options.query);
         const existing = byChunk.get(entry.chunk_id) ?? baseItem;
         existing.score_breakdown.vector = Math.max(existing.score_breakdown.vector, vectorScore);
+        existing.backend = entry.backend;
+        existing.retrieval_path = entry.retrieval_path;
+        existing.profile_id = entry.profile_id;
         existing.score_breakdown.total = totalScore(existing.score_breakdown);
         existing.score = existing.score_breakdown.total;
         byChunk.set(existing.chunk_id, existing);
@@ -242,7 +248,7 @@ export class RagService {
     }
     const stats = await this.store.ragVectorStats(profile);
     return {
-      ...this.status(),
+      ...await this.status(),
       vector_index_status: stats.indexed_chunks > 0 ? "available" : "empty",
       indexed_chunks: stats.indexed_chunks,
       stale_chunks: stats.stale_chunks,
@@ -253,10 +259,24 @@ export class RagService {
     };
   }
 
-  status(): RagStatus {
+  async status(): Promise<RagStatus> {
     const profile = this.embeddingProvider ? this.embeddingProfile() : undefined;
-    const stats = profile ? this.store.ragVectorStats(profile) : { indexed_chunks: 0, stale_chunks: 0 };
-    const syncStats = isPromiseLike(stats) ? { indexed_chunks: 0, stale_chunks: 0 } : stats;
+    const stats = profile ? await this.store.ragVectorStats(profile) : { indexed_chunks: 0, stale_chunks: 0 };
+    return {
+      enabled: Boolean(this.embeddingProvider),
+      embedding_provider: this.embeddingProvider?.id ?? null,
+      embedding_model: this.embeddingProvider?.model ?? null,
+      embedding_dimensions: this.embeddingProvider?.dimensions ?? null,
+      embedding_prompt_policy: this.embeddingProvider?.promptPolicy ?? null,
+      vector_index_status: !this.embeddingProvider ? "unavailable" : stats.indexed_chunks > 0 ? "available" : "empty",
+      indexed_chunks: stats.indexed_chunks,
+      stale_chunks: stats.stale_chunks
+    };
+  }
+
+  statusSync(): RagStatus {
+    const profile = this.embeddingProvider ? this.embeddingProfile() : undefined;
+    const syncStats = profile && this.store.ragVectorStatsSync ? this.store.ragVectorStatsSync(profile) : { indexed_chunks: 0, stale_chunks: 0 };
     return {
       enabled: Boolean(this.embeddingProvider),
       embedding_provider: this.embeddingProvider?.id ?? null,
@@ -326,6 +346,7 @@ export class DeterministicEmbeddingProvider implements RagEmbeddingProvider {
 }
 
 function toRagItem(result: SearchResult, query: string): RagSearchItem {
+  const retrieval = result as SearchResult & { backend?: string; retrieval_path?: string; profile_id?: string | undefined };
   const citation: RagCitation = {
     id: stableId("rag_citation", { source: result.source.id, chunk: result.chunk_id, query }),
     source_id: result.source.id,
@@ -335,7 +356,18 @@ function toRagItem(result: SearchResult, query: string): RagSearchItem {
     quote: result.text.slice(0, 700)
   };
   const score_breakdown: RagScoreBreakdown = { lexical: result.score, structured: 0, vector: 0, freshness_penalty: 0, authority_boost: 0, total: result.score };
-  return { source_id: result.source.id, chunk_id: result.chunk_id, text: result.text, title: result.source.title, citation, score: result.score, score_breakdown };
+  return {
+    source_id: result.source.id,
+    chunk_id: result.chunk_id,
+    text: result.text,
+    title: result.source.title,
+    backend: retrieval.backend ?? "custom",
+    retrieval_path: retrieval.retrieval_path ?? "custom",
+    profile_id: retrieval.profile_id,
+    citation,
+    score: result.score,
+    score_breakdown
+  };
 }
 
 function structuredScore(result: SearchResult, query: string): number {
@@ -349,35 +381,22 @@ function totalScore(score: RagScoreBreakdown): number {
   return score.lexical + score.structured * 0.35 + score.vector * 0.8 + score.authority_boost - score.freshness_penalty;
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  const length = Math.min(a.length, b.length);
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < length; i += 1) {
-    const av = a[i] ?? 0;
-    const bv = b[i] ?? 0;
-    dot += av * bv;
-    normA += av * av;
-    normB += bv * bv;
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
 function assertVectorDimensions(vector: number[], dimensions: number): void {
   if (vector.length !== dimensions) {
     throw new RagEmbeddingProviderError(`Embedding dimension mismatch: expected ${dimensions}, received ${vector.length}`, { retryable: false });
   }
 }
 
-function storedEmbeddingToSearchResult(entry: RagStoredEmbedding): SearchResult {
+function vectorSearchResultToSearchResult(entry: VectorSearchResult): SearchResult & { backend: string; retrieval_path: string; profile_id: string } {
   return {
     source: entry.source,
     chunk_id: entry.chunk_id,
     text: entry.text,
     redacted: false,
-    score: 0
+    score: entry.score,
+    backend: entry.backend,
+    retrieval_path: entry.retrieval_path,
+    profile_id: entry.profile_id
   };
 }
 

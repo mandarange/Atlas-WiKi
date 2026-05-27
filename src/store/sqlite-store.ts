@@ -11,13 +11,14 @@ import { WriteConflictError } from "../core/errors/index.js";
 import { contentHash, canonicalize, sha256 } from "../core/hash/index.js";
 import { cryptoSafeId, stableId } from "../core/ids/index.js";
 import { defaultAccessPolicy, policyResolver } from "../core/policy/index.js";
-import type { ActorRef, AtlasRecord, ContextPackRecord, PolicyDecision, ProposalRecord, RedactionEvent, SourceRecord, StructuredObjectRecord } from "../core/records/index.js";
+import type { ActorRef, AtlasRecord, ContextPackRecord, PolicyDecision, ProposalRecord, RedactionEvent, SchemaContractRecord, SourceRecord, StructuredObjectRecord } from "../core/records/index.js";
 import { isPastIso, nowIso } from "../core/time/index.js";
 import { validateRecord } from "../core/validation/index.js";
 import { chunkText } from "../ingest/chunker.js";
 import { redactText } from "../security/redaction.js";
-import { candidateSourceRefs, extractStructured, structuredContentHash, structuredStableId } from "../structured/index.js";
-import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, WriteOptions, WriteResult } from "./store-contract.js";
+import { builtInSchemaContracts, candidateSourceRefs, extractStructured, normalizeSchemaContract, structuredContentHash, structuredStableId } from "../structured/index.js";
+import type { StructuredSchemaContract } from "../structured/index.js";
+import type { AtlasWikiStore, CasWriteOptions, ChunkSearchInput, ChunkSearchResult, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, VectorSearchInput, VectorSearchResult, WriteOptions, WriteResult } from "./store-contract.js";
 
 interface SourceRow {
   json: string;
@@ -146,7 +147,7 @@ export class SqliteStore implements AtlasWikiStore {
   async ingestStructured(input: StructuredIngestInput): Promise<StructuredIngestResult> {
     if (input.mode === "commit" && !input.trusted) throw new Error("Structured direct commit requires trusted: true");
     const source = await this.ingestText(input);
-    const candidates = await extractStructured({ source, text: input.text, schemas: input.schemas });
+    const candidates = await extractStructured({ source, text: input.text, schemas: input.schemas }, { schemaContracts: await this.listSchemaContracts() });
     const structuredObjects: StructuredObjectRecord[] = [];
     const proposals: ProposalRecord[] = [];
     const warnings = candidates.flatMap((candidate) => candidate.warnings);
@@ -236,6 +237,15 @@ export class SqliteStore implements AtlasWikiStore {
 
   async search(query: string, actor: ActorRef, limit = 10): Promise<SearchResult[]> {
     return this.searchWithDiagnostics(query, actor, limit).results;
+  }
+
+  async searchChunks(input: ChunkSearchInput): Promise<ChunkSearchResult[]> {
+    const diagnostics = this.searchWithDiagnostics(input.query, input.actor, input.limit ?? 10);
+    return diagnostics.results.map((result) => ({
+      ...result,
+      backend: "sqlite" as const,
+      retrieval_path: diagnostics.query_backend === "like_fallback" ? "like_fallback" as const : "fts5" as const
+    }));
   }
 
   async listSources(query: string | undefined, actor: ActorRef, limit = 50): Promise<SourceRecord[]> {
@@ -496,7 +506,24 @@ export class SqliteStore implements AtlasWikiStore {
     return embeddings;
   }
 
-  ragVectorStats(profile: RagEmbeddingProfile): RagVectorStats {
+  async vectorSearch(input: VectorSearchInput): Promise<VectorSearchResult[]> {
+    return (await this.listRagChunkEmbeddings(input.profile, input.actor, input.limit ?? 100))
+      .map((entry) => ({
+        ...entry,
+        score: cosineSimilarity(input.queryVector, entry.vector),
+        backend: "sqlite" as const,
+        retrieval_path: "sqlite_vector_json" as const,
+        profile_id: input.profile.id
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, input.limit ?? 100);
+  }
+
+  async ragVectorStats(profile: RagEmbeddingProfile): Promise<RagVectorStats> {
+    return this.ragVectorStatsSync(profile);
+  }
+
+  ragVectorStatsSync(profile: RagEmbeddingProfile): RagVectorStats {
     const row = this.requireDb().prepare(
       `SELECT
          SUM(CASE WHEN chunk_embeddings.stale_at IS NULL AND chunks.text_hash = chunk_embeddings.content_hash THEN 1 ELSE 0 END) AS indexed_chunks,
@@ -650,6 +677,83 @@ export class SqliteStore implements AtlasWikiStore {
     return { record: finalRecord, created: !existing, previousRevision: existing?.revision, revision: finalRecord.revision };
   }
 
+  async upsertRecordCas(record: AtlasRecord, options: CasWriteOptions): Promise<WriteResult> {
+    const db = this.requireDb();
+    const existing = db.prepare("SELECT revision FROM records WHERE id = ? AND deleted_at IS NULL").get(record.id) as { revision: number } | undefined;
+    if (!existing && !(options.allowCreate && options.expectedRevision === 0)) {
+      throw new WriteConflictError(record.id, options.expectedRevision, undefined);
+    }
+    if (existing && existing.revision !== options.expectedRevision) {
+      throw new WriteConflictError(record.id, options.expectedRevision, existing.revision);
+    }
+    const finalRecord = validateRecord({
+      ...record,
+      revision: existing ? options.expectedRevision + 1 : 1,
+      updated_by: options.actor ?? record.updated_by
+    });
+    transaction(db, () => {
+      if (existing) {
+        const result = db.prepare(
+          `UPDATE records
+           SET schema = ?, kind = ?, status = ?, json = ?, content_hash = ?, revision = ?, updated_at = ?, updated_by = ?, deleted_at = NULL
+           WHERE id = ? AND revision = ? AND deleted_at IS NULL`
+        ).run(
+          finalRecord.schema,
+          finalRecord.kind,
+          finalRecord.status,
+          JSON.stringify(finalRecord),
+          finalRecord.content_hash,
+          finalRecord.revision,
+          finalRecord.updated_at,
+          finalRecord.updated_by ? JSON.stringify(finalRecord.updated_by) : null,
+          finalRecord.id,
+          options.expectedRevision
+        );
+        if (result.changes !== 1) throw new WriteConflictError(record.id, options.expectedRevision, existing.revision);
+      } else {
+        this.writeRecord(finalRecord);
+      }
+      this.logAudit("record.cas_upsert", options.actor ?? { id: "service:store", type: "service" }, [{ id: finalRecord.id, schema: finalRecord.schema, kind: finalRecord.kind }], [{ record_ref: { id: finalRecord.id, schema: finalRecord.schema, kind: finalRecord.kind }, allowed: true, reason: "cas_write_committed" }], "success");
+    });
+    return { record: finalRecord, created: !existing, previousRevision: existing?.revision, revision: finalRecord.revision };
+  }
+
+  async registerSchemaContract(contract: StructuredSchemaContract): Promise<void> {
+    const normalized = normalizeSchemaContract(contract);
+    const time = nowIso();
+    const record: SchemaContractRecord = {
+      schema: "atlas.wiki.schema-contract.v1",
+      kind: "schema_contract",
+      id: normalized.id,
+      status: "active",
+      created_at: time,
+      updated_at: time,
+      revision: 1,
+      content_hash: contentHash(normalized),
+      name: normalized.name,
+      version: normalized.version,
+      description: normalized.description,
+      json_schema: normalized.jsonSchema,
+      required_fields: normalized.requiredFields,
+      identity_fields: normalized.identityFields,
+      confidence_threshold: normalized.confidenceThreshold,
+      conflict_keys: normalized.conflictKeys
+    };
+    await this.upsertRecord(record, { actor: { id: "service:schema-registry", type: "service" } });
+  }
+
+  async listSchemaContracts(): Promise<StructuredSchemaContract[]> {
+    const rows = this.requireDb().prepare("SELECT json FROM records WHERE kind = 'schema_contract' AND deleted_at IS NULL ORDER BY id").all() as Array<{ json: string }>;
+    const stored = rows.map((row) => schemaContractFromRecord(validateRecord(JSON.parse(row.json)) as SchemaContractRecord));
+    const byId = new Map<string, StructuredSchemaContract>(builtInSchemaContracts.map((contract) => [contract.id, normalizeSchemaContract(contract)]));
+    for (const contract of stored) byId.set(contract.id, contract);
+    return [...byId.values()].map(normalizeSchemaContract);
+  }
+
+  async getSchemaContract(id: string): Promise<StructuredSchemaContract | undefined> {
+    return (await this.listSchemaContracts()).find((contract) => contract.id === id);
+  }
+
   private writeRecord(record: AtlasRecord): void {
     this.requireDb().prepare(
       `INSERT INTO records (id, schema, kind, status, json, content_hash, revision, created_at, updated_at, created_by, updated_by, deleted_at)
@@ -753,4 +857,33 @@ function auditHash(payload: { id: string; event_type: string; actor: ActorRef; r
 
 function isInTransaction(db: DatabaseSync): boolean {
   return Boolean((db as DatabaseSync & { isTransaction?: boolean }).isTransaction);
+}
+
+function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
+  const length = Math.min(a.length, b.length);
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < length; i += 1) {
+    const av = a[i] ?? 0;
+    const bv = b[i] ?? 0;
+    dot += av * bv;
+    normA += av * av;
+    normB += bv * bv;
+  }
+  return normA === 0 || normB === 0 ? 0 : dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+function schemaContractFromRecord(record: SchemaContractRecord): StructuredSchemaContract {
+  return normalizeSchemaContract({
+    id: record.id,
+    name: record.name,
+    version: record.version,
+    description: record.description,
+    jsonSchema: record.json_schema,
+    requiredFields: record.required_fields,
+    identityFields: record.identity_fields,
+    confidenceThreshold: record.confidence_threshold,
+    conflictKeys: record.conflict_keys
+  });
 }

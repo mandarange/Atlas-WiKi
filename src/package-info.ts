@@ -1,1 +1,1 @@
-export const packageInfo = { name: "atlas-wiki", version: "0.1.5", cli: ["awiki", "atlas-wiki"], dataRoot: ".atlas-wiki", database: ".atlas-wiki/atlas-wiki.sqlite", schemaNamespace: "atlas.wiki", mcpNamespace: "atlas_wiki" } as const;
+export const packageInfo = { name: "atlas-wiki", version: "0.2.0", cli: ["awiki", "atlas-wiki"], dataRoot: ".atlas-wiki", database: ".atlas-wiki/atlas-wiki.sqlite", schemaNamespace: "atlas.wiki", mcpNamespace: "atlas_wiki" } as const;

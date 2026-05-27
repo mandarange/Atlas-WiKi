@@ -25,5 +25,4 @@ The `release-evidence/atlas-wiki-vNEXT.json` file records the registry version, 
 
 ## Operator Notes
 
-Do not promote `latest` if the tag, release note, npm metadata, or release evidence manifest disagree. For a corrective publish, first land the release commit, verify a fresh clone, then tag and let the trusted publish workflow publish.
-
+Do not promote `latest` if the tag, release note, npm metadata, or release evidence manifest disagree. For a corrective publish, first land the release commit, verify a fresh clone, then tag and let the trusted publish workflow publish. During the pre-publish check for a newly bumped version, the release evidence may still record the already-published registry baseline; after publish, registry metadata should be regenerated or inspected against the new version.

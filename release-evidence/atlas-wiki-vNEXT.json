@@ -1,9 +1,9 @@
 {
   "schema": "atlas-wiki.release-evidence.v1",
-  "generated_at": "2026-05-27T02:08:56.129Z",
+  "generated_at": "2026-05-27T03:04:42.441Z",
   "package": {
     "name": "atlas-wiki",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "sourceGoal": {
     "path": "/Users/weklem/Desktop/atlas-wiki-0.1.1-next-stable-goal.md",
@@ -29,8 +29,8 @@
   },
   "git": {
     "branch": "main",
-    "localHead": "ee83f13d07c92a18f843eee2567d6f29605cbfc1",
-    "remoteMainHead": "ee83f13d07c92a18f843eee2567d6f29605cbfc1",
+    "localHead": "a0af484aed29ceb3109842ed698533b97ce8236e",
+    "remoteMainHead": "a0af484aed29ceb3109842ed698533b97ce8236e",
     "v011TagHead": "2ad7e1d36deaadb8c310bdfd517ecd5abc742827",
     "v011ReleaseUrl": "https://github.com/mandarange/Atlas-WiKi/releases/tag/v0.1.1",
     "v011Release": {

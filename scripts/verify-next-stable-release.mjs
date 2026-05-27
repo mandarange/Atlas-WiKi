@@ -15,9 +15,16 @@ const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
 
 if (pkg.name !== "atlas-wiki") fail("package.json name must remain atlas-wiki");
 if (pkg.version !== manifest.package.version) fail("release evidence package version must match package.json");
-if (pkg.version !== manifest.npm.version) fail("npm view version must match intended package version in release evidence");
-if (manifest.npm.latest !== pkg.version) fail("npm latest dist-tag must match intended package version in release evidence");
-if (manifest.npm.gitHead && manifest.git.v011TagHead && manifest.npm.gitHead !== manifest.git.v011TagHead) fail("npm gitHead must match v0.1.1 tag head in release evidence");
+const registryMatchesIntended = manifest.npm.version === pkg.version && manifest.npm.latest === pkg.version;
+const registryIsPublishedBaseline =
+  manifest.npm.version === manifest.npm.latest &&
+  compareSemver(manifest.npm.version, pkg.version) < 0;
+if (!registryMatchesIntended && !registryIsPublishedBaseline) {
+  fail("npm registry metadata must either match the intended package version or record the already-published pre-publish baseline");
+}
+if (registryIsPublishedBaseline && manifest.npm.gitHead && manifest.git.v011TagHead && manifest.npm.gitHead !== manifest.git.v011TagHead) {
+  fail("pre-publish npm gitHead must match v0.1.1 tag head in release evidence");
+}
 if (!manifest.npm.integrity || !manifest.npm.shasum) fail("release evidence must record npm integrity and shasum");
 
 if (ledger.task_total !== 1536 || ledger.task_checked !== 1536) fail("next stable task ledger must contain 1536 checked tasks");
@@ -66,4 +73,21 @@ console.log(releaseEvidenceSummary(manifest));
 function fail(message) {
   console.error(message);
   process.exit(1);
+}
+
+function compareSemver(left, right) {
+  const a = parseSemver(left);
+  const b = parseSemver(right);
+  if (!a || !b) return 0;
+  for (let i = 0; i < 3; i += 1) {
+    if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+  }
+  return 0;
+}
+
+function parseSemver(version) {
+  if (typeof version !== "string") return null;
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
+  if (!match) return null;
+  return match.slice(1, 4).map((part) => Number(part));
 }

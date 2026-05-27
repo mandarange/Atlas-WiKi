@@ -3,6 +3,13 @@
 
 ## [Unreleased]
 
+
+## [0.1.2] - 2026-05-27
+
+### Fixed
+
+- Keep release metadata aligned after an explicit SKS version bump advances the package version.
+
 ### Added
 
 - Add next-stable release evidence generation, machine-readable coverage ledger, publish guard, trusted publishing workflow, and dedicated regression tests for MCP authz, audit tail deletion, fetch policy, root safety, and published-package smoke.

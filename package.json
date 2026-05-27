@@ -1,6 +1,6 @@
 {
   "name": "atlas-wiki",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "TypeScript-first, SQLite-first, source-backed, permission-aware knowledge wiki and ledger.",
   "type": "module",
   "license": "MIT",
@@ -130,6 +130,7 @@
     "test:audit": "vitest run tests/security.test.ts tests/audit-hardening.test.ts",
     "test:structured": "vitest run tests/structured-ingestion.test.ts",
     "test:rag": "vitest run tests/rag.test.ts",
+    "rag:eval": "npm run build && node scripts/run-rag-eval.mjs",
     "test:cli-setup": "vitest run tests/cli-setup.test.ts",
     "test:store-contract": "vitest run tests/store-contract.test.ts",
     "test:supabase:mock": "vitest run tests/supabase-store.test.ts",
@@ -149,7 +150,7 @@
     "release:next-stable-verify": "npm run release:next-stable-generate && node scripts/verify-next-stable-release.mjs",
     "selftest": "node scripts/selftest.mjs",
     "goal:coverage": "node scripts/generate-task-coverage.mjs",
-    "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:context-leakage && npm run test:mcp && npm run test:audit && npm run test:structured && npm run test:rag && npm run test:cli-setup && npm run test:store-contract && npm run test:supabase:mock && npm run test:integration && npm run test:hardening && npm run test:types && npm run schemas:validate && npm run hardening:verify && npm run release:next-stable-verify && npm run package:verify && npm run package:dry-run && npm run package:smoke"
+    "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:context-leakage && npm run test:mcp && npm run test:audit && npm run test:structured && npm run test:rag && npm run test:cli-setup && npm run test:store-contract && npm run test:supabase:mock && npm run test:integration && npm run test:hardening && npm run test:types && npm run schemas:validate && npm run hardening:verify && npm run package:verify && npm run package:dry-run && npm run package:smoke && npm run release:next-stable-verify"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

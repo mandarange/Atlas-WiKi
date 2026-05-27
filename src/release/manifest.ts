@@ -48,6 +48,7 @@ export interface ReleaseEvidenceManifest {
   git: {
     branch: string;
     localHead: string;
+    dirtyWorkspace?: boolean | undefined;
     remoteMainHead?: string | undefined;
     baselineTag?: string | undefined;
     baselineTagHead?: string | undefined;
@@ -64,11 +65,17 @@ export interface ReleaseEvidenceManifest {
     runUrl?: string | undefined;
     workflow?: string | undefined;
     sha?: string | undefined;
+    status?: string | undefined;
+    conclusion?: string | undefined;
+    headSha?: string | undefined;
+    currentTree?: boolean | undefined;
+    dirtyWorkspace?: boolean | undefined;
   } | undefined;
   tasks: ReleaseTaskEvidence[];
   requiredArtifacts: Array<{ path: string; exists: boolean; sizeBytes: number; sha256?: string | undefined; evidence: string[] }>;
   gates: Array<{ name: string; command: string; evidence: string[] }>;
   selfScore?: Record<string, number> | undefined;
+  scorecard?: Array<{ area: string; score: number; evidence: string[]; gate: string }> | undefined;
   publishPolicy: {
     stableLocalPublishBlocked: boolean;
     trustedPublishingWorkflow: string;
@@ -89,6 +96,7 @@ export function assertReleaseEvidenceManifest(manifest: ReleaseEvidenceManifest)
   if (manifest.requiredArtifacts.some((artifact) => !artifact.exists)) throw new Error("Required release artifact is missing");
   if (manifest.requiredArtifacts.some((artifact) => artifact.sizeBytes <= 0)) throw new Error("Required release artifact is empty");
   if (manifest.requiredArtifacts.some((artifact) => artifact.evidence.length === 0)) throw new Error("Required release artifact must list verifier evidence");
+  if (manifest.scorecard?.some((entry) => entry.score >= 9 && entry.evidence.length === 0)) throw new Error("9+ release score requires evidence paths");
   if (!manifest.publishPolicy.stableLocalPublishBlocked) throw new Error("Stable local publish guard is not enabled");
   return manifest;
 }

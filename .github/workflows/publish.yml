@@ -34,6 +34,13 @@ jobs:
           node -e "const pkg=require('./package.json'); const ref=process.env.GITHUB_REF_NAME || ''; const input=process.env.INPUT_VERSION || ''; const expected=ref.startsWith('v') ? ref.slice(1) : input; if (expected && pkg.version !== expected) { throw new Error(`package.json ${pkg.version} does not match ${expected}`); }"
         env:
           INPUT_VERSION: ${{ inputs.version }}
+      - name: Ensure GitHub Release exists before npm publish
+        run: |
+          VERSION="${PACKAGE_VERSION#v}"
+          gh release view "v${VERSION}" >/dev/null 2>&1 || gh release create "v${VERSION}" --target "${GITHUB_SHA}" --title "Atlas WiKi v${VERSION}" --notes-file "docs/release/v${VERSION}.md"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_VERSION: ${{ inputs.version || github.ref_name }}
       - run: npm publish
       - name: Post-publish smoke
         run: |

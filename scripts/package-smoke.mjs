@@ -1,8 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+const args = parseArgs(process.argv.slice(2));
+const packageVersion = JSON.parse(readFileSync("package.json", "utf8")).version;
+const outputPath = args.get("output") || `release-evidence/package-smoke-v${packageVersion}.json`;
 const tarball = execFileSync("npm", ["pack", "--silent"], { encoding: "utf8" }).trim().split("\n").at(-1);
 if (!tarball) throw new Error("npm pack did not return a tarball");
 
@@ -41,7 +44,36 @@ try {
   const ragSearch = execFileSync("npx", ["awiki", "rag", "search", "manager approval", "--root", root, "--as", "user:alice@example.com", "--mode", "vector", "--provider", "testing", "--dimensions", "16", "--fallback", "testing_deterministic_embeddings", "--json"], { cwd: dir, encoding: "utf8" });
   const parsedRagSearch = JSON.parse(ragSearch);
   if (!Array.isArray(parsedRagSearch.items) || parsedRagSearch.items.length < 1 || !parsedRagSearch.items[0].citation?.quote?.includes("manager approval")) throw new Error("CLI RAG vector restart smoke failed");
+  mkdirSync("release-evidence", { recursive: true });
+  writeFileSync(outputPath, JSON.stringify({
+    schema: "atlas-wiki.package-smoke.v1",
+    package: { name: "atlas-wiki", version: packageVersion },
+    generated_at: new Date().toISOString(),
+    outputPath,
+    ok: true,
+    tarball,
+    imports: parsedSubpaths,
+    rag: parsedRagSearch.metadata.rag,
+    citation: parsedRagSearch.items[0].citation
+  }, null, 2) + "\n");
   console.log("package smoke ok");
 } finally {
   rmSync(dir, { recursive: true, force: true });
+}
+
+function parseArgs(argv) {
+  const flags = new Map();
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i] ?? "";
+    if (!arg.startsWith("--")) continue;
+    const key = arg.slice(2);
+    const value = argv[i + 1];
+    if (value && !value.startsWith("--")) {
+      flags.set(key, value);
+      i += 1;
+    } else {
+      flags.set(key, "1");
+    }
+  }
+  return flags;
 }

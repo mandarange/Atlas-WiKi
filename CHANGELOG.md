@@ -6,6 +6,14 @@ All notable version changes should be recorded in this file before release.
 
 - Keep this section for changes that have landed but are not published yet.
 
+## [0.2.1] - 2026-05-27
+
+### Fixed
+
+- Keep release metadata aligned after an explicit SKS version bump advances the package version.
+- Bind F9 release evidence to live RAG eval output, Supabase validation smoke artifacts, strict artifact hashes, and explicit published-package version checks.
+- Harden Supabase RPC contracts for DB-side CAS authorization and authenticated internal-source RAG parity.
+
 ## [0.2.0] - 2026-05-27
 
 ### Breaking

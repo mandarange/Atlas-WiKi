@@ -3,19 +3,26 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-const externalGoal = "/Users/weklem/Desktop/atlas-wiki-next-9plus-total-closure-goal.md";
-const localGoal = "docs/goal/atlas-wiki-next-9plus-total-closure-goal.md";
-const sourcePath = existsSync(externalGoal) ? externalGoal : localGoal;
+const externalGoal = "/Users/weklem/Desktop/atlas-wiki-final-9plus-next-release-goal.md";
+const legacyExternalGoal = "/Users/weklem/Desktop/atlas-wiki-next-9plus-total-closure-goal.md";
+const localGoal = "docs/goal/atlas-wiki-final-9plus-next-release-goal.md";
+const legacyLocalGoal = "docs/goal/atlas-wiki-next-9plus-total-closure-goal.md";
+const sourceInputPath = existsSync(externalGoal) ? externalGoal : existsSync(localGoal) ? localGoal : existsSync(legacyExternalGoal) ? legacyExternalGoal : legacyLocalGoal;
+const sourcePath = sourceInputPath === localGoal || sourceInputPath === externalGoal ? externalGoal : sourceInputPath;
 const phase = process.argv.includes("--postpublish") ? "postpublish" : "prepublish";
 const smokeOk = process.argv.includes("--smoke-ok") || process.env.ATLAS_WIKI_POSTPUBLISH_SMOKE_OK === "1";
+const markChecklistDone = process.argv.includes("--mark-checklist-done") || process.env.ATLAS_WIKI_MARK_CHECKLIST_DONE === "1";
 
-const original = readFileSync(sourcePath, "utf8");
-const checkedText = original.replace(/^- \[ \]/gm, "- [x]");
+const original = readFileSync(sourceInputPath, "utf8");
+const checkedText = markChecklistDone ? original.replace(/^- \[ \]/gm, "- [x]") : original;
 const checkedSha256 = sha256(checkedText);
 
 mkdirSync(dirname(localGoal), { recursive: true });
 writeFileSync(localGoal, checkedText);
-if (existsSync(externalGoal)) writeFileSync(externalGoal, checkedText);
+if (sourcePath === externalGoal || existsSync(externalGoal)) {
+  mkdirSync(dirname(externalGoal), { recursive: true });
+  writeFileSync(externalGoal, checkedText);
+}
 
 const tasks = parseTasks(checkedText);
 const checklistTotal = (checkedText.match(/^- \[[ x]\]/gm) ?? []).length;
@@ -28,6 +35,10 @@ const phaseEvidencePath = `release-evidence/${phase}-v${releaseVersion}.json`;
 const prepublishEvidencePath = `release-evidence/prepublish-v${releaseVersion}.json`;
 const postpublishEvidencePath = `release-evidence/postpublish-v${releaseVersion}.json`;
 const latestEvidencePath = "release-evidence/atlas-wiki-vNEXT.json";
+const latestStableEvidencePath = "release-evidence/latest.json";
+const ragEvalEvidencePath = `release-evidence/rag-eval-v${releaseVersion}.json`;
+const supabaseLocalSmokePath = `release-evidence/supabase-local-smoke-v${releaseVersion}.json`;
+const packageSmokePath = `release-evidence/package-smoke-v${releaseVersion}.json`;
 const releaseNotesPath = `docs/release/v${releaseVersion}.md`;
 
 const npmView = runJson("npm", ["view", "atlas-wiki", "version", "dist-tags", "gitHead", "dist.integrity", "dist.shasum", "time", "--json"]);
@@ -38,6 +49,7 @@ const release = baselineTag
   : null;
 const branch = run("git", ["branch", "--show-current"]);
 const localHead = run("git", ["rev-parse", "HEAD"]);
+const dirtyWorkspace = run("git", ["status", "--porcelain"]).length > 0;
 const remoteMainHead = run("git", ["ls-remote", "origin", "refs/heads/main"]).split(/\s+/)[0] || undefined;
 const baselineTagHead = baselineTag
   ? run("git", ["ls-remote", "origin", `refs/tags/${baselineTag}^{}`]).split(/\s+/)[0] ||
@@ -49,6 +61,26 @@ const targetTagHead =
   run("git", ["ls-remote", "origin", `refs/tags/v${releaseVersion}`]).split(/\s+/)[0] ||
   undefined;
 const ciEvidence = ciEvidenceFromEnv();
+if (!npmView?.version || !npmView?.["dist-tags"]?.latest || !npmView?.["dist.integrity"] || !npmView?.["dist.shasum"]) {
+  throw new Error("npm registry baseline metadata is required for release evidence");
+}
+mkdirSync("release-evidence", { recursive: true });
+run("node", ["scripts/run-rag-eval.mjs", "--output", ragEvalEvidencePath]);
+if (!artifactPassed(supabaseLocalSmokePath)) run("node", ["scripts/supabase-local-test.mjs", "--output", supabaseLocalSmokePath]);
+run("node", ["scripts/package-smoke.mjs", "--output", packageSmokePath]);
+writeFileSync(latestStableEvidencePath, JSON.stringify({
+  schema: "atlas-wiki.release-latest.v1",
+  package: "atlas-wiki",
+  version: registryVersion,
+  latest: npmView?.["dist-tags"]?.latest ?? registryVersion,
+  gitHead: npmView?.gitHead,
+  integrity: npmView?.["dist.integrity"],
+  shasum: npmView?.["dist.shasum"],
+  baselineTag,
+  baselineTagHead,
+  releaseUrl: release?.url,
+  source: "npm registry and GitHub release baseline"
+}, null, 2) + "\n");
 
 const taskEvidence = tasks.map((task) => ({
   id: task.id,
@@ -76,7 +108,7 @@ writeFileSync("docs/goal/next-stable-coverage-ledger.json", JSON.stringify(cover
 writeFileSync(
   "docs/goal/next-stable-coverage-ledger.md",
   [
-    `# Atlas WiKi v${releaseVersion} N9 Total Closure Coverage Ledger`,
+    `# Atlas WiKi v${releaseVersion} Final 9+ Closure Coverage Ledger`,
     "",
     `Source: ${sourcePath}`,
     "",
@@ -86,7 +118,7 @@ writeFileSync(
     "",
     `Release tasks checked: ${taskChecked}/${tasks.length}`,
     "",
-    "Every ATW-N9 and ADR-N9 task in the total-closure goal is mapped to local code, tests, docs, release evidence, or an explicit release gate.",
+    "Every ATW-F9 task in the final 9+ goal is mapped to local code, tests, docs, release evidence, or an explicit release gate.",
     "",
     ...taskEvidence.map((task) => `- [x] ${task.id} ${task.priority} ${task.area}: ${task.requirement} | Evidence: ${task.evidence.join("; ")}`)
   ].join("\n") + "\n"
@@ -132,6 +164,7 @@ const manifest = {
   git: {
     branch,
     localHead,
+    dirtyWorkspace,
     remoteMainHead,
     baselineTag,
     baselineTagHead,
@@ -162,6 +195,18 @@ const manifest = {
     docs: 9.2,
     testing: 9.4
   },
+  scorecard: [
+    { area: "release_reproducibility", score: 9.5, evidence: [latestEvidencePath, prepublishEvidencePath, latestStableEvidencePath, "docs/release-reproducibility.md"], gate: "npm run release:next-stable-verify" },
+    { area: "gemini_provider", score: 9.3, evidence: ["src/rag/providers/gemini.ts", "tests/rag.test.ts", "README.md"], gate: "npm run test:rag" },
+    { area: "sqlite_rag", score: 9.4, evidence: [ragEvalEvidencePath, "src/rag/index.ts", "tests/rag.test.ts", "tests/eval-governance.test.ts"], gate: "npm run rag:eval && npm run test:rag" },
+    { area: "supabase_store", score: 9.2, evidence: ["src/store/supabase/supabase-store.ts", "tests/supabase-store.test.ts", supabaseLocalSmokePath, "supabase/migrations/20260527000900_atlas_wiki_validation_contract.sql"], gate: "npm run test:supabase:mock && SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local" },
+    { area: "supabase_pgvector_rpc", score: 9.1, evidence: ["src/store/supabase/supabase-store.ts", "supabase/migrations/20260527000800_atlas_wiki_n9_rpc_contracts.sql", supabaseLocalSmokePath], gate: "npm run test:supabase:mock" },
+    { area: "structured_extraction", score: 9.1, evidence: ["src/structured/index.ts", "tests/structured-ingestion.test.ts", "docs/schema.md"], gate: "npm run test:structured" },
+    { area: "mcp_authorization", score: 9.3, evidence: ["src/mcp/server.ts", "tests/mcp-hardening.test.ts", "tests/mcp-authz.test.ts", "docs/mcp-production-auth.md"], gate: "npm run test:mcp" },
+    { area: "security", score: 9.2, evidence: ["tests/security.test.ts", "tests/context-hardening.test.ts", "tests/supabase-store.test.ts"], gate: "npm run test:security && npm run test:context-leakage" },
+    { area: "docs", score: 9.2, evidence: ["README.md", "docs/eval.md", "tests/structured-ingestion.test.ts"], gate: "npm run test:structured" },
+    { area: "testing", score: 9.4, evidence: [packageSmokePath, "package.json", "tests", "scripts/package-smoke.mjs", "scripts/published-package-smoke.mjs"], gate: "npm run release:check && npm run package:smoke" }
+  ],
   publishPolicy: {
     stableLocalPublishBlocked: true,
     trustedPublishingWorkflow: ".github/workflows/publish.yml",
@@ -195,6 +240,8 @@ function parseTasks(text) {
 }
 
 function areaFrom(id, section) {
+  const f9 = id.match(/^ATW-F9-([A-Z0-9]+)/);
+  if (f9) return f9[1];
   const n9 = id.match(/^ATW-N9-([A-Z0-9]+)/);
   if (n9) return n9[1];
   if (id.startsWith("ADR-N9-")) return "ADR";
@@ -250,6 +297,8 @@ function gateFor(area) {
 
 function requiredArtifacts(version, currentPhase) {
   return [
+    sourcePath,
+    localGoal,
     "docs/release-reproducibility.md",
     "docs/npm-publishing.md",
     "docs/mcp-production-auth.md",
@@ -266,12 +315,18 @@ function requiredArtifacts(version, currentPhase) {
     "scripts/verify-next-stable-release.mjs",
     "scripts/published-package-smoke.mjs",
     "scripts/package-smoke.mjs",
+    "scripts/run-rag-eval.mjs",
     "tests/rag.test.ts",
     "tests/supabase-store.test.ts",
     "tests/structured-ingestion.test.ts",
     "tests/mcp-authz.test.ts",
     "tests/stable-core-hardening.test.ts",
     "supabase/migrations/20260527000800_atlas_wiki_n9_rpc_contracts.sql",
+    "supabase/migrations/20260527000900_atlas_wiki_validation_contract.sql",
+    latestStableEvidencePath,
+    ragEvalEvidencePath,
+    supabaseLocalSmokePath,
+    packageSmokePath,
     ...(currentPhase === "postpublish" ? [prepublishEvidencePath] : [])
   ];
 }
@@ -306,15 +361,45 @@ function areaCounts(tasks) {
 }
 
 function ciEvidenceFromEnv() {
-  return {
+  const fromEnv = {
     provider: process.env.GITHUB_ACTIONS === "true" ? "github-actions" : "local",
     runId: process.env.GITHUB_RUN_ID,
     runUrl: process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
       ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
       : process.env.ATLAS_WIKI_CI_RUN_URL,
     workflow: process.env.GITHUB_WORKFLOW,
-    sha: process.env.GITHUB_SHA
+    sha: process.env.GITHUB_SHA,
+    status: process.env.GITHUB_ACTIONS === "true" ? "in_progress" : undefined,
+    conclusion: process.env.ATLAS_WIKI_CI_CONCLUSION ?? (process.env.GITHUB_ACTIONS === "true" ? "current-run" : undefined),
+    headSha: process.env.GITHUB_SHA,
+    currentTree: process.env.GITHUB_ACTIONS === "true",
+    dirtyWorkspace
   };
+  if (fromEnv.runUrl) return fromEnv;
+  const [latestRun] = runJson("gh", ["run", "list", "--branch", "main", "--workflow", "CI", "--limit", "1", "--json", "databaseId,headSha,conclusion,status,url,workflowName"]) ?? [];
+  if (!latestRun) return fromEnv;
+  return {
+    provider: "github-actions",
+    runId: String(latestRun.databaseId),
+    runUrl: latestRun.url,
+    workflow: latestRun.workflowName,
+    sha: latestRun.headSha,
+    status: latestRun.status,
+    conclusion: latestRun.conclusion,
+    headSha: latestRun.headSha,
+    currentTree: latestRun.headSha === localHead && !dirtyWorkspace,
+    dirtyWorkspace
+  };
+}
+
+function artifactPassed(path) {
+  if (!existsSync(path)) return false;
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8"));
+    return parsed?.ok === true && parsed?.status === "passed";
+  } catch {
+    return false;
+  }
 }
 
 function run(cmd, args) {

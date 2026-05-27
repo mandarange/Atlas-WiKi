@@ -10,7 +10,13 @@ export interface SupabaseStoreOptions {
   client?: SupabaseLikeClient | undefined;
   vector?: {
     enabled: boolean;
+    /**
+     * Atlas WiKi's bundled Supabase pgvector RPC migrations are 1536-only.
+     * Other dimensions require a project-specific migration and are rejected
+     * by this adapter until that migration exposes matching RPC contracts.
+     */
     dimensions: number;
+    dimensionPolicy?: "atlas_wiki_default_1536" | undefined;
     metric: "cosine" | "inner_product" | "l2";
   } | undefined;
   migrations?: {

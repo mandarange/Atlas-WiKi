@@ -101,9 +101,11 @@ The committed migrations live under `supabase/migrations`:
 20260527000500_atlas_wiki_vector_optional.sql
 20260527000600_atlas_wiki_search_rpc.sql
 20260527000700_atlas_wiki_rag_pgvector.sql
+20260527000800_atlas_wiki_n9_rpc_contracts.sql
+20260527000900_atlas_wiki_validation_contract.sql
 ```
 
-RLS is enabled and forced on exposed Atlas tables. Policies use explicit `anon` and `authenticated` scopes, ACL rows, `auth.uid()`, and immutable app metadata claims for team/role checks. Local Supabase service tests are opt-in with `SUPABASE_LOCAL_TESTS=1`; CI runs offline mock coverage through `npm run test:supabase:mock`.
+RLS is enabled and forced on exposed Atlas tables. Policies use explicit `anon` and `authenticated` scopes, ACL rows, `auth.uid()`, and immutable app metadata claims for team/role checks. Local Supabase service tests are opt-in with `SUPABASE_LOCAL_TESTS=1`; CI runs offline mock coverage through `npm run test:supabase:mock`. `SupabaseStore.validate()` checks the validation RPC, required tables, RLS, pgvector, and RAG RPCs; `migrationReport()` compares committed migration ids with the Supabase migration registry.
 
 ## Structured Extraction
 
@@ -120,11 +122,11 @@ await wiki.schema.register({
 });
 
 const result = await wiki.ingestStructured({
-  title: "Customer notes",
-  text: "...",
-  schemas: ["customer_profile", "support_case"],
-  mode: "proposal"
-});
+	  title: "Customer notes",
+	  text: "...",
+	  schemas: ["customer_profile"],
+	  mode: "proposal"
+	});
 
 console.log(result.structuredObjects);
 console.log(result.proposals);

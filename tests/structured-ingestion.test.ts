@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -98,6 +98,12 @@ describe("structured ingestion", () => {
     });
     expect(result.structuredObjects[0]?.schema_id).toBe("customer_profile");
     await wiki.close();
+  });
+
+  it("keeps README custom schema example bound to the registered schema", () => {
+    const readme = readFileSync("README.md", "utf8");
+    expect(readme).toContain("schemas: [\"customer_profile\"]");
+    expect(readme).not.toContain("schemas: [\"customer_profile\", \"support_case\"]");
   });
 
   it("rejects registered custom schema candidates missing required fields", async () => {

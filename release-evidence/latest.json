@@ -1,0 +1,12 @@
+{
+  "schema": "atlas-wiki.release-latest.v1",
+  "package": "atlas-wiki",
+  "version": "0.1.5",
+  "latest": "0.1.5",
+  "gitHead": "9c209fea50ab516f869ca9f361bfaee6d01d14c9",
+  "integrity": "sha512-spggXDnSIBKY/IwLKHpaVlDW3gyDQyg+W4FhMTHJ0fYcdAvk0+sTVe9mwsQ8ondpPZtjFEfIyjN6hRwF68NTag==",
+  "shasum": "e815867c8c468d4e0a5143dbcad206c4725c0e5d",
+  "baselineTag": "v0.1.5",
+  "baselineTagHead": "9c209fea50ab516f869ca9f361bfaee6d01d14c9",
+  "source": "npm registry and GitHub release baseline"
+}

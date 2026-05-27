@@ -1,9 +1,11 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { DeterministicEmbeddingProvider } from "../rag/index.js";
 import type { RagFallbackPolicy, RagMode } from "../rag/index.js";
 import { GeminiEmbeddingProvider } from "../rag/providers/gemini.js";
+import { runLiveRagEvalDataset } from "../eval/harness.js";
 import { AtlasWiki, actorFromId } from "../sdk/atlas-wiki.js";
 import { adminAtlasWikiToolNames, atlasWikiToolNames, readonlyAtlasWikiToolNames, startStdioMcpServer } from "../mcp/server.js";
 import { ensureDataRoot } from "../store/sqlite-store.js";
@@ -15,6 +17,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> { const args = 
   if (cmd === "setup" || cmd === "configure") { print(await runInteractiveSetup({ root, flags: args.flags }), asJson); return; }
   if (cmd === "rag" && sub === "enable") { print(configureRag(root, args.flags, true), asJson); return; }
   if (cmd === "rag" && sub === "disable") { print(configureRag(root, args.flags, false), asJson); return; }
+  if (cmd === "rag" && sub === "eval") { const fixture = str(args, "fixture") ?? third; const dataset = fixture ? JSON.parse(readFileSync(fixture, "utf8")) : undefined; print(await runLiveRagEvalDataset(dataset), asJson); return; }
   if (cmd === "init") { ensureDataRoot(root); const wiki = await AtlasWiki.open({ root }); await wiki.close(); print({ ok: true, root, db: join(root, "atlas-wiki.sqlite") }, asJson); return; }
   const cliConfig = readCliConfig(root);
   const requireEmbedding = cmd === "rag" && (sub === "index" || sub === "reindex" || ragMode(args) === "vector");
@@ -33,7 +36,6 @@ async function main(argv = process.argv.slice(2)): Promise<void> { const args = 
       if (sub === "index" || sub === "reindex") { print(await wiki.ragIndex({ actor, limit: num(args, "limit"), fallbackPolicy: fallbackPolicy(args, cliConfig) }), asJson); return; }
       if (sub === "search") { const query = third ?? str(args, "query") ?? args.command.slice(2).join(" "); print(await wiki.ragSearch({ query, actor, mode: ragMode(args), fallbackPolicy: fallbackPolicy(args, cliConfig), limit: num(args, "limit") }), asJson); return; }
       if (sub === "context-pack") { const query = third ?? str(args, "query") ?? args.command.slice(2).join(" "); print(await wiki.ragContextPack({ query, actor, mode: ragMode(args), fallbackPolicy: fallbackPolicy(args, cliConfig), limit: num(args, "limit") }), asJson); return; }
-      if (sub === "eval") { print({ ok: true, path: third ?? null, metrics: { recall_at_k: null, mrr: null, citation_precision: null, leakage_count: null }, note: "RAG eval harness placeholder records the contract; scored datasets plug into release gates." }, asJson); return; }
       throw new Error("Unknown rag command: " + args.command.join(" "));
     }
     if (cmd === "rebuild-index") { if (!wiki.store.rebuildIndex) throw new Error("rebuild-index is not supported by this store"); wiki.store.rebuildIndex(); print({ ok: true, rebuilt: "chunks_fts" }, asJson); return; }

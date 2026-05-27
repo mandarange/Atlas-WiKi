@@ -1,10 +1,10 @@
 # Published Package Smoke
 
-The published package smoke installs `atlas-wiki` from the npm registry into a temporary consumer project and exercises import, CLI, SDK, MCP, and audit verification behavior from the installed artifact.
+The published package smoke installs an explicit `atlas-wiki@<version>` package spec from the npm registry into a temporary consumer project and exercises import, CLI, SDK, MCP, RAG, release-export, and audit verification behavior from the installed artifact.
 
 ## Core Link
 
-`scripts/published-package-smoke.mjs` installs `ATLAS_WIKI_PUBLISHED_SPEC` or `atlas-wiki` by default. The release gate exposes it as `npm run release:published-check`.
+`scripts/published-package-smoke.mjs` requires `ATLAS_WIKI_PUBLISHED_SPEC` or `--package atlas-wiki@<version>` and fails if the installed package version does not match local `package.json`. The release gate exposes it as `npm run release:published-check`.
 
 ## Security
 
@@ -15,7 +15,7 @@ The smoke test runs outside the repository package tree so it cannot accidentall
 Run after publish:
 
 ```bash
-ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.1.2 npm run release:published-check
+ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.2.1 npm run release:published-check
 ```
 
 The same script is checked by `tests/published-package-smoke.test.ts`.

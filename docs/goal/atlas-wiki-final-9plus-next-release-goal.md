@@ -1,0 +1,2190 @@
+# Atlas WiKi Final 9+ Next Release /goal 지시서
+
+**목표:** 0.2.0 RC에서 남은 마지막 9점 미달 blocker 완전 폐쇄
+
+생성일: 2026-05-27 10:23:28Z
+
+## 0. 버전 결정
+
+현재 main은 `0.2.0` RC 성격이며 StoreContract v2와 async `ragStatus()`가 들어가 있다. 다음 버전은 아래 기준으로 결정한다.
+
+- [x] `ATW-F9-VER-001` 현재 public API를 추가로 깨지 않으면 `0.2.1`로 배포한다.
+- [x] `ATW-F9-VER-002` StoreContract, SDK, MCP public signature를 다시 깨면 `0.3.0`으로 배포한다.
+- [x] `ATW-F9-VER-003` 이번 목표는 새 기능 확장이 아니라 9점 미달 blocker closure이다.
+- [x] `ATW-F9-VER-004` release evidence, Supabase validate, schema registry persistence, CI evidence가 닫히기 전에는 release하지 않는다.
+- [x] `ATW-F9-VER-005` 문서에서 production claim을 유지하려면 해당 runtime path가 테스트와 release evidence로 증명되어야 한다.
+
+## 1. 남은 blocker
+
+- [x] `ATW-F9-BLOCKER-001` release-evidence/atlas-wiki-vNEXT.json 빈 파일 해결. 방치 시: release reproducibility 9점 불가.
+- [x] `ATW-F9-BLOCKER-002` release-evidence/prepublish-v0.2.0.json 빈 파일 해결. 방치 시: prepublish 증거 불가.
+- [x] `ATW-F9-BLOCKER-003` 최신 main commit workflow run evidence 미확인 해결. 방치 시: CI green claim 불가.
+- [x] `ATW-F9-BLOCKER-004` SupabaseStore.validate() stub 해결. 방치 시: 운영 검증 불가.
+- [x] `ATW-F9-BLOCKER-005` SupabaseStore.migrationReport() stub 해결. 방치 시: migration 상태 검증 불가.
+- [x] `ATW-F9-BLOCKER-006` Supabase schema contract registry가 메모리 중심 해결. 방치 시: 재시작 후 custom schema contract 유실 가능.
+- [x] `ATW-F9-BLOCKER-007` Supabase local smoke가 release evidence와 분리 해결. 방치 시: pgvector/RLS production claim 증거 부족.
+- [x] `ATW-F9-BLOCKER-008` Supabase dimension policy가 타입상 모호 해결. 방치 시: 1536-only 정책이 API에서 덜 명확.
+- [x] `ATW-F9-BLOCKER-009` RAG eval metrics가 문서 수준 해결. 방치 시: RAG quality 9점 증거 부족.
+- [x] `ATW-F9-BLOCKER-010` README 예시 중 custom schema 등록/사용 흐름 불완전 해결. 방치 시: docs truth 9점 미달.
+
+## 2. 최종 Score Target
+
+| 영역 | 목표 | 필수 증거 |
+| --- | ---: | --- |
+| Release reproducibility | 9.5 | non-empty evidence, tag/main/npm/CI/GitHub Release asset 일치 |
+| Supabase operational validation | 9.2 | validate/migrationReport가 실제 DB/RLS/RPC/pgvector 확인 |
+| Supabase schema registry | 9.1 | custom contract DB persistence + reload |
+| Supabase pgvector/RPC | 9.1 | SDK RPC path + local smoke evidence |
+| RAG quality | 9.0 | eval metrics release gate |
+| Docs truth | 9.2 | README examples smoke/typechecked |
+| Package smoke | 9.3 | published package CLI RAG persistence |
+| Security/leakage | 9.2 | ACL-before-context across embedding/RPC/extraction |
+
+- [x] `ATW-F9-SCORE-001` `Release reproducibility` 목표 9.5. 증거: non-empty evidence, tag/main/npm/CI/GitHub Release asset 일치.
+- [x] `ATW-F9-SCORE-002` `Supabase operational validation` 목표 9.2. 증거: validate/migrationReport가 실제 DB/RLS/RPC/pgvector 확인.
+- [x] `ATW-F9-SCORE-003` `Supabase schema registry` 목표 9.1. 증거: custom contract DB persistence + reload.
+- [x] `ATW-F9-SCORE-004` `Supabase pgvector/RPC` 목표 9.1. 증거: SDK RPC path + local smoke evidence.
+- [x] `ATW-F9-SCORE-005` `RAG quality` 목표 9.0. 증거: eval metrics release gate.
+- [x] `ATW-F9-SCORE-006` `Docs truth` 목표 9.2. 증거: README examples smoke/typechecked.
+- [x] `ATW-F9-SCORE-007` `Package smoke` 목표 9.3. 증거: published package CLI RAG persistence.
+- [x] `ATW-F9-SCORE-008` `Security/leakage` 목표 9.2. 증거: ACL-before-context across embedding/RPC/extraction.
+
+## 3. 즉시 수정해야 할 P0 체크리스트
+
+- [x] `ATW-F9-P0-001` 빈 evidence JSON 파일을 main에서 제거하거나 실제 JSON으로 교체한다.
+- [x] `ATW-F9-P0-002` `verify-next-stable-release.mjs`가 generate 전에도 빈 evidence artifact를 실패 처리하도록 유지한다.
+- [x] `ATW-F9-P0-003` `release:next-stable-generate`가 생성한 prepublish evidence를 commit한다.
+- [x] `ATW-F9-P0-004` postpublish evidence는 publish workflow artifact/release asset으로 관리한다.
+- [x] `ATW-F9-P0-005` SupabaseStore.validate()를 실제 구현한다.
+- [x] `ATW-F9-P0-006` SupabaseStore.migrationReport()를 실제 구현한다.
+- [x] `ATW-F9-P0-007` Supabase schema contract registry를 DB reload 기반으로 바꾼다.
+- [x] `ATW-F9-P0-008` Supabase local smoke output을 JSON artifact로 만들고 release evidence에 포함한다.
+- [x] `ATW-F9-P0-009` README structured extraction 예시에서 등록되지 않은 schema 사용을 제거한다.
+- [x] `ATW-F9-P0-010` RAG eval metric fixture와 gate를 추가한다.
+
+## REL. Release Evidence 완전 정합성
+
+**완료 정의:** 빈 evidence artifact를 제거하고 prepublish/postpublish/main/tag/npm/CI/GitHub Release 정합성을 완성한다.
+
+- [x] `ATW-F9-REL-0001` 현재 main의 빈 `release-evidence/atlas-wiki-vNEXT.json`을 제거하거나 실제 non-empty JSON으로 교체한다.
+- [x] `ATW-F9-REL-0002` 현재 main의 빈 `release-evidence/prepublish-v0.2.0.json`을 제거하거나 실제 non-empty JSON으로 교체한다.
+- [x] `ATW-F9-REL-0003` 빈 placeholder JSON 파일을 repo에 커밋하는 것을 lint/release gate에서 금지한다.
+- [x] `ATW-F9-REL-0004` `readJsonNonEmpty()` 검증을 generate 전에 직접 artifact check로도 수행한다.
+- [x] `ATW-F9-REL-0005` `release-evidence/latest.json`은 항상 마지막 successful stable release summary만 가리키게 한다.
+- [x] `ATW-F9-REL-0006` `release-evidence/prepublish-v<version>.json`은 publish 전 commit에 포함한다.
+- [x] `ATW-F9-REL-0007` `release-evidence/postpublish-v<version>.json`은 GitHub Release asset으로 업로드한다.
+- [x] `ATW-F9-REL-0008` postpublish evidence는 npm latest, npm gitHead, tag head, published smoke result를 포함한다.
+- [x] `ATW-F9-REL-0009` prepublish evidence는 npm registry baseline과 target version을 명확히 분리한다.
+- [x] `ATW-F9-REL-0010` release evidence schema v2 문서를 docs/release-reproducibility.md에 반영한다.
+- [x] `ATW-F9-REL-0011` release evidence에 CI run URL, workflow name, commit SHA, conclusion을 기록한다.
+- [x] `ATW-F9-REL-0012` release evidence에 Supabase local smoke 수행 여부와 결과 파일 path를 기록한다.
+- [x] `ATW-F9-REL-0013` release evidence에 RAG eval metrics를 기록한다.
+- [x] `ATW-F9-REL-0014` release evidence selfScore는 자동 검증 가능한 evidence path와 연결한다.
+- [x] `ATW-F9-REL-0015` release verifier가 selfScore만 있고 evidence가 없는 영역을 실패 처리한다.
+- [x] `ATW-F9-REL-0016` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0017` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0018` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0019` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0020` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0021` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0022` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0023` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0024` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0025` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0026` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0027` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0028` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0029` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0030` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0031` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0032` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0033` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0034` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0035` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0036` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0037` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0038` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0039` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0040` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0041` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0042` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0043` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0044` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0045` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0046` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0047` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0048` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0049` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0050` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0051` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0052` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0053` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0054` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0055` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0056` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0057` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0058` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0059` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0060` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0061` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0062` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0063` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0064` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0065` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0066` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0067` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0068` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0069` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0070` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0071` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0072` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0073` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0074` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0075` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0076` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0077` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0078` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0079` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0080` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0081` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0082` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0083` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0084` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0085` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0086` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0087` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0088` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0089` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0090` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0091` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0092` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0093` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0094` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0095` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0096` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0097` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0098` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0099` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0100` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0101` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0102` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0103` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0104` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0105` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0106` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0107` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0108` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0109` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0110` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0111` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0112` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0113` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0114` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0115` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0116` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0117` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0118` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0119` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0120` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0121` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0122` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0123` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0124` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0125` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0126` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0127` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0128` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0129` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0130` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0131` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0132` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0133` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0134` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0135` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0136` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0137` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0138` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-REL-0139` Release Evidence 완전 정합성: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-REL-0140` Release Evidence 완전 정합성: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-REL-0141` Release Evidence 완전 정합성: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-REL-0142` Release Evidence 완전 정합성: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-REL-0143` Release Evidence 완전 정합성: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-REL-0144` Release Evidence 완전 정합성: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-REL-0145` Release Evidence 완전 정합성: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-REL-0146` Release Evidence 완전 정합성: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-REL-0147` Release Evidence 완전 정합성: happy path unit test를 작성한다.
+- [x] `ATW-F9-REL-0148` Release Evidence 완전 정합성: failure path regression test를 작성한다.
+- [x] `ATW-F9-REL-0149` Release Evidence 완전 정합성: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-REL-0150` Release Evidence 완전 정합성: Supabase mock 검증을 추가한다.
+
+## CI. CI Green Evidence / Branch Protection
+
+**완료 정의:** 최신 main/tag 커밋의 release:check green 증거를 기계적으로 기록한다.
+
+- [x] `ATW-F9-CI-0001` main push에서 CI workflow가 실제로 실행되는지 확인하고 Actions badge가 green인지 검증한다.
+- [x] `ATW-F9-CI-0002` tag push에서 CI workflow가 실행되는지 확인한다.
+- [x] `ATW-F9-CI-0003` publish workflow 전에 release:check green이 선행되어야 한다.
+- [x] `ATW-F9-CI-0004` release evidence generator가 GitHub Actions env에서 `GITHUB_RUN_ID`, `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`를 읽어 run URL을 만든다.
+- [x] `ATW-F9-CI-0005` local generate 시 CI URL이 없으면 prepublish mode에서는 warning, external required mode에서는 fail한다.
+- [x] `ATW-F9-CI-0006` branch protection 문서에 required checks를 명시한다.
+- [x] `ATW-F9-CI-0007` CI matrix에 Node 24를 기본으로 두고, optional Node current smoke를 문서화한다.
+- [x] `ATW-F9-CI-0008` CI에서 `SUPABASE_LOCAL_TESTS=1`은 기본 강제가 어렵다면 release workflow의 opt-in job으로 분리한다.
+- [x] `ATW-F9-CI-0009` CI artifact로 package smoke output을 업로드한다.
+- [x] `ATW-F9-CI-0010` CI artifact로 RAG eval output을 업로드한다.
+- [x] `ATW-F9-CI-0011` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0012` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CI-0013` CI Green Evidence / Branch Protection: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CI-0014` CI Green Evidence / Branch Protection: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CI-0015` CI Green Evidence / Branch Protection: happy path unit test를 작성한다.
+- [x] `ATW-F9-CI-0016` CI Green Evidence / Branch Protection: failure path regression test를 작성한다.
+- [x] `ATW-F9-CI-0017` CI Green Evidence / Branch Protection: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CI-0018` CI Green Evidence / Branch Protection: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CI-0019` CI Green Evidence / Branch Protection: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CI-0020` CI Green Evidence / Branch Protection: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CI-0021` CI Green Evidence / Branch Protection: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CI-0022` CI Green Evidence / Branch Protection: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CI-0023` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0024` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CI-0025` CI Green Evidence / Branch Protection: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CI-0026` CI Green Evidence / Branch Protection: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CI-0027` CI Green Evidence / Branch Protection: happy path unit test를 작성한다.
+- [x] `ATW-F9-CI-0028` CI Green Evidence / Branch Protection: failure path regression test를 작성한다.
+- [x] `ATW-F9-CI-0029` CI Green Evidence / Branch Protection: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CI-0030` CI Green Evidence / Branch Protection: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CI-0031` CI Green Evidence / Branch Protection: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CI-0032` CI Green Evidence / Branch Protection: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CI-0033` CI Green Evidence / Branch Protection: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CI-0034` CI Green Evidence / Branch Protection: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CI-0035` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0036` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CI-0037` CI Green Evidence / Branch Protection: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CI-0038` CI Green Evidence / Branch Protection: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CI-0039` CI Green Evidence / Branch Protection: happy path unit test를 작성한다.
+- [x] `ATW-F9-CI-0040` CI Green Evidence / Branch Protection: failure path regression test를 작성한다.
+- [x] `ATW-F9-CI-0041` CI Green Evidence / Branch Protection: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CI-0042` CI Green Evidence / Branch Protection: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CI-0043` CI Green Evidence / Branch Protection: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CI-0044` CI Green Evidence / Branch Protection: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CI-0045` CI Green Evidence / Branch Protection: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CI-0046` CI Green Evidence / Branch Protection: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CI-0047` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0048` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CI-0049` CI Green Evidence / Branch Protection: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CI-0050` CI Green Evidence / Branch Protection: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CI-0051` CI Green Evidence / Branch Protection: happy path unit test를 작성한다.
+- [x] `ATW-F9-CI-0052` CI Green Evidence / Branch Protection: failure path regression test를 작성한다.
+- [x] `ATW-F9-CI-0053` CI Green Evidence / Branch Protection: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CI-0054` CI Green Evidence / Branch Protection: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CI-0055` CI Green Evidence / Branch Protection: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CI-0056` CI Green Evidence / Branch Protection: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CI-0057` CI Green Evidence / Branch Protection: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CI-0058` CI Green Evidence / Branch Protection: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CI-0059` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0060` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CI-0061` CI Green Evidence / Branch Protection: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CI-0062` CI Green Evidence / Branch Protection: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CI-0063` CI Green Evidence / Branch Protection: happy path unit test를 작성한다.
+- [x] `ATW-F9-CI-0064` CI Green Evidence / Branch Protection: failure path regression test를 작성한다.
+- [x] `ATW-F9-CI-0065` CI Green Evidence / Branch Protection: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CI-0066` CI Green Evidence / Branch Protection: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CI-0067` CI Green Evidence / Branch Protection: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CI-0068` CI Green Evidence / Branch Protection: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CI-0069` CI Green Evidence / Branch Protection: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CI-0070` CI Green Evidence / Branch Protection: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CI-0071` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0072` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CI-0073` CI Green Evidence / Branch Protection: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CI-0074` CI Green Evidence / Branch Protection: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CI-0075` CI Green Evidence / Branch Protection: happy path unit test를 작성한다.
+- [x] `ATW-F9-CI-0076` CI Green Evidence / Branch Protection: failure path regression test를 작성한다.
+- [x] `ATW-F9-CI-0077` CI Green Evidence / Branch Protection: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CI-0078` CI Green Evidence / Branch Protection: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CI-0079` CI Green Evidence / Branch Protection: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CI-0080` CI Green Evidence / Branch Protection: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CI-0081` CI Green Evidence / Branch Protection: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CI-0082` CI Green Evidence / Branch Protection: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CI-0083` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0084` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CI-0085` CI Green Evidence / Branch Protection: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CI-0086` CI Green Evidence / Branch Protection: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CI-0087` CI Green Evidence / Branch Protection: happy path unit test를 작성한다.
+- [x] `ATW-F9-CI-0088` CI Green Evidence / Branch Protection: failure path regression test를 작성한다.
+- [x] `ATW-F9-CI-0089` CI Green Evidence / Branch Protection: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CI-0090` CI Green Evidence / Branch Protection: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CI-0091` CI Green Evidence / Branch Protection: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CI-0092` CI Green Evidence / Branch Protection: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CI-0093` CI Green Evidence / Branch Protection: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CI-0094` CI Green Evidence / Branch Protection: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CI-0095` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0096` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CI-0097` CI Green Evidence / Branch Protection: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CI-0098` CI Green Evidence / Branch Protection: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CI-0099` CI Green Evidence / Branch Protection: happy path unit test를 작성한다.
+- [x] `ATW-F9-CI-0100` CI Green Evidence / Branch Protection: failure path regression test를 작성한다.
+- [x] `ATW-F9-CI-0101` CI Green Evidence / Branch Protection: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CI-0102` CI Green Evidence / Branch Protection: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CI-0103` CI Green Evidence / Branch Protection: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CI-0104` CI Green Evidence / Branch Protection: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CI-0105` CI Green Evidence / Branch Protection: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CI-0106` CI Green Evidence / Branch Protection: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CI-0107` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0108` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CI-0109` CI Green Evidence / Branch Protection: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CI-0110` CI Green Evidence / Branch Protection: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CI-0111` CI Green Evidence / Branch Protection: happy path unit test를 작성한다.
+- [x] `ATW-F9-CI-0112` CI Green Evidence / Branch Protection: failure path regression test를 작성한다.
+- [x] `ATW-F9-CI-0113` CI Green Evidence / Branch Protection: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CI-0114` CI Green Evidence / Branch Protection: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CI-0115` CI Green Evidence / Branch Protection: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CI-0116` CI Green Evidence / Branch Protection: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CI-0117` CI Green Evidence / Branch Protection: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CI-0118` CI Green Evidence / Branch Protection: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CI-0119` CI Green Evidence / Branch Protection: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CI-0120` CI Green Evidence / Branch Protection: 9점 이상 self-score 조건을 검증한다.
+
+## PUB. Publish Workflow / Postpublish Evidence
+
+**완료 정의:** npm publish 이후 published smoke와 GitHub Release asset까지 자동 연결한다.
+
+- [x] `ATW-F9-PUB-0001` publish workflow가 tag `v<version>`에서만 stable publish하도록 기본 경로를 제한한다.
+- [x] `ATW-F9-PUB-0002` local publish는 emergency env가 없으면 stable release로 인정하지 않는다.
+- [x] `ATW-F9-PUB-0003` `publish-guard.mjs`에서 stableLocalPublishBlocked policy와 실제 동작을 일치시킨다.
+- [x] `ATW-F9-PUB-0004` workflow_dispatch publish는 입력 version과 package.json version이 일치해야 한다.
+- [x] `ATW-F9-PUB-0005` postpublish smoke가 `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@<version>`으로 실행되어야 한다.
+- [x] `ATW-F9-PUB-0006` postpublish smoke 실패 시 GitHub Release asset upload를 하지 않는다.
+- [x] `ATW-F9-PUB-0007` GitHub Release가 없으면 publish workflow에서 생성하거나 fail한다.
+- [x] `ATW-F9-PUB-0008` postpublish evidence를 GitHub Release asset으로 업로드한다.
+- [x] `ATW-F9-PUB-0009` postpublish evidence asset URL을 evidence manifest에 기록한다.
+- [x] `ATW-F9-PUB-0010` npm provenance/Trusted Publishing 사용 가능 여부를 docs/npm-publishing.md에 최신화한다.
+- [x] `ATW-F9-PUB-0011` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0012` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PUB-0013` Publish Workflow / Postpublish Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PUB-0014` Publish Workflow / Postpublish Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PUB-0015` Publish Workflow / Postpublish Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-PUB-0016` Publish Workflow / Postpublish Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-PUB-0017` Publish Workflow / Postpublish Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PUB-0018` Publish Workflow / Postpublish Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PUB-0019` Publish Workflow / Postpublish Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PUB-0020` Publish Workflow / Postpublish Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PUB-0021` Publish Workflow / Postpublish Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PUB-0022` Publish Workflow / Postpublish Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PUB-0023` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0024` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PUB-0025` Publish Workflow / Postpublish Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PUB-0026` Publish Workflow / Postpublish Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PUB-0027` Publish Workflow / Postpublish Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-PUB-0028` Publish Workflow / Postpublish Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-PUB-0029` Publish Workflow / Postpublish Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PUB-0030` Publish Workflow / Postpublish Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PUB-0031` Publish Workflow / Postpublish Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PUB-0032` Publish Workflow / Postpublish Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PUB-0033` Publish Workflow / Postpublish Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PUB-0034` Publish Workflow / Postpublish Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PUB-0035` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0036` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PUB-0037` Publish Workflow / Postpublish Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PUB-0038` Publish Workflow / Postpublish Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PUB-0039` Publish Workflow / Postpublish Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-PUB-0040` Publish Workflow / Postpublish Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-PUB-0041` Publish Workflow / Postpublish Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PUB-0042` Publish Workflow / Postpublish Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PUB-0043` Publish Workflow / Postpublish Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PUB-0044` Publish Workflow / Postpublish Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PUB-0045` Publish Workflow / Postpublish Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PUB-0046` Publish Workflow / Postpublish Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PUB-0047` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0048` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PUB-0049` Publish Workflow / Postpublish Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PUB-0050` Publish Workflow / Postpublish Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PUB-0051` Publish Workflow / Postpublish Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-PUB-0052` Publish Workflow / Postpublish Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-PUB-0053` Publish Workflow / Postpublish Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PUB-0054` Publish Workflow / Postpublish Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PUB-0055` Publish Workflow / Postpublish Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PUB-0056` Publish Workflow / Postpublish Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PUB-0057` Publish Workflow / Postpublish Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PUB-0058` Publish Workflow / Postpublish Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PUB-0059` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0060` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PUB-0061` Publish Workflow / Postpublish Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PUB-0062` Publish Workflow / Postpublish Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PUB-0063` Publish Workflow / Postpublish Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-PUB-0064` Publish Workflow / Postpublish Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-PUB-0065` Publish Workflow / Postpublish Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PUB-0066` Publish Workflow / Postpublish Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PUB-0067` Publish Workflow / Postpublish Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PUB-0068` Publish Workflow / Postpublish Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PUB-0069` Publish Workflow / Postpublish Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PUB-0070` Publish Workflow / Postpublish Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PUB-0071` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0072` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PUB-0073` Publish Workflow / Postpublish Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PUB-0074` Publish Workflow / Postpublish Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PUB-0075` Publish Workflow / Postpublish Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-PUB-0076` Publish Workflow / Postpublish Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-PUB-0077` Publish Workflow / Postpublish Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PUB-0078` Publish Workflow / Postpublish Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PUB-0079` Publish Workflow / Postpublish Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PUB-0080` Publish Workflow / Postpublish Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PUB-0081` Publish Workflow / Postpublish Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PUB-0082` Publish Workflow / Postpublish Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PUB-0083` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0084` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PUB-0085` Publish Workflow / Postpublish Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PUB-0086` Publish Workflow / Postpublish Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PUB-0087` Publish Workflow / Postpublish Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-PUB-0088` Publish Workflow / Postpublish Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-PUB-0089` Publish Workflow / Postpublish Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PUB-0090` Publish Workflow / Postpublish Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PUB-0091` Publish Workflow / Postpublish Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PUB-0092` Publish Workflow / Postpublish Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PUB-0093` Publish Workflow / Postpublish Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PUB-0094` Publish Workflow / Postpublish Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PUB-0095` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0096` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PUB-0097` Publish Workflow / Postpublish Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PUB-0098` Publish Workflow / Postpublish Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PUB-0099` Publish Workflow / Postpublish Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-PUB-0100` Publish Workflow / Postpublish Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-PUB-0101` Publish Workflow / Postpublish Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PUB-0102` Publish Workflow / Postpublish Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PUB-0103` Publish Workflow / Postpublish Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PUB-0104` Publish Workflow / Postpublish Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PUB-0105` Publish Workflow / Postpublish Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PUB-0106` Publish Workflow / Postpublish Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PUB-0107` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0108` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PUB-0109` Publish Workflow / Postpublish Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PUB-0110` Publish Workflow / Postpublish Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PUB-0111` Publish Workflow / Postpublish Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-PUB-0112` Publish Workflow / Postpublish Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-PUB-0113` Publish Workflow / Postpublish Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PUB-0114` Publish Workflow / Postpublish Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PUB-0115` Publish Workflow / Postpublish Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PUB-0116` Publish Workflow / Postpublish Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PUB-0117` Publish Workflow / Postpublish Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PUB-0118` Publish Workflow / Postpublish Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PUB-0119` Publish Workflow / Postpublish Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PUB-0120` Publish Workflow / Postpublish Evidence: 9점 이상 self-score 조건을 검증한다.
+
+## SUPVAL. Supabase validate() / migrationReport()
+
+**완료 정의:** SupabaseStore 운영 검증이 실제 DB schema, RPC, RLS, pgvector, migration 상태를 확인한다.
+
+- [x] `ATW-F9-SUPVAL-0001` SupabaseStore.validate()가 `{ ok: true }` stub을 반환하지 않도록 한다.
+- [x] `ATW-F9-SUPVAL-0002` SupabaseStore.validate()가 `atlas_wiki.records` 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0003` SupabaseStore.validate()가 `atlas_wiki.sources` 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0004` SupabaseStore.validate()가 `atlas_wiki.chunks` 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0005` SupabaseStore.validate()가 `atlas_wiki.embedding_profiles` 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0006` SupabaseStore.validate()가 `atlas_wiki.embeddings` 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0007` SupabaseStore.validate()가 `atlas_wiki.audit_events` 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0008` SupabaseStore.validate()가 `atlas_wiki.chunk_search` RPC 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0009` SupabaseStore.validate()가 `atlas_wiki.rag_search` RPC 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0010` SupabaseStore.validate()가 `atlas_wiki.upsert_record_cas` RPC 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0011` SupabaseStore.validate()가 pgvector extension 존재를 검사한다.
+- [x] `ATW-F9-SUPVAL-0012` SupabaseStore.validate()가 RLS enabled 상태를 검사한다.
+- [x] `ATW-F9-SUPVAL-0013` SupabaseStore.validate()가 force RLS 상태를 검사한다.
+- [x] `ATW-F9-SUPVAL-0014` SupabaseStore.validate()가 missing table/function을 findings에 기록한다.
+- [x] `ATW-F9-SUPVAL-0015` SupabaseStore.migrationReport()가 expected migration ids/files를 반환한다.
+- [x] `ATW-F9-SUPVAL-0016` SupabaseStore.migrationReport()가 DB에 적용된 migration 상태를 확인한다.
+- [x] `ATW-F9-SUPVAL-0017` SupabaseStore.migrationReport()가 pending/missing/out-of-order를 보고한다.
+- [x] `ATW-F9-SUPVAL-0018` Supabase validate/migrationReport mock test를 추가한다.
+- [x] `ATW-F9-SUPVAL-0019` Supabase local validate/migrationReport smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0020` README에 `await store.validate()` 운영 예시를 추가한다.
+- [x] `ATW-F9-SUPVAL-0021` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0022` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0023` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0024` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0025` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0026` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0027` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0028` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0029` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0030` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0031` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0032` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0033` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0034` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0035` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0036` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0037` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0038` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0039` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0040` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0041` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0042` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0043` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0044` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0045` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0046` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0047` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0048` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0049` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0050` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0051` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0052` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0053` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0054` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0055` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0056` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0057` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0058` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0059` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0060` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0061` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0062` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0063` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0064` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0065` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0066` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0067` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0068` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0069` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0070` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0071` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0072` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0073` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0074` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0075` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0076` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0077` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0078` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0079` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0080` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0081` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0082` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0083` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0084` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0085` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0086` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0087` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0088` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0089` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0090` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0091` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0092` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0093` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0094` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0095` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0096` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0097` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0098` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0099` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0100` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0101` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0102` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0103` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0104` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0105` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0106` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0107` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0108` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0109` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0110` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0111` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0112` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0113` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0114` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0115` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0116` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0117` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0118` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0119` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0120` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0121` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0122` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0123` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0124` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0125` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0126` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0127` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0128` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0129` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0130` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0131` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0132` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0133` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0134` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0135` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0136` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0137` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0138` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0139` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0140` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0141` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0142` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0143` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0144` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0145` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0146` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0147` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0148` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0149` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0150` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0151` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0152` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0153` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0154` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0155` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0156` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0157` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0158` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0159` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0160` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0161` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0162` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0163` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0164` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0165` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0166` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0167` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0168` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPVAL-0169` Supabase validate() / migrationReport(): design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPVAL-0170` Supabase validate() / migrationReport(): TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPVAL-0171` Supabase validate() / migrationReport(): happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0172` Supabase validate() / migrationReport(): failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPVAL-0173` Supabase validate() / migrationReport(): SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0174` Supabase validate() / migrationReport(): Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0175` Supabase validate() / migrationReport(): Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPVAL-0176` Supabase validate() / migrationReport(): CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPVAL-0177` Supabase validate() / migrationReport(): README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPVAL-0178` Supabase validate() / migrationReport(): release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPVAL-0179` Supabase validate() / migrationReport(): release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPVAL-0180` Supabase validate() / migrationReport(): 9점 이상 self-score 조건을 검증한다.
+
+## SUPSCHEMA. Supabase Schema Registry Persistence
+
+**완료 정의:** custom schema contract가 Supabase DB에 저장되고 새 프로세스/새 store에서 재로드된다.
+
+- [x] `ATW-F9-SUPSCHEMA-0001` SupabaseStore.registerSchemaContract()가 records table에 schema_contract record를 저장한다.
+- [x] `ATW-F9-SUPSCHEMA-0002` SupabaseStore.listSchemaContracts()가 memory Map만 보지 않고 DB records에서 schema_contract를 읽어 merge한다.
+- [x] `ATW-F9-SUPSCHEMA-0003` SupabaseStore.getSchemaContract(id)가 DB에 저장된 contract도 반환한다.
+- [x] `ATW-F9-SUPSCHEMA-0004` SupabaseStore.init()이 built-in contract와 DB contract를 merge하는 load step을 수행한다.
+- [x] `ATW-F9-SUPSCHEMA-0005` schema contract 등록 후 새 SupabaseStore instance에서 동일 contract를 읽는 test를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0006` schema contract update 시 revision/CAS 정책을 명확히 한다.
+- [x] `ATW-F9-SUPSCHEMA-0007` unregistered schema ingestStructured는 fail-closed한다.
+- [x] `ATW-F9-SUPSCHEMA-0008` README 예시의 `customer_profile`은 register 후 ingest가 성공해야 한다.
+- [x] `ATW-F9-SUPSCHEMA-0009` `support_case`를 예시로 쓰려면 실제 register도 보여주거나 예시에서 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0010` schema registry docs를 docs/schema.md에 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0011` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0012` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0013` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0014` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0015` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0016` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0017` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0018` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0019` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0020` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0021` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0022` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0023` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0024` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0025` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0026` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0027` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0028` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0029` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0030` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0031` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0032` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0033` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0034` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0035` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0036` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0037` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0038` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0039` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0040` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0041` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0042` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0043` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0044` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0045` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0046` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0047` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0048` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0049` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0050` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0051` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0052` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0053` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0054` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0055` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0056` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0057` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0058` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0059` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0060` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0061` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0062` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0063` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0064` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0065` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0066` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0067` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0068` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0069` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0070` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0071` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0072` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0073` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0074` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0075` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0076` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0077` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0078` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0079` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0080` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0081` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0082` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0083` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0084` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0085` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0086` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0087` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0088` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0089` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0090` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0091` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0092` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0093` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0094` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0095` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0096` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0097` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0098` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0099` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0100` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0101` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0102` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0103` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0104` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0105` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0106` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0107` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0108` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0109` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0110` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0111` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0112` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0113` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0114` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0115` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0116` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0117` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0118` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0119` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0120` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0121` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0122` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0123` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0124` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0125` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0126` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0127` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0128` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0129` Supabase Schema Registry Persistence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPSCHEMA-0130` Supabase Schema Registry Persistence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPSCHEMA-0131` Supabase Schema Registry Persistence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPSCHEMA-0132` Supabase Schema Registry Persistence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPSCHEMA-0133` Supabase Schema Registry Persistence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0134` Supabase Schema Registry Persistence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPSCHEMA-0135` Supabase Schema Registry Persistence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0136` Supabase Schema Registry Persistence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPSCHEMA-0137` Supabase Schema Registry Persistence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0138` Supabase Schema Registry Persistence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0139` Supabase Schema Registry Persistence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPSCHEMA-0140` Supabase Schema Registry Persistence: CLI 또는 SDK smoke를 추가한다.
+
+## SUPRLS. Supabase RLS / pgvector Local Evidence
+
+**완료 정의:** local Supabase smoke 결과를 release evidence에 포함하고 RLS/RPC leakage를 증명한다.
+
+- [x] `ATW-F9-SUPRLS-0001` Supabase local smoke가 pgvector extension 존재를 확인한다.
+- [x] `ATW-F9-SUPRLS-0002` Supabase local smoke가 chunk_search RPC를 호출한다.
+- [x] `ATW-F9-SUPRLS-0003` Supabase local smoke가 rag_search RPC를 호출한다.
+- [x] `ATW-F9-SUPRLS-0004` Supabase local smoke가 unauthorized private chunk leakage를 확인한다.
+- [x] `ATW-F9-SUPRLS-0005` Supabase local smoke가 authorized private chunk hit를 확인한다.
+- [x] `ATW-F9-SUPRLS-0006` Supabase local smoke가 upsert_record_cas conflict를 확인한다.
+- [x] `ATW-F9-SUPRLS-0007` Supabase local smoke 결과를 JSON으로 출력한다.
+- [x] `ATW-F9-SUPRLS-0008` Supabase local smoke 결과 JSON을 release evidence에 포함한다.
+- [x] `ATW-F9-SUPRLS-0009` SUPABASE_LOCAL_TESTS 미설정 skip 상태는 release evidence에서 production proof로 인정하지 않는다.
+- [x] `ATW-F9-SUPRLS-0010` docs/supabase-rag.md에 local smoke 실행법을 작성한다.
+- [x] `ATW-F9-SUPRLS-0011` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0012` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0013` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0014` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0015` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0016` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0017` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0018` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0019` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0020` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0021` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0022` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0023` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0024` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0025` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0026` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0027` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0028` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0029` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0030` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0031` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0032` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0033` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0034` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0035` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0036` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0037` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0038` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0039` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0040` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0041` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0042` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0043` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0044` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0045` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0046` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0047` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0048` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0049` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0050` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0051` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0052` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0053` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0054` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0055` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0056` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0057` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0058` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0059` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0060` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0061` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0062` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0063` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0064` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0065` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0066` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0067` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0068` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0069` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0070` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0071` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0072` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0073` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0074` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0075` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0076` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0077` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0078` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0079` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0080` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0081` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0082` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0083` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0084` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0085` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0086` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0087` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0088` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0089` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0090` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0091` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0092` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0093` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0094` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0095` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0096` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0097` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0098` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0099` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0100` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0101` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0102` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0103` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0104` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0105` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0106` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0107` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0108` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0109` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0110` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0111` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0112` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0113` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0114` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0115` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0116` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0117` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0118` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0119` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0120` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0121` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0122` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0123` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0124` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0125` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0126` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0127` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0128` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0129` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0130` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0131` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0132` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0133` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0134` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0135` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0136` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0137` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0138` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0139` Supabase RLS / pgvector Local Evidence: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0140` Supabase RLS / pgvector Local Evidence: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPRLS-0141` Supabase RLS / pgvector Local Evidence: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPRLS-0142` Supabase RLS / pgvector Local Evidence: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPRLS-0143` Supabase RLS / pgvector Local Evidence: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPRLS-0144` Supabase RLS / pgvector Local Evidence: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPRLS-0145` Supabase RLS / pgvector Local Evidence: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPRLS-0146` Supabase RLS / pgvector Local Evidence: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPRLS-0147` Supabase RLS / pgvector Local Evidence: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0148` Supabase RLS / pgvector Local Evidence: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPRLS-0149` Supabase RLS / pgvector Local Evidence: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPRLS-0150` Supabase RLS / pgvector Local Evidence: Supabase mock 검증을 추가한다.
+
+## SUPDIM. Supabase Dimension Policy
+
+**완료 정의:** 1536-only 또는 custom migration 정책을 타입/런타임/문서/테스트에 완전히 일치시킨다.
+
+- [x] `ATW-F9-SUPDIM-0001` SupabaseStoreOptions.vector.dimensions 타입을 1536-only 또는 explicit custom mode로 좁힌다.
+- [x] `ATW-F9-SUPDIM-0002` createSupabaseStore() 시 `vector.dimensions !== 1536`이면 즉시 명확한 error를 던진다.
+- [x] `ATW-F9-SUPDIM-0003` Gemini provider와 SupabaseStore 조합에서 dimensions mismatch를 index 전에 fail-fast한다.
+- [x] `ATW-F9-SUPDIM-0004` README에 backend별 dimension support matrix를 추가한다.
+- [x] `ATW-F9-SUPDIM-0005` CLI에서 Supabase backend + dimensions != 1536 조합을 금지하거나 warning이 아닌 error로 처리한다.
+- [x] `ATW-F9-SUPDIM-0006` Supabase custom dimension은 docs에서 explicit project migration 필요로만 설명한다.
+- [x] `ATW-F9-SUPDIM-0007` published smoke에 Supabase dimension mismatch import/runtime smoke를 추가한다.
+- [x] `ATW-F9-SUPDIM-0008` tests/supabase-store.test.ts에 dimension mismatch failure를 추가한다.
+- [x] `ATW-F9-SUPDIM-0009` release evidence에 Supabase dimension policy를 기록한다.
+- [x] `ATW-F9-SUPDIM-0010` RAG profile id에 dimensions가 포함되는지 test로 고정한다.
+- [x] `ATW-F9-SUPDIM-0011` Supabase Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPDIM-0012` Supabase Dimension Policy: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPDIM-0013` Supabase Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPDIM-0014` Supabase Dimension Policy: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPDIM-0015` Supabase Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0016` Supabase Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0017` Supabase Dimension Policy: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0018` Supabase Dimension Policy: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0019` Supabase Dimension Policy: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0020` Supabase Dimension Policy: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPDIM-0021` Supabase Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPDIM-0022` Supabase Dimension Policy: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPDIM-0023` Supabase Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPDIM-0024` Supabase Dimension Policy: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPDIM-0025` Supabase Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPDIM-0026` Supabase Dimension Policy: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPDIM-0027` Supabase Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0028` Supabase Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0029` Supabase Dimension Policy: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0030` Supabase Dimension Policy: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0031` Supabase Dimension Policy: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0032` Supabase Dimension Policy: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPDIM-0033` Supabase Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPDIM-0034` Supabase Dimension Policy: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPDIM-0035` Supabase Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPDIM-0036` Supabase Dimension Policy: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPDIM-0037` Supabase Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPDIM-0038` Supabase Dimension Policy: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPDIM-0039` Supabase Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0040` Supabase Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0041` Supabase Dimension Policy: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0042` Supabase Dimension Policy: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0043` Supabase Dimension Policy: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0044` Supabase Dimension Policy: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPDIM-0045` Supabase Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPDIM-0046` Supabase Dimension Policy: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPDIM-0047` Supabase Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPDIM-0048` Supabase Dimension Policy: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPDIM-0049` Supabase Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPDIM-0050` Supabase Dimension Policy: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPDIM-0051` Supabase Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0052` Supabase Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0053` Supabase Dimension Policy: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0054` Supabase Dimension Policy: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0055` Supabase Dimension Policy: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0056` Supabase Dimension Policy: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPDIM-0057` Supabase Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPDIM-0058` Supabase Dimension Policy: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPDIM-0059` Supabase Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPDIM-0060` Supabase Dimension Policy: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPDIM-0061` Supabase Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPDIM-0062` Supabase Dimension Policy: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPDIM-0063` Supabase Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0064` Supabase Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0065` Supabase Dimension Policy: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0066` Supabase Dimension Policy: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0067` Supabase Dimension Policy: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0068` Supabase Dimension Policy: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPDIM-0069` Supabase Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPDIM-0070` Supabase Dimension Policy: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPDIM-0071` Supabase Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPDIM-0072` Supabase Dimension Policy: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPDIM-0073` Supabase Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPDIM-0074` Supabase Dimension Policy: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPDIM-0075` Supabase Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0076` Supabase Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0077` Supabase Dimension Policy: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0078` Supabase Dimension Policy: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0079` Supabase Dimension Policy: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0080` Supabase Dimension Policy: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPDIM-0081` Supabase Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPDIM-0082` Supabase Dimension Policy: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPDIM-0083` Supabase Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPDIM-0084` Supabase Dimension Policy: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPDIM-0085` Supabase Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPDIM-0086` Supabase Dimension Policy: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPDIM-0087` Supabase Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0088` Supabase Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0089` Supabase Dimension Policy: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0090` Supabase Dimension Policy: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0091` Supabase Dimension Policy: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0092` Supabase Dimension Policy: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPDIM-0093` Supabase Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPDIM-0094` Supabase Dimension Policy: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPDIM-0095` Supabase Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPDIM-0096` Supabase Dimension Policy: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPDIM-0097` Supabase Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPDIM-0098` Supabase Dimension Policy: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SUPDIM-0099` Supabase Dimension Policy: happy path unit test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0100` Supabase Dimension Policy: failure path regression test를 작성한다.
+- [x] `ATW-F9-SUPDIM-0101` Supabase Dimension Policy: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0102` Supabase Dimension Policy: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0103` Supabase Dimension Policy: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SUPDIM-0104` Supabase Dimension Policy: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SUPDIM-0105` Supabase Dimension Policy: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SUPDIM-0106` Supabase Dimension Policy: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SUPDIM-0107` Supabase Dimension Policy: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SUPDIM-0108` Supabase Dimension Policy: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SUPDIM-0109` Supabase Dimension Policy: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SUPDIM-0110` Supabase Dimension Policy: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+
+## RAGQ. RAG Evaluation Quality Gate
+
+**완료 정의:** recall@k, MRR, citation precision, leakage count를 release gate로 만든다.
+
+- [x] `ATW-F9-RAGQ-0001` 작은 deterministic RAG eval dataset을 `tests/fixtures/rag-eval/*.json`으로 추가한다.
+- [x] `ATW-F9-RAGQ-0002` eval harness가 recall@k를 계산한다.
+- [x] `ATW-F9-RAGQ-0003` eval harness가 MRR을 계산한다.
+- [x] `ATW-F9-RAGQ-0004` eval harness가 citation precision을 계산한다.
+- [x] `ATW-F9-RAGQ-0005` eval harness가 leakage count를 계산한다.
+- [x] `ATW-F9-RAGQ-0006` SQLite lexical/hybrid/vector eval baseline을 추가한다.
+- [x] `ATW-F9-RAGQ-0007` Supabase mock vector eval baseline을 추가한다.
+- [x] `ATW-F9-RAGQ-0008` RAG eval 실패 기준을 release gate에 넣는다.
+- [x] `ATW-F9-RAGQ-0009` eval 결과를 release evidence에 기록한다.
+- [x] `ATW-F9-RAGQ-0010` README의 Evaluation 문구를 실제 eval command와 연결한다.
+- [x] `ATW-F9-RAGQ-0011` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0012` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0013` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0014` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0015` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0016` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0017` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0018` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0019` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0020` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0021` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0022` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0023` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0024` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0025` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0026` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0027` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0028` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0029` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0030` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0031` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0032` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0033` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0034` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0035` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0036` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0037` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0038` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0039` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0040` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0041` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0042` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0043` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0044` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0045` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0046` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0047` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0048` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0049` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0050` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0051` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0052` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0053` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0054` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0055` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0056` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0057` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0058` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0059` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0060` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0061` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0062` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0063` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0064` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0065` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0066` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0067` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0068` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0069` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0070` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0071` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0072` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0073` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0074` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0075` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0076` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0077` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0078` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0079` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0080` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0081` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0082` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0083` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0084` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0085` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0086` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0087` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0088` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0089` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0090` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0091` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0092` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0093` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0094` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0095` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0096` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0097` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0098` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0099` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0100` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0101` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0102` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0103` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0104` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0105` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0106` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0107` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0108` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0109` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0110` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0111` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0112` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0113` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0114` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0115` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0116` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0117` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0118` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0119` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0120` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0121` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0122` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0123` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0124` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0125` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0126` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0127` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0128` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0129` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0130` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0131` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0132` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0133` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0134` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0135` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0136` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0137` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0138` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0139` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0140` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0141` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0142` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0143` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0144` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0145` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0146` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0147` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0148` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGQ-0149` RAG Evaluation Quality Gate: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0150` RAG Evaluation Quality Gate: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0151` RAG Evaluation Quality Gate: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGQ-0152` RAG Evaluation Quality Gate: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGQ-0153` RAG Evaluation Quality Gate: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGQ-0154` RAG Evaluation Quality Gate: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGQ-0155` RAG Evaluation Quality Gate: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGQ-0156` RAG Evaluation Quality Gate: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGQ-0157` RAG Evaluation Quality Gate: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGQ-0158` RAG Evaluation Quality Gate: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGQ-0159` RAG Evaluation Quality Gate: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGQ-0160` RAG Evaluation Quality Gate: failure path regression test를 작성한다.
+
+## RAGOPS. RAG Operational Diagnostics
+
+**완료 정의:** RAG status, index, search, context-pack diagnostics가 backend별로 정확히 보인다.
+
+- [x] `ATW-F9-RAGOPS-0001` RAG status가 async backend에서 정확한 indexed_chunks를 반환한다.
+- [x] `ATW-F9-RAGOPS-0002` RAG status에 backend capability 정보를 포함한다.
+- [x] `ATW-F9-RAGOPS-0003` RAG search item에 backend/retrieval_path/profile_id를 유지한다.
+- [x] `ATW-F9-RAGOPS-0004` RAG context pack metadata에 backend/retrieval_path summary를 넣는다.
+- [x] `ATW-F9-RAGOPS-0005` RAG index 결과에 skipped reason breakdown을 넣는다.
+- [x] `ATW-F9-RAGOPS-0006` RAG index가 stale embeddings count를 보여준다.
+- [x] `ATW-F9-RAGOPS-0007` RAG search가 vector RPC unavailable과 empty index를 구분한다.
+- [x] `ATW-F9-RAGOPS-0008` RAG diagnostics가 secret text를 포함하지 않도록 한다.
+- [x] `ATW-F9-RAGOPS-0009` MCP rag_status가 async status를 await한다.
+- [x] `ATW-F9-RAGOPS-0010` CLI rag status가 async status를 사용한다.
+- [x] `ATW-F9-RAGOPS-0011` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0012` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGOPS-0013` RAG Operational Diagnostics: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGOPS-0014` RAG Operational Diagnostics: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGOPS-0015` RAG Operational Diagnostics: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0016` RAG Operational Diagnostics: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0017` RAG Operational Diagnostics: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0018` RAG Operational Diagnostics: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0019` RAG Operational Diagnostics: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0020` RAG Operational Diagnostics: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGOPS-0021` RAG Operational Diagnostics: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGOPS-0022` RAG Operational Diagnostics: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGOPS-0023` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0024` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGOPS-0025` RAG Operational Diagnostics: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGOPS-0026` RAG Operational Diagnostics: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGOPS-0027` RAG Operational Diagnostics: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0028` RAG Operational Diagnostics: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0029` RAG Operational Diagnostics: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0030` RAG Operational Diagnostics: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0031` RAG Operational Diagnostics: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0032` RAG Operational Diagnostics: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGOPS-0033` RAG Operational Diagnostics: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGOPS-0034` RAG Operational Diagnostics: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGOPS-0035` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0036` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGOPS-0037` RAG Operational Diagnostics: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGOPS-0038` RAG Operational Diagnostics: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGOPS-0039` RAG Operational Diagnostics: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0040` RAG Operational Diagnostics: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0041` RAG Operational Diagnostics: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0042` RAG Operational Diagnostics: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0043` RAG Operational Diagnostics: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0044` RAG Operational Diagnostics: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGOPS-0045` RAG Operational Diagnostics: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGOPS-0046` RAG Operational Diagnostics: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGOPS-0047` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0048` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGOPS-0049` RAG Operational Diagnostics: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGOPS-0050` RAG Operational Diagnostics: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGOPS-0051` RAG Operational Diagnostics: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0052` RAG Operational Diagnostics: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0053` RAG Operational Diagnostics: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0054` RAG Operational Diagnostics: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0055` RAG Operational Diagnostics: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0056` RAG Operational Diagnostics: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGOPS-0057` RAG Operational Diagnostics: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGOPS-0058` RAG Operational Diagnostics: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGOPS-0059` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0060` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGOPS-0061` RAG Operational Diagnostics: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGOPS-0062` RAG Operational Diagnostics: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGOPS-0063` RAG Operational Diagnostics: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0064` RAG Operational Diagnostics: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0065` RAG Operational Diagnostics: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0066` RAG Operational Diagnostics: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0067` RAG Operational Diagnostics: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0068` RAG Operational Diagnostics: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGOPS-0069` RAG Operational Diagnostics: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGOPS-0070` RAG Operational Diagnostics: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGOPS-0071` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0072` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGOPS-0073` RAG Operational Diagnostics: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGOPS-0074` RAG Operational Diagnostics: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGOPS-0075` RAG Operational Diagnostics: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0076` RAG Operational Diagnostics: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0077` RAG Operational Diagnostics: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0078` RAG Operational Diagnostics: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0079` RAG Operational Diagnostics: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0080` RAG Operational Diagnostics: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGOPS-0081` RAG Operational Diagnostics: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGOPS-0082` RAG Operational Diagnostics: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGOPS-0083` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0084` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGOPS-0085` RAG Operational Diagnostics: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGOPS-0086` RAG Operational Diagnostics: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGOPS-0087` RAG Operational Diagnostics: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0088` RAG Operational Diagnostics: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0089` RAG Operational Diagnostics: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0090` RAG Operational Diagnostics: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0091` RAG Operational Diagnostics: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0092` RAG Operational Diagnostics: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGOPS-0093` RAG Operational Diagnostics: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGOPS-0094` RAG Operational Diagnostics: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGOPS-0095` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0096` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGOPS-0097` RAG Operational Diagnostics: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGOPS-0098` RAG Operational Diagnostics: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGOPS-0099` RAG Operational Diagnostics: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0100` RAG Operational Diagnostics: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0101` RAG Operational Diagnostics: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0102` RAG Operational Diagnostics: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0103` RAG Operational Diagnostics: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0104` RAG Operational Diagnostics: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGOPS-0105` RAG Operational Diagnostics: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGOPS-0106` RAG Operational Diagnostics: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGOPS-0107` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0108` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-RAGOPS-0109` RAG Operational Diagnostics: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-RAGOPS-0110` RAG Operational Diagnostics: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-RAGOPS-0111` RAG Operational Diagnostics: happy path unit test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0112` RAG Operational Diagnostics: failure path regression test를 작성한다.
+- [x] `ATW-F9-RAGOPS-0113` RAG Operational Diagnostics: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0114` RAG Operational Diagnostics: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0115` RAG Operational Diagnostics: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-RAGOPS-0116` RAG Operational Diagnostics: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-RAGOPS-0117` RAG Operational Diagnostics: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-RAGOPS-0118` RAG Operational Diagnostics: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-RAGOPS-0119` RAG Operational Diagnostics: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-RAGOPS-0120` RAG Operational Diagnostics: 9점 이상 self-score 조건을 검증한다.
+
+## CAS. DB-level CAS Finalization
+
+**완료 정의:** CAS가 SQLite/Supabase에서 원자적으로 동작하고 multi-writer race 테스트를 통과한다.
+
+- [x] `ATW-F9-CAS-0001` SQLite upsertRecordCas가 DB-level affected row count를 검사한다.
+- [x] `ATW-F9-CAS-0002` Supabase upsertRecordCas가 RPC conflict를 WriteConflictError 계열로 normalize한다.
+- [x] `ATW-F9-CAS-0003` Supabase CAS RPC error code 40001을 typed error로 매핑한다.
+- [x] `ATW-F9-CAS-0004` multi-writer SQLite race simulation test를 추가한다.
+- [x] `ATW-F9-CAS-0005` Supabase mock concurrent CAS conflict test를 추가한다.
+- [x] `ATW-F9-CAS-0006` MCP admin direct write는 CAS 또는 proposal-only 정책을 문서화한다.
+- [x] `ATW-F9-CAS-0007` upsertRecord()와 upsertRecordCas()의 차이를 docs/storage.md에 설명한다.
+- [x] `ATW-F9-CAS-0008` unsafe overwrite path가 있다면 explicit option 없이는 금지한다.
+- [x] `ATW-F9-CAS-0009` CAS audit event에 expected/actual revision을 기록하되 payload는 기록하지 않는다.
+- [x] `ATW-F9-CAS-0010` release gate에 CAS regression test를 포함한다.
+- [x] `ATW-F9-CAS-0011` DB-level CAS Finalization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CAS-0012` DB-level CAS Finalization: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CAS-0013` DB-level CAS Finalization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CAS-0014` DB-level CAS Finalization: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CAS-0015` DB-level CAS Finalization: happy path unit test를 작성한다.
+- [x] `ATW-F9-CAS-0016` DB-level CAS Finalization: failure path regression test를 작성한다.
+- [x] `ATW-F9-CAS-0017` DB-level CAS Finalization: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CAS-0018` DB-level CAS Finalization: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CAS-0019` DB-level CAS Finalization: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CAS-0020` DB-level CAS Finalization: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CAS-0021` DB-level CAS Finalization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CAS-0022` DB-level CAS Finalization: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CAS-0023` DB-level CAS Finalization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CAS-0024` DB-level CAS Finalization: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CAS-0025` DB-level CAS Finalization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CAS-0026` DB-level CAS Finalization: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CAS-0027` DB-level CAS Finalization: happy path unit test를 작성한다.
+- [x] `ATW-F9-CAS-0028` DB-level CAS Finalization: failure path regression test를 작성한다.
+- [x] `ATW-F9-CAS-0029` DB-level CAS Finalization: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CAS-0030` DB-level CAS Finalization: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CAS-0031` DB-level CAS Finalization: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CAS-0032` DB-level CAS Finalization: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CAS-0033` DB-level CAS Finalization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CAS-0034` DB-level CAS Finalization: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CAS-0035` DB-level CAS Finalization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CAS-0036` DB-level CAS Finalization: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CAS-0037` DB-level CAS Finalization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CAS-0038` DB-level CAS Finalization: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CAS-0039` DB-level CAS Finalization: happy path unit test를 작성한다.
+- [x] `ATW-F9-CAS-0040` DB-level CAS Finalization: failure path regression test를 작성한다.
+- [x] `ATW-F9-CAS-0041` DB-level CAS Finalization: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CAS-0042` DB-level CAS Finalization: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CAS-0043` DB-level CAS Finalization: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CAS-0044` DB-level CAS Finalization: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CAS-0045` DB-level CAS Finalization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CAS-0046` DB-level CAS Finalization: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CAS-0047` DB-level CAS Finalization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CAS-0048` DB-level CAS Finalization: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CAS-0049` DB-level CAS Finalization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CAS-0050` DB-level CAS Finalization: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CAS-0051` DB-level CAS Finalization: happy path unit test를 작성한다.
+- [x] `ATW-F9-CAS-0052` DB-level CAS Finalization: failure path regression test를 작성한다.
+- [x] `ATW-F9-CAS-0053` DB-level CAS Finalization: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CAS-0054` DB-level CAS Finalization: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CAS-0055` DB-level CAS Finalization: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CAS-0056` DB-level CAS Finalization: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CAS-0057` DB-level CAS Finalization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CAS-0058` DB-level CAS Finalization: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CAS-0059` DB-level CAS Finalization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CAS-0060` DB-level CAS Finalization: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CAS-0061` DB-level CAS Finalization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CAS-0062` DB-level CAS Finalization: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CAS-0063` DB-level CAS Finalization: happy path unit test를 작성한다.
+- [x] `ATW-F9-CAS-0064` DB-level CAS Finalization: failure path regression test를 작성한다.
+- [x] `ATW-F9-CAS-0065` DB-level CAS Finalization: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CAS-0066` DB-level CAS Finalization: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CAS-0067` DB-level CAS Finalization: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CAS-0068` DB-level CAS Finalization: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CAS-0069` DB-level CAS Finalization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CAS-0070` DB-level CAS Finalization: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CAS-0071` DB-level CAS Finalization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CAS-0072` DB-level CAS Finalization: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CAS-0073` DB-level CAS Finalization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CAS-0074` DB-level CAS Finalization: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CAS-0075` DB-level CAS Finalization: happy path unit test를 작성한다.
+- [x] `ATW-F9-CAS-0076` DB-level CAS Finalization: failure path regression test를 작성한다.
+- [x] `ATW-F9-CAS-0077` DB-level CAS Finalization: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CAS-0078` DB-level CAS Finalization: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CAS-0079` DB-level CAS Finalization: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CAS-0080` DB-level CAS Finalization: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CAS-0081` DB-level CAS Finalization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CAS-0082` DB-level CAS Finalization: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CAS-0083` DB-level CAS Finalization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CAS-0084` DB-level CAS Finalization: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CAS-0085` DB-level CAS Finalization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CAS-0086` DB-level CAS Finalization: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CAS-0087` DB-level CAS Finalization: happy path unit test를 작성한다.
+- [x] `ATW-F9-CAS-0088` DB-level CAS Finalization: failure path regression test를 작성한다.
+- [x] `ATW-F9-CAS-0089` DB-level CAS Finalization: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-CAS-0090` DB-level CAS Finalization: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-CAS-0091` DB-level CAS Finalization: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-CAS-0092` DB-level CAS Finalization: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-CAS-0093` DB-level CAS Finalization: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-CAS-0094` DB-level CAS Finalization: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-CAS-0095` DB-level CAS Finalization: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-CAS-0096` DB-level CAS Finalization: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-CAS-0097` DB-level CAS Finalization: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-CAS-0098` DB-level CAS Finalization: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-CAS-0099` DB-level CAS Finalization: happy path unit test를 작성한다.
+- [x] `ATW-F9-CAS-0100` DB-level CAS Finalization: failure path regression test를 작성한다.
+
+## DOC. README / Docs Truth Final Pass
+
+**완료 정의:** 모든 README claim/example이 구현과 smoke/typecheck 증거에 연결된다.
+
+- [x] `ATW-F9-DOC-0001` README migration list에 `20260527000800_atlas_wiki_n9_rpc_contracts.sql`을 포함한다.
+- [x] `ATW-F9-DOC-0002` README structured extraction 예시에서 등록하지 않은 `support_case` 사용을 제거하거나 register를 추가한다.
+- [x] `ATW-F9-DOC-0003` README Supabase RAG claim이 실제 SDK RPC path와 일치하는지 확인한다.
+- [x] `ATW-F9-DOC-0004` README RAG status 예시를 async로 수정한다.
+- [x] `ATW-F9-DOC-0005` README dimension policy를 Supabase 1536-only로 명시한다.
+- [x] `ATW-F9-DOC-0006` docs/release-reproducibility.md를 v2 evidence model로 갱신한다.
+- [x] `ATW-F9-DOC-0007` docs/supabase-rag.md를 추가한다.
+- [x] `ATW-F9-DOC-0008` docs/rag.md를 async status, vectorSearch, chunk_search, rag_search 중심으로 갱신한다.
+- [x] `ATW-F9-DOC-0009` docs/schema.md에 schema registry 등록/조회 예시를 추가한다.
+- [x] `ATW-F9-DOC-0010` 문서의 모든 command 예시가 test 또는 smoke와 연결되어야 한다.
+- [x] `ATW-F9-DOC-0011` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0012` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0013` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0014` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0015` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0016` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0017` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0018` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0019` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0020` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0021` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0022` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0023` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0024` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0025` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0026` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0027` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0028` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0029` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0030` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0031` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0032` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0033` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0034` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0035` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0036` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0037` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0038` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0039` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0040` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0041` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0042` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0043` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0044` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0045` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0046` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0047` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0048` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0049` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0050` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0051` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0052` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0053` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0054` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0055` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0056` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0057` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0058` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0059` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0060` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0061` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0062` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0063` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0064` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0065` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0066` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0067` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0068` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0069` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0070` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0071` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0072` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0073` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0074` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0075` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0076` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0077` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0078` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0079` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0080` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0081` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0082` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0083` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0084` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0085` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0086` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0087` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0088` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0089` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0090` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0091` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0092` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0093` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0094` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0095` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0096` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0097` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0098` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0099` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0100` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0101` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0102` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0103` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0104` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0105` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0106` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0107` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0108` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0109` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0110` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0111` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0112` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0113` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0114` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0115` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0116` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0117` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0118` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0119` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0120` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0121` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0122` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0123` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0124` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0125` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0126` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0127` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0128` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0129` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0130` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0131` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0132` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0133` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0134` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0135` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0136` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0137` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0138` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-DOC-0139` README / Docs Truth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-DOC-0140` README / Docs Truth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-DOC-0141` README / Docs Truth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-DOC-0142` README / Docs Truth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-DOC-0143` README / Docs Truth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-DOC-0144` README / Docs Truth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-DOC-0145` README / Docs Truth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-DOC-0146` README / Docs Truth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-DOC-0147` README / Docs Truth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-DOC-0148` README / Docs Truth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-DOC-0149` README / Docs Truth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-DOC-0150` README / Docs Truth Final Pass: Supabase mock 검증을 추가한다.
+
+## PKG. Published Package E2E Smoke
+
+**완료 정의:** npm 설치 패키지 기준 CLI/SDK/MCP/RAG/Supabase import와 restart-safe RAG가 검증된다.
+
+- [x] `ATW-F9-PKG-0001` published package smoke가 `awiki rag index`를 실행한다.
+- [x] `ATW-F9-PKG-0002` published package smoke가 별도 process `awiki rag search --mode vector`를 실행한다.
+- [x] `ATW-F9-PKG-0003` published package smoke가 `atlas-wiki/rag/gemini` import를 검증한다.
+- [x] `ATW-F9-PKG-0004` published package smoke가 `atlas-wiki/supabase` import를 검증한다.
+- [x] `ATW-F9-PKG-0005` published package smoke가 `atlas-wiki/structured` import를 검증한다.
+- [x] `ATW-F9-PKG-0006` published package smoke가 release export schema v2를 검증한다.
+- [x] `ATW-F9-PKG-0007` published package smoke 결과를 postpublish evidence에 저장한다.
+- [x] `ATW-F9-PKG-0008` package smoke에서 CLI bin executable bit를 검증한다.
+- [x] `ATW-F9-PKG-0009` package smoke에서 package version과 packageInfo version을 비교한다.
+- [x] `ATW-F9-PKG-0010` package smoke 실패 시 publish workflow가 실패해야 한다.
+- [x] `ATW-F9-PKG-0011` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0012` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PKG-0013` Published Package E2E Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PKG-0014` Published Package E2E Smoke: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PKG-0015` Published Package E2E Smoke: happy path unit test를 작성한다.
+- [x] `ATW-F9-PKG-0016` Published Package E2E Smoke: failure path regression test를 작성한다.
+- [x] `ATW-F9-PKG-0017` Published Package E2E Smoke: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PKG-0018` Published Package E2E Smoke: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PKG-0019` Published Package E2E Smoke: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PKG-0020` Published Package E2E Smoke: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PKG-0021` Published Package E2E Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PKG-0022` Published Package E2E Smoke: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PKG-0023` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0024` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PKG-0025` Published Package E2E Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PKG-0026` Published Package E2E Smoke: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PKG-0027` Published Package E2E Smoke: happy path unit test를 작성한다.
+- [x] `ATW-F9-PKG-0028` Published Package E2E Smoke: failure path regression test를 작성한다.
+- [x] `ATW-F9-PKG-0029` Published Package E2E Smoke: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PKG-0030` Published Package E2E Smoke: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PKG-0031` Published Package E2E Smoke: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PKG-0032` Published Package E2E Smoke: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PKG-0033` Published Package E2E Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PKG-0034` Published Package E2E Smoke: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PKG-0035` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0036` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PKG-0037` Published Package E2E Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PKG-0038` Published Package E2E Smoke: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PKG-0039` Published Package E2E Smoke: happy path unit test를 작성한다.
+- [x] `ATW-F9-PKG-0040` Published Package E2E Smoke: failure path regression test를 작성한다.
+- [x] `ATW-F9-PKG-0041` Published Package E2E Smoke: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PKG-0042` Published Package E2E Smoke: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PKG-0043` Published Package E2E Smoke: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PKG-0044` Published Package E2E Smoke: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PKG-0045` Published Package E2E Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PKG-0046` Published Package E2E Smoke: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PKG-0047` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0048` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PKG-0049` Published Package E2E Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PKG-0050` Published Package E2E Smoke: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PKG-0051` Published Package E2E Smoke: happy path unit test를 작성한다.
+- [x] `ATW-F9-PKG-0052` Published Package E2E Smoke: failure path regression test를 작성한다.
+- [x] `ATW-F9-PKG-0053` Published Package E2E Smoke: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PKG-0054` Published Package E2E Smoke: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PKG-0055` Published Package E2E Smoke: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PKG-0056` Published Package E2E Smoke: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PKG-0057` Published Package E2E Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PKG-0058` Published Package E2E Smoke: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PKG-0059` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0060` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PKG-0061` Published Package E2E Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PKG-0062` Published Package E2E Smoke: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PKG-0063` Published Package E2E Smoke: happy path unit test를 작성한다.
+- [x] `ATW-F9-PKG-0064` Published Package E2E Smoke: failure path regression test를 작성한다.
+- [x] `ATW-F9-PKG-0065` Published Package E2E Smoke: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PKG-0066` Published Package E2E Smoke: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PKG-0067` Published Package E2E Smoke: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PKG-0068` Published Package E2E Smoke: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PKG-0069` Published Package E2E Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PKG-0070` Published Package E2E Smoke: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PKG-0071` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0072` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PKG-0073` Published Package E2E Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PKG-0074` Published Package E2E Smoke: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PKG-0075` Published Package E2E Smoke: happy path unit test를 작성한다.
+- [x] `ATW-F9-PKG-0076` Published Package E2E Smoke: failure path regression test를 작성한다.
+- [x] `ATW-F9-PKG-0077` Published Package E2E Smoke: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PKG-0078` Published Package E2E Smoke: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PKG-0079` Published Package E2E Smoke: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PKG-0080` Published Package E2E Smoke: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PKG-0081` Published Package E2E Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PKG-0082` Published Package E2E Smoke: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PKG-0083` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0084` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PKG-0085` Published Package E2E Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PKG-0086` Published Package E2E Smoke: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PKG-0087` Published Package E2E Smoke: happy path unit test를 작성한다.
+- [x] `ATW-F9-PKG-0088` Published Package E2E Smoke: failure path regression test를 작성한다.
+- [x] `ATW-F9-PKG-0089` Published Package E2E Smoke: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PKG-0090` Published Package E2E Smoke: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PKG-0091` Published Package E2E Smoke: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PKG-0092` Published Package E2E Smoke: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PKG-0093` Published Package E2E Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PKG-0094` Published Package E2E Smoke: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PKG-0095` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0096` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PKG-0097` Published Package E2E Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PKG-0098` Published Package E2E Smoke: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PKG-0099` Published Package E2E Smoke: happy path unit test를 작성한다.
+- [x] `ATW-F9-PKG-0100` Published Package E2E Smoke: failure path regression test를 작성한다.
+- [x] `ATW-F9-PKG-0101` Published Package E2E Smoke: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PKG-0102` Published Package E2E Smoke: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PKG-0103` Published Package E2E Smoke: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PKG-0104` Published Package E2E Smoke: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PKG-0105` Published Package E2E Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PKG-0106` Published Package E2E Smoke: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PKG-0107` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0108` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-PKG-0109` Published Package E2E Smoke: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-PKG-0110` Published Package E2E Smoke: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-PKG-0111` Published Package E2E Smoke: happy path unit test를 작성한다.
+- [x] `ATW-F9-PKG-0112` Published Package E2E Smoke: failure path regression test를 작성한다.
+- [x] `ATW-F9-PKG-0113` Published Package E2E Smoke: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-PKG-0114` Published Package E2E Smoke: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-PKG-0115` Published Package E2E Smoke: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-PKG-0116` Published Package E2E Smoke: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-PKG-0117` Published Package E2E Smoke: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-PKG-0118` Published Package E2E Smoke: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-PKG-0119` Published Package E2E Smoke: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-PKG-0120` Published Package E2E Smoke: 9점 이상 self-score 조건을 검증한다.
+
+## MCP. MCP Production Auth Final Pass
+
+**완료 정의:** actor-aware admin authz, root/as schema hiding, admin audit가 regression으로 고정된다.
+
+- [x] `ATW-F9-MCP-0001` MCP Production Auth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-MCP-0002` MCP Production Auth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-MCP-0003` MCP Production Auth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-MCP-0004` MCP Production Auth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-MCP-0005` MCP Production Auth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-MCP-0006` MCP Production Auth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-MCP-0007` MCP Production Auth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-MCP-0008` MCP Production Auth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-MCP-0009` MCP Production Auth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-MCP-0010` MCP Production Auth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-MCP-0011` MCP Production Auth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-MCP-0012` MCP Production Auth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-MCP-0013` MCP Production Auth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-MCP-0014` MCP Production Auth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-MCP-0015` MCP Production Auth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-MCP-0016` MCP Production Auth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-MCP-0017` MCP Production Auth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-MCP-0018` MCP Production Auth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-MCP-0019` MCP Production Auth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-MCP-0020` MCP Production Auth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-MCP-0021` MCP Production Auth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-MCP-0022` MCP Production Auth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-MCP-0023` MCP Production Auth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-MCP-0024` MCP Production Auth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-MCP-0025` MCP Production Auth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-MCP-0026` MCP Production Auth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-MCP-0027` MCP Production Auth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-MCP-0028` MCP Production Auth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-MCP-0029` MCP Production Auth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-MCP-0030` MCP Production Auth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-MCP-0031` MCP Production Auth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-MCP-0032` MCP Production Auth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-MCP-0033` MCP Production Auth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-MCP-0034` MCP Production Auth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-MCP-0035` MCP Production Auth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-MCP-0036` MCP Production Auth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-MCP-0037` MCP Production Auth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-MCP-0038` MCP Production Auth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-MCP-0039` MCP Production Auth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-MCP-0040` MCP Production Auth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-MCP-0041` MCP Production Auth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-MCP-0042` MCP Production Auth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-MCP-0043` MCP Production Auth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-MCP-0044` MCP Production Auth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-MCP-0045` MCP Production Auth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-MCP-0046` MCP Production Auth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-MCP-0047` MCP Production Auth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-MCP-0048` MCP Production Auth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-MCP-0049` MCP Production Auth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-MCP-0050` MCP Production Auth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-MCP-0051` MCP Production Auth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-MCP-0052` MCP Production Auth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-MCP-0053` MCP Production Auth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-MCP-0054` MCP Production Auth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-MCP-0055` MCP Production Auth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-MCP-0056` MCP Production Auth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-MCP-0057` MCP Production Auth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-MCP-0058` MCP Production Auth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-MCP-0059` MCP Production Auth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-MCP-0060` MCP Production Auth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-MCP-0061` MCP Production Auth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-MCP-0062` MCP Production Auth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-MCP-0063` MCP Production Auth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-MCP-0064` MCP Production Auth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-MCP-0065` MCP Production Auth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-MCP-0066` MCP Production Auth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-MCP-0067` MCP Production Auth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-MCP-0068` MCP Production Auth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-MCP-0069` MCP Production Auth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-MCP-0070` MCP Production Auth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-MCP-0071` MCP Production Auth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-MCP-0072` MCP Production Auth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-MCP-0073` MCP Production Auth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-MCP-0074` MCP Production Auth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-MCP-0075` MCP Production Auth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-MCP-0076` MCP Production Auth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-MCP-0077` MCP Production Auth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-MCP-0078` MCP Production Auth Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-MCP-0079` MCP Production Auth Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-MCP-0080` MCP Production Auth Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-MCP-0081` MCP Production Auth Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-MCP-0082` MCP Production Auth Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-MCP-0083` MCP Production Auth Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-MCP-0084` MCP Production Auth Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-MCP-0085` MCP Production Auth Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-MCP-0086` MCP Production Auth Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-MCP-0087` MCP Production Auth Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-MCP-0088` MCP Production Auth Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-MCP-0089` MCP Production Auth Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-MCP-0090` MCP Production Auth Final Pass: Supabase mock 검증을 추가한다.
+
+## SEC. Security / Secret / Leakage Final Pass
+
+**완료 정의:** embedding/index/extraction/RPC path에서 ACL-before-context와 secret safety를 검증한다.
+
+- [x] `ATW-F9-SEC-0001` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0002` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0003` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0004` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0005` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0006` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0007` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0008` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0009` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0010` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0011` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0012` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SEC-0013` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0014` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0015` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0016` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0017` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0018` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0019` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0020` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0021` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0022` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0023` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0024` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SEC-0025` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0026` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0027` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0028` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0029` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0030` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0031` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0032` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0033` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0034` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0035` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0036` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SEC-0037` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0038` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0039` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0040` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0041` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0042` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0043` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0044` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0045` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0046` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0047` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0048` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SEC-0049` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0050` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0051` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0052` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0053` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0054` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0055` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0056` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0057` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0058` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0059` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0060` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SEC-0061` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0062` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0063` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0064` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0065` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0066` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0067` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0068` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0069` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0070` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0071` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0072` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SEC-0073` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0074` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0075` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0076` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0077` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0078` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0079` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0080` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0081` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0082` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0083` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0084` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SEC-0085` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0086` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0087` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0088` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0089` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0090` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0091` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0092` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0093` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0094` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0095` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0096` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SEC-0097` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0098` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0099` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0100` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0101` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0102` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0103` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0104` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0105` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0106` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0107` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0108` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SEC-0109` Security / Secret / Leakage Final Pass: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SEC-0110` Security / Secret / Leakage Final Pass: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SEC-0111` Security / Secret / Leakage Final Pass: happy path unit test를 작성한다.
+- [x] `ATW-F9-SEC-0112` Security / Secret / Leakage Final Pass: failure path regression test를 작성한다.
+- [x] `ATW-F9-SEC-0113` Security / Secret / Leakage Final Pass: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SEC-0114` Security / Secret / Leakage Final Pass: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SEC-0115` Security / Secret / Leakage Final Pass: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SEC-0116` Security / Secret / Leakage Final Pass: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SEC-0117` Security / Secret / Leakage Final Pass: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SEC-0118` Security / Secret / Leakage Final Pass: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SEC-0119` Security / Secret / Leakage Final Pass: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SEC-0120` Security / Secret / Leakage Final Pass: 9점 이상 self-score 조건을 검증한다.
+
+## SCORE. 9+ Scoring / Release Decision
+
+**완료 정의:** 각 영역 9.0 이상 self-score가 증거와 함께 release evidence에 기록된다.
+
+- [x] `ATW-F9-SCORE-0001` selfScore는 release evidence에 자동 생성한다.
+- [x] `ATW-F9-SCORE-0002` selfScore 각 영역에는 evidence path가 있어야 한다.
+- [x] `ATW-F9-SCORE-0003` 9.0 미만 selfScore가 있으면 verifier가 실패한다.
+- [x] `ATW-F9-SCORE-0004` Supabase 관련 score는 Supabase validate/local smoke 없이 9점 이상 기록 금지.
+- [x] `ATW-F9-SCORE-0005` Release reproducibility score는 non-empty evidence와 CI URL 없이는 9점 이상 금지.
+- [x] `ATW-F9-SCORE-0006` RAG quality score는 eval metrics 없이 9점 이상 금지.
+- [x] `ATW-F9-SCORE-0007` Docs score는 README example smoke 없이 9점 이상 금지.
+- [x] `ATW-F9-SCORE-0008` Security score는 leakage tests 없이 9점 이상 금지.
+- [x] `ATW-F9-SCORE-0009` 최종 release note에 scorecard 요약을 포함한다.
+- [x] `ATW-F9-SCORE-0010` GitHub Release에 scorecard artifact를 첨부한다.
+- [x] `ATW-F9-SCORE-0011` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0012` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0013` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0014` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0015` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0016` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0017` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0018` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0019` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0020` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0021` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0022` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SCORE-0023` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0024` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0025` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0026` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0027` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0028` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0029` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0030` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0031` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0032` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0033` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0034` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SCORE-0035` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0036` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0037` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0038` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0039` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0040` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0041` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0042` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0043` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0044` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0045` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0046` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SCORE-0047` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0048` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0049` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0050` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0051` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0052` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0053` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0054` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0055` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0056` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0057` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0058` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SCORE-0059` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0060` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0061` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0062` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0063` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0064` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0065` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0066` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0067` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0068` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0069` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0070` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SCORE-0071` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0072` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0073` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0074` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0075` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0076` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0077` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0078` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0079` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0080` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0081` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0082` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SCORE-0083` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0084` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0085` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0086` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0087` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0088` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0089` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0090` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0091` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0092` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0093` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0094` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SCORE-0095` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0096` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0097` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0098` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0099` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0100` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0101` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0102` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0103` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0104` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0105` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0106` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SCORE-0107` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0108` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0109` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0110` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0111` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0112` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0113` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0114` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0115` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0116` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0117` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0118` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+- [x] `ATW-F9-SCORE-0119` 9+ Scoring / Release Decision: release:check 또는 dedicated gate에 연결한다.
+- [x] `ATW-F9-SCORE-0120` 9+ Scoring / Release Decision: 9점 이상 self-score 조건을 검증한다.
+- [x] `ATW-F9-SCORE-0121` 9+ Scoring / Release Decision: design note와 acceptance criteria를 작성한다.
+- [x] `ATW-F9-SCORE-0122` 9+ Scoring / Release Decision: TypeScript implementation을 추가하거나 기존 stub을 제거한다.
+- [x] `ATW-F9-SCORE-0123` 9+ Scoring / Release Decision: happy path unit test를 작성한다.
+- [x] `ATW-F9-SCORE-0124` 9+ Scoring / Release Decision: failure path regression test를 작성한다.
+- [x] `ATW-F9-SCORE-0125` 9+ Scoring / Release Decision: SQLite 또는 local backend 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0126` 9+ Scoring / Release Decision: Supabase mock 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0127` 9+ Scoring / Release Decision: Supabase local/opt-in 검증을 추가한다.
+- [x] `ATW-F9-SCORE-0128` 9+ Scoring / Release Decision: CLI 또는 SDK smoke를 추가한다.
+- [x] `ATW-F9-SCORE-0129` 9+ Scoring / Release Decision: README/docs를 실제 구현과 일치시킨다.
+- [x] `ATW-F9-SCORE-0130` 9+ Scoring / Release Decision: release evidence에 증거 path를 기록한다.
+
+## 4. Required Implementation Shape
+
+### 4.1 Supabase validate() 목표
+
+```ts
+async validate(): Promise<ValidationReport> {
+  // checks tables, functions, RLS, pgvector, expected migrations
+}
+```
+- [x] `ATW-F9-SHAPE-VALIDATE-001` missing table은 `supabase_missing_table:<name>` finding으로 기록한다.
+- [x] `ATW-F9-SHAPE-VALIDATE-002` missing RPC는 `supabase_missing_rpc:<name>` finding으로 기록한다.
+- [x] `ATW-F9-SHAPE-VALIDATE-003` missing pgvector는 `supabase_missing_extension:vector` finding으로 기록한다.
+- [x] `ATW-F9-SHAPE-VALIDATE-004` RLS disabled는 `supabase_rls_disabled:<table>` finding으로 기록한다.
+- [x] `ATW-F9-SHAPE-VALIDATE-005` validate()는 절대 unconditional ok를 반환하지 않는다.
+
+### 4.2 Release evidence v2 목표
+
+```txt
+release-evidence/
+  latest.json
+  prepublish-v<version>.json
+  postpublish-v<version>.json   # GitHub Release asset
+```
+- [x] `ATW-F9-SHAPE-EVIDENCE-001` repo에 빈 JSON placeholder를 두지 않는다.
+- [x] `ATW-F9-SHAPE-EVIDENCE-002` `latest.json`은 non-empty summary로 유지한다.
+- [x] `ATW-F9-SHAPE-EVIDENCE-003` prepublish evidence는 commit 가능한 deterministic source evidence를 담는다.
+- [x] `ATW-F9-SHAPE-EVIDENCE-004` postpublish evidence는 npm registry와 published smoke 결과를 담는다.
+- [x] `ATW-F9-SHAPE-EVIDENCE-005` GitHub Release asset URL을 postpublish evidence에 기록한다.
+
+## 5. Final Gates
+
+- [x] `ATW-F9-GATE-001` `npm run typecheck` 통과.
+- [x] `ATW-F9-GATE-002` `npm run build` 통과.
+- [x] `ATW-F9-GATE-003` `npm run lint` 통과.
+- [x] `ATW-F9-GATE-004` `npm run test` 통과.
+- [x] `ATW-F9-GATE-005` `npm run test:rag` 통과.
+- [x] `ATW-F9-GATE-006` `npm run test:structured` 통과.
+- [x] `ATW-F9-GATE-007` `npm run test:store-contract` 통과.
+- [x] `ATW-F9-GATE-008` `npm run test:supabase:mock` 통과.
+- [x] `ATW-F9-GATE-009` `SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local` 통과.
+- [x] `ATW-F9-GATE-010` `npm run test:mcp` 통과.
+- [x] `ATW-F9-GATE-011` `npm run test:security` 통과.
+- [x] `ATW-F9-GATE-012` `npm run test:context-leakage` 통과.
+- [x] `ATW-F9-GATE-013` `npm run test:audit` 통과.
+- [x] `ATW-F9-GATE-014` `npm run test:types` 통과.
+- [x] `ATW-F9-GATE-015` `npm run schemas:validate` 통과.
+- [x] `ATW-F9-GATE-016` `npm run package:verify` 통과.
+- [x] `ATW-F9-GATE-017` `npm run package:dry-run` 통과.
+- [x] `ATW-F9-GATE-018` `npm run package:smoke` 통과.
+- [x] `ATW-F9-GATE-019` `npm run release:next-stable-generate` 통과.
+- [x] `ATW-F9-GATE-020` `npm run release:next-stable-verify` 통과.
+- [x] `ATW-F9-GATE-021` `npm run release:check` 통과.
+- [x] `ATW-F9-GATE-022` `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@<version> npm run release:published-check` 통과.
+
+## 6. Manual Acceptance
+
+- [x] `ATW-F9-MANUAL-001` fresh clone에서 release-evidence JSON이 빈 파일이 아님을 확인한다.
+- [x] `ATW-F9-MANUAL-002` fresh clone에서 `npm ci && npm run release:check` 통과.
+- [x] `ATW-F9-MANUAL-003` Supabase validate()가 실제 missing RPC를 탐지하는 fixture를 확인한다.
+- [x] `ATW-F9-MANUAL-004` Supabase migrationReport()가 expected migration list를 반환한다.
+- [x] `ATW-F9-MANUAL-005` schema contract 등록 후 새 SupabaseStore instance에서 reload되는지 확인한다.
+- [x] `ATW-F9-MANUAL-006` Supabase local smoke가 `chunk_search`, `rag_search`, `upsert_record_cas`를 실제 호출한다.
+- [x] `ATW-F9-MANUAL-007` published package smoke가 CLI RAG restart-safe vector search를 확인한다.
+- [x] `ATW-F9-MANUAL-008` README custom schema 예시를 그대로 실행해 성공하는지 확인한다.
+- [x] `ATW-F9-MANUAL-009` GitHub Release에 postpublish evidence asset이 첨부되는지 확인한다.
+- [x] `ATW-F9-MANUAL-010` scorecard 모든 항목이 9.0 이상이며 evidence path가 존재하는지 확인한다.
+
+## 7. Release Note Template
+
+```md
+Atlas WiKi <version> completes the final 9+ closure pass after 0.2.0 RC.
+
+- Release evidence no longer uses empty placeholders.
+- Supabase validate() and migrationReport() verify real tables, RPCs, RLS, and pgvector state.
+- Supabase schema contracts persist and reload across store instances.
+- Supabase local pgvector/RLS smoke is captured as release evidence.
+- RAG eval metrics are part of release gates.
+- Published package smoke verifies CLI RAG vector restart behavior.
+- README examples are aligned with executable SDK/CLI flows.
+```
+
+## 8. Done Means Done
+
+- [x] `ATW-F9-DONE-001` 모든 체크박스가 `[x]`여야 한다.
+- [x] `ATW-F9-DONE-002` release evidence JSON이 하나라도 빈 파일이면 release 금지.
+- [x] `ATW-F9-DONE-003` Supabase validate/migrationReport가 stub이면 release 금지.
+- [x] `ATW-F9-DONE-004` Supabase schema contract가 DB reload되지 않으면 release 금지.
+- [x] `ATW-F9-DONE-005` CI green run URL이 evidence에 없으면 9점 이상 선언 금지.
+- [x] `ATW-F9-DONE-006` Supabase local smoke 결과가 없으면 Supabase production RAG claim 금지.
+- [x] `ATW-F9-DONE-007` RAG eval metrics가 없으면 RAG quality 9점 이상 선언 금지.
+- [x] `ATW-F9-DONE-008` README 예시가 smoke/typecheck로 검증되지 않으면 docs 9점 이상 선언 금지.

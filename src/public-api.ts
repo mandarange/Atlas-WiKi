@@ -5,7 +5,7 @@ export { SqliteStore, ensureDataRoot } from "./store/sqlite-store.js";
 export { createSupabaseStore, SupabaseStore } from "./store/supabase/index.js";
 export { createAdminAtlasWikiServer, createAtlasWikiMcpServer, createReadonlyAtlasWikiServer, startStdioMcpServer, adminAtlasWikiToolNames, atlasWikiToolNames, readonlyAtlasWikiToolNames } from "./mcp/server.js";
 export { buildGovernanceReport, governanceWorkflows } from "./governance/index.js";
-export { evalHarnesses, runMockEvalSuite } from "./eval/harness.js";
+export { defaultRagEvalDataset, evalHarnesses, runLiveRagEvalDataset, runMockEvalSuite, runRagEvalDataset } from "./eval/harness.js";
 export { packageInfo } from "./package-info.js";
 export { assertReleaseEvidenceManifest, releaseEvidenceSchema, releaseEvidenceSummary } from "./release/manifest.js";
 export { recordSchemaDescriptors, recordSchemaIds, schemaById, schemas } from "./schemas/index.js";
@@ -20,6 +20,7 @@ export { DeterministicEmbeddingProvider, RagEmbeddingProviderError, RagService, 
 export type * from "./core/records/index.js";
 export type * from "./rag/index.js";
 export type * from "./release/manifest.js";
+export type * from "./eval/harness.js";
 export type * from "./store/store-contract.js";
 export type * from "./structured/index.js";
 export type * from "./mcp/server.js";

@@ -16,3 +16,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run release:check
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: atlas-wiki-release-gate-evidence
+          path: |
+            release-evidence/latest.json
+            release-evidence/atlas-wiki-vNEXT.json
+            release-evidence/prepublish-v*.json
+            release-evidence/rag-eval-v*.json
+            release-evidence/package-smoke-v*.json
+            release-evidence/supabase-local-smoke-v*.json
+          if-no-files-found: error

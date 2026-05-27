@@ -1,0 +1,32 @@
+{
+  "schema": "atlas-wiki.supabase-local-smoke.v1",
+  "package": {
+    "name": "atlas-wiki",
+    "version": "0.2.1"
+  },
+  "generated_at": "2026-05-27T11:07:13.351Z",
+  "outputPath": "release-evidence/supabase-local-smoke-v0.2.1.json",
+  "command": "SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local",
+  "ok": true,
+  "status": "passed",
+  "container": "supabase_db_Atlas-WiKi",
+  "result": "supabase local rag/rls smoke ok",
+  "assertions": [
+    "atlas_wiki.records table exists",
+    "atlas_wiki.chunks table exists",
+    "atlas_wiki.embedding_profiles table exists",
+    "atlas_wiki.embeddings table exists",
+    "pgvector extension exists",
+    "atlas_wiki.rag_search RPC exists",
+    "atlas_wiki.validate_contract RPC exists",
+    "atlas_wiki.migration_report RPC exists",
+    "records RLS hides private source from unauthorized actor",
+    "chunk_search returns authenticated internal chunk",
+    "rag_search hides unauthorized private chunk",
+    "rag_search returns authorized private chunk",
+    "rag_search returns authenticated internal chunk",
+    "upsert_record_cas rejects unauthorized updates",
+    "validate_contract returns no findings",
+    "migration_report returns expected migration rows"
+  ]
+}

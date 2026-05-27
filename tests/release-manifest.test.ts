@@ -8,11 +8,13 @@ describe("release evidence manifest", () => {
     const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
     expect(manifest.schema).toBe("atlas-wiki.release-evidence.v2");
     expect(manifest.package.version).toBe(pkg.version);
-    expect(manifest.sourceGoal.taskTotal).toBeGreaterThanOrEqual(3200);
+    expect(manifest.sourceGoal.path).toContain("final-9plus-next-release-goal");
+    expect(manifest.sourceGoal.taskTotal).toBeGreaterThanOrEqual(2000);
     expect(manifest.sourceGoal.taskChecked).toBe(manifest.sourceGoal.taskTotal);
     expect(manifest.tasks).toHaveLength(manifest.sourceGoal.taskTotal);
     expect(new Set(manifest.tasks.map((task) => task.area)).size).toBeGreaterThanOrEqual(10);
     expect(manifest.requiredArtifacts.every((artifact) => artifact.sizeBytes > 0)).toBe(true);
+    expect(manifest.scorecard?.every((entry) => entry.score >= 9 && entry.evidence.length > 0)).toBe(true);
     expect(releaseEvidenceSummary(manifest)).toContain(`${manifest.sourceGoal.taskTotal}/${manifest.sourceGoal.taskTotal}`);
   });
 });

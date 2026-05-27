@@ -4,7 +4,7 @@ Evaluation focuses on ACL leakage, redaction, freshness, conflict markers, citat
 
 ## Core Link
 
-`src/eval/harness.ts` defines the typed eval harness registry and a mock suite for release-gate smoke checks.
+`src/eval/harness.ts` defines the typed eval harness registry plus a live AtlasWiki RAG release gate. `scripts/run-rag-eval.mjs` indexes the bundled dataset through the SDK and writes `release-evidence/rag-eval-v<version>.json` with `execution: "live_atlas_wiki"`, `recall_at_k`, `mrr`, `citation_precision`, and `leakage_count`.
 
 ## Security
 
@@ -12,8 +12,8 @@ Eval harnesses default to secure expectations: no permission leakage, no unredac
 
 ## Verification
 
-`tests/eval-governance.test.ts` checks harness coverage, golden fixture names, and mock metrics.
+`tests/eval-governance.test.ts` checks harness coverage, golden fixture names, mock metrics, live RAG scoring, and citation precision failure when a result has text but no citation quote.
 
 ## Operator Notes
 
-Use mock evals for package smoke and replace them with dataset-backed evals before promoting production deployments.
+Use the default live gate for local release evidence. Production deployments should add project-specific golden datasets before raising quality claims beyond the bundled release gate.

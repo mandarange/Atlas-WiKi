@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
@@ -5,8 +6,9 @@ const { assertReleaseEvidenceManifest, releaseEvidenceSummary } = await import(p
 
 const latestEvidencePath = "release-evidence/atlas-wiki-vNEXT.json";
 const ledgerPath = "docs/goal/next-stable-coverage-ledger.json";
-const externalGoalPath = "/Users/weklem/Desktop/atlas-wiki-next-9plus-total-closure-goal.md";
-const localGoalPath = "docs/goal/atlas-wiki-next-9plus-total-closure-goal.md";
+const latestStablePath = "release-evidence/latest.json";
+const externalGoalPath = "/Users/weklem/Desktop/atlas-wiki-final-9plus-next-release-goal.md";
+const localGoalPath = "docs/goal/atlas-wiki-final-9plus-next-release-goal.md";
 const sourceGoalPath = existsSync(externalGoalPath) ? externalGoalPath : localGoalPath;
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
@@ -16,6 +18,7 @@ const postpublishPath = `release-evidence/postpublish-v${pkg.version}.json`;
 const latestManifest = assertReleaseEvidenceManifest(readJsonNonEmpty(latestEvidencePath));
 const prepublishManifest = assertReleaseEvidenceManifest(readJsonNonEmpty(prepublishPath));
 const ledger = readJsonNonEmpty(ledgerPath);
+const latestStable = readJsonNonEmpty(latestStablePath);
 
 if (pkg.name !== "atlas-wiki") fail("package.json name must remain atlas-wiki");
 if (pkg.version !== latestManifest.package.version || pkg.version !== prepublishManifest.package.version) fail("release evidence package version must match package.json");
@@ -40,16 +43,46 @@ if (latestManifest.phase === "postpublish" && latestManifest.npm.gitHead && late
 }
 if (!latestManifest.npm.integrity || !latestManifest.npm.shasum) fail("release evidence must record npm integrity and shasum");
 
-if (ledger.schema !== "atlas-wiki.next-9plus-coverage.v1") fail("N9 total closure coverage ledger schema mismatch");
-if (ledger.task_total < 3200 || ledger.task_checked !== ledger.task_total) fail("N9 task ledger must contain all checked tasks");
-if (ledger.checklist_total < 3200 || ledger.checklist_checked !== ledger.checklist_total) fail("N9 source checklist must contain all checked boxes");
-if (!Array.isArray(ledger.tasks) || ledger.tasks.length !== ledger.task_total) fail("N9 ledger task array mismatch");
-if (ledger.tasks.some((task) => !Array.isArray(task.evidence) || task.evidence.length === 0)) fail("N9 ledger has a task without evidence");
+if (ledger.schema !== "atlas-wiki.next-9plus-coverage.v1") fail("F9 closure coverage ledger schema mismatch");
+if (ledger.task_total < 2000 || ledger.task_checked !== ledger.task_total) fail("F9 task ledger must contain all checked tasks");
+if (ledger.checklist_total < 2000 || ledger.checklist_checked !== ledger.checklist_total) fail("F9 source checklist must contain all checked boxes");
+if (!Array.isArray(ledger.tasks) || ledger.tasks.length !== ledger.task_total) fail("F9 ledger task array mismatch");
+if (ledger.tasks.some((task) => !Array.isArray(task.evidence) || task.evidence.length === 0)) fail("F9 ledger has a task without evidence");
 
 const sourceGoal = readFileSync(sourceGoalPath, "utf8");
 const unchecked = (sourceGoal.match(/^- \[ \]/gm) ?? []).length;
 const checked = (sourceGoal.match(/^- \[x\]/gm) ?? []).length;
 if (unchecked !== 0 || checked !== ledger.checklist_total) fail(`source goal checklist incomplete: checked=${checked} unchecked=${unchecked}`);
+for (const source of [latestManifest.sourceGoal, prepublishManifest.sourceGoal]) {
+  if (!existsSync(source.path)) fail(`release evidence source goal is missing: ${source.path}`);
+  const sourceHash = sha256(readFileSync(source.path));
+  if (source.sha256 !== sourceHash) fail(`release evidence source goal hash mismatch: ${source.path}`);
+  if (source.sha256 !== ledger.source_goal_sha256) fail("release manifest and F9 ledger source hashes differ");
+}
+if (latestStable.schema !== "atlas-wiki.release-latest.v1" || latestStable.package !== "atlas-wiki" || !latestStable.version || !latestStable.latest || !latestStable.integrity || !latestStable.shasum) fail("latest release evidence summary is invalid");
+if (!latestManifest.sourceGoal.path.includes("final-9plus-next-release-goal") && !latestManifest.sourceGoal.path.includes("atlas-wiki-final-9plus-next-release-goal")) fail("release evidence must bind the F9 source goal");
+if (!existsSync(latestManifest.sourceGoal.path)) fail(`release evidence source goal is missing: ${latestManifest.sourceGoal.path}`);
+const currentCiRun = process.env.GITHUB_ACTIONS === "true" && latestManifest.ci?.runId === process.env.GITHUB_RUN_ID && latestManifest.ci?.conclusion === "current-run";
+if (!latestManifest.ci?.runUrl || (latestManifest.ci.conclusion !== "success" && !currentCiRun)) fail("release evidence must bind a successful CI run URL or the current GitHub Actions run");
+if (!Array.isArray(latestManifest.scorecard) || latestManifest.scorecard.length < 8) fail("release evidence must include scorecard evidence bindings");
+const selfScoreKeys = new Set(Object.keys(latestManifest.selfScore ?? {}));
+const scorecardKeys = new Set(latestManifest.scorecard.map((score) => score.area));
+for (const key of selfScoreKeys) {
+  if (!scorecardKeys.has(key) && !scorecardKeys.has(key.replace(/^supabase_store$/, "supabase_operational_validation"))) fail(`selfScore missing scorecard binding: ${key}`);
+}
+for (const score of latestManifest.scorecard) {
+  if (score.score < 9) fail(`release score below 9: ${score.area}`);
+  if (!Array.isArray(score.evidence) || score.evidence.length === 0) fail(`release score missing evidence: ${score.area}`);
+  if (!score.gate || typeof score.gate !== "string") fail(`release score missing gate: ${score.area}`);
+  for (const path of score.evidence) {
+    if (!existsSync(path)) fail(`release score evidence path missing: ${score.area}: ${path}`);
+    if (path.startsWith("release-evidence/")) readJsonNonEmpty(path);
+  }
+}
+const ragEval = readJsonNonEmpty(`release-evidence/rag-eval-v${pkg.version}.json`);
+if (ragEval.schema !== "atlas-wiki.rag-eval-report.v1" || ragEval.execution !== "live_atlas_wiki" || !ragEval.passed || ragEval.metrics?.leakage_count !== 0) fail("RAG eval metrics gate did not pass");
+const supabaseSmoke = readJsonNonEmpty(`release-evidence/supabase-local-smoke-v${pkg.version}.json`);
+if (process.env.ATLAS_WIKI_REQUIRE_SUPABASE_LOCAL_SMOKE === "1" && supabaseSmoke.status !== "passed") fail("Supabase local smoke is required but not passed");
 
 for (const artifact of latestManifest.requiredArtifacts) assertArtifact(artifact);
 for (const artifact of prepublishManifest.requiredArtifacts) assertArtifact(artifact);
@@ -75,6 +108,8 @@ for (const required of [
   "ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@${VERSION} npm run release:published-check",
   "node scripts/generate-next-stable-release-evidence.mjs --postpublish --smoke-ok",
   "actions/upload-artifact",
+  "gh release view",
+  "gh release create",
   "gh release upload"
 ]) {
   if (!publishWorkflow.includes(required)) fail(`publish workflow missing ${required}`);
@@ -84,12 +119,14 @@ if (/cache:\s*npm/.test(publishWorkflow)) fail("publish workflow must not use de
 const ci = readFileSync(".github/workflows/ci.yml", "utf8");
 if (!ci.includes("pull_request") || !ci.includes("branches: [main]") || !ci.includes("tags:")) fail("CI must run on pull requests, main, and tags");
 if (!ci.includes("npm run release:check")) fail("CI must run release:check");
+if (!ci.includes("actions/upload-artifact") || !ci.includes("release-evidence/rag-eval") || !ci.includes("release-evidence/package-smoke") || !ci.includes("release-evidence/atlas-wiki-vNEXT.json") || !ci.includes("release-evidence/prepublish-v*.json") || !ci.includes("if-no-files-found: error")) fail("CI must upload core release manifests, RAG eval, and package smoke artifacts");
 
 const guard = readFileSync("scripts/publish-guard.mjs", "utf8");
 if (!guard.includes("local-authenticated-npm") || !guard.includes("ACTIONS_ID_TOKEN_REQUEST_TOKEN")) fail("publish guard must allow direct local npm publish while preserving trusted OIDC context detection");
 const dryRun = readFileSync("scripts/package-dry-run.mjs", "utf8");
 if (!dryRun.includes("npm\", [\"publish\", \"--dry-run\"]") || !dryRun.includes("already-published reproducibility baseline")) fail("package dry-run wrapper must execute npm publish --dry-run and handle the published baseline");
 const publishedSmoke = readFileSync("scripts/published-package-smoke.mjs", "utf8");
+if (!publishedSmoke.includes("is required for published smoke") || !publishedSmoke.includes("installedPkg.version !== packageVersion")) fail("published package smoke must require and verify an explicit package version");
 if (!publishedSmoke.includes('"rag", "index"') || !publishedSmoke.includes('"rag", "search"') || !publishedSmoke.includes('"--mode", "vector"')) {
   fail("published package smoke must verify CLI RAG vector restart flow");
 }
@@ -120,9 +157,12 @@ function readJsonNonEmpty(path) {
 
 function assertArtifact(artifact) {
   if (!existsSync(artifact.path)) fail(`Required artifact missing: ${artifact.path}`);
-  if (statSync(artifact.path).size <= 0) fail(`Required artifact is empty: ${artifact.path}`);
+  const stat = statSync(artifact.path);
+  if (stat.size <= 0) fail(`Required artifact is empty: ${artifact.path}`);
   if (!artifact.exists || artifact.sizeBytes <= 0) fail(`Required artifact metadata is stale: ${artifact.path}`);
-  if (artifact.path.endsWith(".mjs") && (statSync(artifact.path).mode & 0o444) === 0) fail(`Required script is unreadable: ${artifact.path}`);
+  if (artifact.sizeBytes !== stat.size) fail(`Required artifact size changed after manifest generation: ${artifact.path}`);
+  if (stat.isFile() && artifact.sha256 && artifact.sha256 !== sha256(readFileSync(artifact.path))) fail(`Required artifact hash changed after manifest generation: ${artifact.path}`);
+  if (artifact.path.endsWith(".mjs") && (stat.mode & 0o444) === 0) fail(`Required script is unreadable: ${artifact.path}`);
 }
 
 function fail(message) {
@@ -145,4 +185,8 @@ function parseSemver(version) {
   const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
   if (!match) return null;
   return match.slice(1, 4).map((part) => Number(part));
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
 }

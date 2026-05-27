@@ -17,6 +17,19 @@ import { callRpc } from "./rpc.js";
 import type { SupabaseLikeClient, SupabaseStoreOptions } from "./types.js";
 
 const SUPABASE_DEFAULT_VECTOR_DIMENSIONS = 1536;
+const SUPABASE_EXPECTED_MIGRATIONS = [
+  "20260527000100_atlas_wiki_core",
+  "20260527000200_atlas_wiki_rls",
+  "20260527000300_atlas_wiki_audit",
+  "20260527000400_atlas_wiki_structured_records",
+  "20260527000500_atlas_wiki_vector_optional",
+  "20260527000600_atlas_wiki_search_rpc",
+  "20260527000700_atlas_wiki_rag_pgvector",
+  "20260527000800_atlas_wiki_n9_rpc_contracts",
+  "20260527000900_atlas_wiki_validation_contract"
+] as const;
+const SUPABASE_REQUIRED_TABLES = ["records", "sources", "chunks", "record_acl", "proposals", "audit_events", "structured_objects", "extraction_runs", "embedding_profiles", "embeddings"] as const;
+const SUPABASE_REQUIRED_RPCS = ["chunk_search", "rag_search"] as const;
 
 export class SupabaseStore implements AtlasWikiStore {
   readonly options: SupabaseStoreOptions;
@@ -24,6 +37,7 @@ export class SupabaseStore implements AtlasWikiStore {
   private schemaContracts = new Map<string, StructuredSchemaContract>(builtInSchemaContracts.map((contract) => [contract.id, normalizeSchemaContract(contract)]));
 
   constructor(options: SupabaseStoreOptions) {
+    assertSupabaseStoreOptions(options);
     this.options = options;
   }
 
@@ -243,23 +257,67 @@ export class SupabaseStore implements AtlasWikiStore {
       conflict_keys: normalized.conflictKeys
     };
     await this.upsertRecord(record, { actor: this.options.actor ?? { id: "service:schema-registry", type: "service" } });
+    this.schemaContracts.set(normalized.id, normalized);
   }
 
   async listSchemaContracts(): Promise<StructuredSchemaContract[]> {
-    return [...this.schemaContracts.values()].map(normalizeSchemaContract);
+    const byId = new Map<string, StructuredSchemaContract>(builtInSchemaContracts.map((contract) => [contract.id, normalizeSchemaContract(contract)]));
+    for (const contract of this.schemaContracts.values()) byId.set(contract.id, normalizeSchemaContract(contract));
+    for (const contract of await this.loadStoredSchemaContracts()) byId.set(contract.id, normalizeSchemaContract(contract));
+    this.schemaContracts = new Map(byId);
+    return [...byId.values()].map(normalizeSchemaContract);
   }
 
   async getSchemaContract(id: string): Promise<StructuredSchemaContract | undefined> {
-    const contract = this.schemaContracts.get(id);
-    return contract ? normalizeSchemaContract(contract) : undefined;
+    return (await this.listSchemaContracts()).find((contract) => contract.id === id);
   }
 
   async validate(): Promise<ValidationReport> {
-    return { ok: true, findings: [] };
+    const client = this.requireClient();
+    const findings = new Set<string>();
+    if (client.rpc) {
+      const report = await rpcMaybe(client, "validate_contract", {});
+      if (report.ok) {
+        for (const finding of normalizeFindings(report.data)) findings.add(finding);
+        return { ok: findings.size === 0, findings: [...findings].sort() };
+      }
+      findings.add("supabase_missing_rpc:validate_contract");
+    } else {
+      findings.add("supabase_missing_rpc:validate_contract");
+    }
+
+    for (const table of SUPABASE_REQUIRED_TABLES) {
+      const result = await queryMaybe(client.from(table).select("id").limit(1));
+      if (!result.ok) findings.add(`supabase_missing_table:${table}`);
+    }
+    for (const fn of SUPABASE_REQUIRED_RPCS) {
+      const result = await rpcMaybe(client, fn, validationRpcArgs(fn));
+      if (!result.ok) {
+        findings.add(`supabase_missing_rpc:${fn}`);
+        if (String(result.error?.message ?? "").toLowerCase().includes("vector")) findings.add("supabase_missing_extension:vector");
+      }
+    }
+    return { ok: findings.size === 0, findings: [...findings].sort() };
   }
 
-  migrationReport() {
-    return { ok: true, backend: "supabase", applied_count: 0, pending_count: 0 };
+  async migrationReport(): Promise<{ ok: boolean; backend: "supabase"; applied_count: number; pending_count: number; entries: unknown[] }> {
+    const client = this.requireClient();
+    const expected = [...SUPABASE_EXPECTED_MIGRATIONS];
+    const report = await rpcMaybe(client, "migration_report", { expected_versions: expected });
+    if (!report.ok) {
+      return {
+        ok: false,
+        backend: "supabase",
+        applied_count: 0,
+        pending_count: expected.length,
+        entries: expected.map((version) => ({ version, status: "pending", finding: "supabase_missing_rpc:migration_report" }))
+      };
+    }
+    const entries = Array.isArray(report.data) ? report.data as unknown[] : [];
+    const statuses = entries.map((entry) => isRecord(entry) ? stringField(entry, "status") : undefined);
+    const applied = statuses.filter((status) => status === "applied").length;
+    const pending = statuses.filter((status) => status === "pending").length || Math.max(0, expected.length - applied);
+    return { ok: pending === 0 && applied >= expected.length, backend: "supabase", applied_count: applied, pending_count: pending, entries };
   }
 
   async listRagIndexChunks(actor: ActorRef, limit = 100): Promise<RagIndexChunk[]> {
@@ -469,6 +527,16 @@ export class SupabaseStore implements AtlasWikiStore {
     const record = await this.fetch(sourceId, actor);
     return record?.kind === "source" ? record as SourceRecord : undefined;
   }
+
+  private async loadStoredSchemaContracts(): Promise<StructuredSchemaContract[]> {
+    if (!this.client) return [];
+    const result = await queryMaybe(this.client.from("records").select("json").eq("kind", "schema_contract").is("deleted_at", null).limit(1000));
+    if (!result.ok || !Array.isArray(result.data)) return [];
+    return result.data
+      .map((row) => isRecord(row) ? rowToRecord({ json: row.json }) : undefined)
+      .filter((record): record is SchemaContractRecord => Boolean(record && record.kind === "schema_contract"))
+      .map(schemaContractFromRecord);
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -504,6 +572,65 @@ function assertSupabaseVectorDimensions(dimensions: number, vector?: readonly nu
       dimensions,
       vectorDimensions: vector?.length
     });
+  }
+}
+
+function assertSupabaseStoreOptions(options: SupabaseStoreOptions): void {
+  if (!options.vector?.enabled) return;
+  if (options.vector.dimensions !== SUPABASE_DEFAULT_VECTOR_DIMENSIONS) {
+    throw new SupabaseStoreError("Supabase pgvector RPC supports 1536 dimensions by default; custom dimensions require an explicit project migration", {
+      expected: SUPABASE_DEFAULT_VECTOR_DIMENSIONS,
+      dimensions: options.vector.dimensions,
+      dimensionPolicy: options.vector.dimensionPolicy ?? "atlas_wiki_default_1536"
+    });
+  }
+}
+
+function schemaContractFromRecord(record: SchemaContractRecord): StructuredSchemaContract {
+  return normalizeSchemaContract({
+    id: record.id,
+    name: record.name,
+    version: record.version,
+    description: record.description,
+    jsonSchema: record.json_schema,
+    requiredFields: record.required_fields,
+    identityFields: record.identity_fields,
+    confidenceThreshold: record.confidence_threshold,
+    conflictKeys: record.conflict_keys
+  });
+}
+
+function validationRpcArgs(fn: string): Record<string, unknown> {
+  if (fn === "chunk_search") return { search_text: "", actor_id: "service:validate", actor_groups: [], max_results: 1 };
+  return { query_embedding: Array.from({ length: SUPABASE_DEFAULT_VECTOR_DIMENSIONS }, (_, index) => index === 0 ? 1 : 0), actor_id: "service:validate", actor_groups: [], max_results: 1, target_profile_id: null };
+}
+
+function normalizeFindings(data: unknown): string[] {
+  if (!Array.isArray(data)) return [];
+  return data.flatMap((row) => {
+    if (typeof row === "string") return [row];
+    if (!isRecord(row)) return [];
+    const finding = stringField(row, "finding");
+    return finding ? [finding] : [];
+  });
+}
+
+async function rpcMaybe(client: SupabaseLikeClient, fn: string, args: Record<string, unknown>): Promise<{ ok: true; data: unknown } | { ok: false; error?: { message?: string | undefined } | undefined }> {
+  if (!client.rpc) return { ok: false };
+  try {
+    return await queryMaybe(client.rpc(fn, args));
+  } catch (error) {
+    return { ok: false, error: { message: error instanceof Error ? error.message : String(error) } };
+  }
+}
+
+async function queryMaybe(query: PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<{ ok: true; data: unknown } | { ok: false; error?: { message?: string | undefined } | undefined }> {
+  try {
+    const result = await query;
+    if (result.error) return { ok: false, error: result.error };
+    return { ok: true, data: result.data };
+  } catch (error) {
+    return { ok: false, error: { message: error instanceof Error ? error.message : String(error) } };
   }
 }
 

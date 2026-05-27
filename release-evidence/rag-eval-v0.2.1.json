@@ -1,0 +1,38 @@
+{
+  "schema": "atlas-wiki.rag-eval-report.v1",
+  "execution": "live_atlas_wiki",
+  "dataset": "atlas-wiki-default-rag-release-gate",
+  "topK": 3,
+  "passed": true,
+  "metrics": {
+    "recall_at_k": 1,
+    "mrr": 1,
+    "citation_precision": 1,
+    "leakage_count": 0
+  },
+  "cases": [
+    {
+      "id": "rag-citation-policy",
+      "query": "manager approval remote work",
+      "relevant_rank": 1,
+      "recall_hit": true,
+      "reciprocal_rank": 1,
+      "citation_precision": 1,
+      "leakage_count": 0,
+      "mode_used": "hybrid",
+      "indexed_chunks": 1
+    },
+    {
+      "id": "rag-security-redaction",
+      "query": "browser service role key policy",
+      "relevant_rank": 1,
+      "recall_hit": true,
+      "reciprocal_rank": 1,
+      "citation_precision": 1,
+      "leakage_count": 0,
+      "mode_used": "hybrid",
+      "indexed_chunks": 1
+    }
+  ],
+  "outputPath": "release-evidence/rag-eval-v0.2.1.json"
+}

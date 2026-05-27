@@ -33341,10 +33341,5 @@
     "stableLocalPublishBlocked": true,
     "trustedPublishingWorkflow": ".github/workflows/publish.yml",
     "emergencyOverrideEnv": "ATLAS_WIKI_EMERGENCY_LOCAL_PUBLISH"
-  },
-  "latestSummary": {
-    "phaseEvidencePath": "release-evidence/prepublish-v0.2.1.json",
-    "prepublishEvidencePath": "release-evidence/prepublish-v0.2.1.json",
-    "postpublishEvidencePath": "release-evidence/postpublish-v0.2.1.json"
   }
 }

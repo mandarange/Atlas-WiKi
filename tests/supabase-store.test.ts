@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { createSupabaseStore } from "../src/index.js";
 import type { SupabaseLikeClient, SupabaseQueryBuilder, SupabaseResult } from "../src/store/supabase/index.js";
+
+const expectedSupabaseMigrations = [
+  "20260527000100_atlas_wiki_core",
+  "20260527000200_atlas_wiki_rls",
+  "20260527000300_atlas_wiki_audit",
+  "20260527000400_atlas_wiki_structured_records",
+  "20260527000500_atlas_wiki_vector_optional",
+  "20260527000600_atlas_wiki_search_rpc",
+  "20260527000700_atlas_wiki_rag_pgvector",
+  "20260527000800_atlas_wiki_n9_rpc_contracts",
+  "20260527000900_atlas_wiki_validation_contract"
+];
 
 class MockBuilder implements SupabaseQueryBuilder {
   constructor(private readonly rows: unknown[], private readonly onWrite: (table: string, value: unknown) => void, private readonly table: string) {}
@@ -26,7 +39,7 @@ class MockBuilder implements SupabaseQueryBuilder {
   }
 }
 
-function mockClient(initial: Record<string, unknown[]> = {}) {
+function mockClient(initial: Record<string, unknown[]> = {}, options: { validationFindings?: string[]; pendingMigrations?: string[] } = {}) {
   const tables = new Map<string, unknown[]>(Object.entries(initial));
   const writes: Array<{ table: string; value: unknown }> = [];
   const rpcCalls: Array<{ fn: string; args?: Record<string, unknown> }> = [];
@@ -40,11 +53,30 @@ function mockClient(initial: Record<string, unknown[]> = {}) {
     },
     rpc(fn: string, args?: Record<string, unknown>) {
       rpcCalls.push(args ? { fn, args } : { fn });
-      const rows = fn === "upsert_record_cas" ? upsertRecordCasRows(tables, args ?? {}) : fn === "rag_search" || fn === "chunk_search" ? ragSearchRows(tables, args ?? {}) : [];
+      const rows =
+        fn === "upsert_record_cas" ? upsertRecordCasRows(tables, args ?? {}) :
+        fn === "rag_search" || fn === "chunk_search" ? ragSearchRows(tables, args ?? {}) :
+        fn === "validate_contract" ? validationRows(options.validationFindings ?? []) :
+        fn === "migration_report" ? migrationReportRows(args ?? {}, options.pendingMigrations ?? []) :
+        [];
       return new MockBuilder(rows, () => {}, `rpc:${fn}`);
     }
   };
-  return { client, writes, rpcCalls };
+  return { client, writes, rpcCalls, tables };
+}
+
+function validationRows(findings: string[]): unknown[] {
+  return findings.map((finding) => ({ finding }));
+}
+
+function migrationReportRows(args: Record<string, unknown>, pending: string[]): unknown[] {
+  const expected = Array.isArray(args.expected_versions) ? args.expected_versions.map(String) : expectedSupabaseMigrations;
+  return expected.map((version) => ({
+    version,
+    name: version.replace(/^[0-9]+_/, ""),
+    status: pending.includes(version) ? "pending" : "applied",
+    applied_at: pending.includes(version) ? null : "2026-05-27T00:00:00.000Z"
+  }));
 }
 
 function upsertRecordCasRows(tables: Map<string, unknown[]>, args: Record<string, unknown>): unknown[] {
@@ -109,6 +141,7 @@ describe("SupabaseStore mock adapter", () => {
     expect(search[0]).toMatchObject({ source: { id: source.id }, text: "RLS source" });
     expect(rpcCalls[0]).toMatchObject({ fn: "chunk_search", args: expect.objectContaining({ search_text: "RLS source" }) });
     expect(await store.validate()).toEqual({ ok: true, findings: [] });
+    expect(await store.migrationReport()).toMatchObject({ ok: true, backend: "supabase", applied_count: expectedSupabaseMigrations.length, pending_count: 0 });
   });
 
   it("stores and reads mock Supabase RAG embeddings with Atlas policy re-checks", async () => {
@@ -147,6 +180,61 @@ describe("SupabaseStore mock adapter", () => {
     const result = await store.upsertRecordCas({ ...source, title: "CAS updated" }, { actor, expectedRevision: 1 });
     expect(result).toMatchObject({ created: false, previousRevision: 1, revision: 2, record: { title: "CAS updated", revision: 2 } });
     expect(rpcCalls.at(-1)).toMatchObject({ fn: "upsert_record_cas", args: expect.objectContaining({ expected_revision: 1, allow_create: false }) });
+  });
+
+  it("reports Supabase validation and migration findings instead of unconditional ok", async () => {
+    const pending = "20260527000900_atlas_wiki_validation_contract";
+    const { client } = mockClient({}, {
+      validationFindings: ["supabase_missing_rpc:rag_search", "supabase_missing_extension:vector"],
+      pendingMigrations: [pending]
+    });
+    const store = createSupabaseStore({ url: "http://localhost:54321", key: "anon", client });
+    await store.init();
+    expect(await store.validate()).toEqual({ ok: false, findings: ["supabase_missing_extension:vector", "supabase_missing_rpc:rag_search"] });
+    expect(await store.migrationReport()).toMatchObject({ ok: false, backend: "supabase", applied_count: expectedSupabaseMigrations.length - 1, pending_count: 1 });
+  });
+
+  it("reloads custom schema contracts from Supabase records across store instances", async () => {
+    const { client } = mockClient();
+    const first = createSupabaseStore({ url: "http://localhost:54321", key: "anon", client });
+    await first.init();
+    await first.registerSchemaContract({
+      id: "support_case",
+      name: "Support Case",
+      version: "1",
+      jsonSchema: { type: "object", required: ["case_id", "summary"] },
+      requiredFields: ["case_id", "summary"],
+      identityFields: ["case_id"],
+      confidenceThreshold: 0.8,
+      conflictKeys: ["case_id"]
+    });
+    const second = createSupabaseStore({ url: "http://localhost:54321", key: "anon", client });
+    await second.init();
+    expect(await second.getSchemaContract("support_case")).toMatchObject({ id: "support_case", requiredFields: ["case_id", "summary"] });
+  });
+
+  it("fails fast when Supabase vector options request non-1536 dimensions", () => {
+    expect(() => createSupabaseStore({
+      url: "http://localhost:54321",
+      key: "anon",
+      vector: { enabled: true, dimensions: 1024, metric: "cosine" }
+    })).toThrow(/1536 dimensions/);
+  });
+
+  it("keeps committed Supabase SQL contracts aligned with ACL and validation evidence", () => {
+    const rpcSql = readFileSync("supabase/migrations/20260527000800_atlas_wiki_n9_rpc_contracts.sql", "utf8");
+    const validationSql = readFileSync("supabase/migrations/20260527000900_atlas_wiki_validation_contract.sql", "utf8");
+    const localSmoke = readFileSync("scripts/supabase-local-test.mjs", "utf8");
+
+    expect(rpcSql).toContain("acl.principal_type = 'authenticated'");
+    expect(rpcSql).toContain("atlas_wiki.can_write_record(target_id)");
+    expect(rpcSql).toContain("record CAS create denied");
+    expect(validationSql).toContain("'audit_events'");
+    expect(validationSql).toContain("relforcerowsecurity");
+    expect(localSmoke).toContain("atlas_wiki.validate_contract");
+    expect(localSmoke).toContain("atlas_wiki.migration_report");
+    expect(localSmoke).toContain("upsert_record_cas rejects unauthorized updates");
+    expect(localSmoke).toContain("authenticated internal chunk");
   });
 
   it("applies Atlas actor ACL checks even when the mock client returns rows", async () => {

@@ -38,8 +38,9 @@ as $$
           and acl.permission in ('read', 'admin')
           and (
             acl.principal_type = 'everyone'
-            or acl.principal_id = actor_id
-            or acl.principal_id = any(actor_groups)
+            or acl.principal_type = 'authenticated'
+            or (acl.principal_type = 'user' and acl.principal_id = actor_id)
+            or (acl.principal_type in ('team', 'role') and acl.principal_id = any(actor_groups))
           )
       )
     )
@@ -102,8 +103,9 @@ as $$
           and acl.permission in ('read', 'admin')
           and (
             acl.principal_type = 'everyone'
-            or acl.principal_id = actor_id
-            or acl.principal_id = any(actor_groups)
+            or acl.principal_type = 'authenticated'
+            or (acl.principal_type = 'user' and acl.principal_id = actor_id)
+            or (acl.principal_type in ('team', 'role') and acl.principal_id = any(actor_groups))
           )
       )
     )
@@ -114,7 +116,7 @@ $$;
 grant execute on function atlas_wiki.rag_search(extensions.vector(1536), text, text[], integer, text) to authenticated;
 
 create or replace function atlas_wiki.upsert_record_cas(
-  record_json jsonb,
+  input_record_json jsonb,
   expected_revision integer,
   allow_create boolean default false
 )
@@ -124,7 +126,7 @@ security definer
 set search_path = atlas_wiki, public
 as $$
 declare
-  target_id text := record_json ->> 'id';
+  target_id text := input_record_json ->> 'id';
   existing_revision integer;
   next_revision integer;
   final_json jsonb;
@@ -148,8 +150,22 @@ begin
     if not allow_create or expected_revision <> 0 then
       raise exception 'record CAS conflict for %: expected %, actual null', target_id, expected_revision using errcode = '40001';
     end if;
-    next_revision := greatest(coalesce((record_json ->> 'revision')::integer, 1), 1);
-    final_json := jsonb_set(record_json, '{revision}', to_jsonb(next_revision), true);
+    if not (
+      input_record_json ->> 'kind' = 'proposal'
+      or input_record_json -> 'acl' ->> 'visibility' in ('public', 'internal')
+      or exists (
+        select 1
+        from jsonb_to_recordset(coalesce(input_record_json -> 'acl' -> 'grants', '[]'::jsonb)) as acl_grant(principal_type text, principal_id text, permission text, effect text)
+        where acl_grant.effect = 'allow'
+          and acl_grant.permission in ('write', 'admin')
+          and acl_grant.principal_type = 'user'
+          and acl_grant.principal_id = atlas_wiki.current_actor_id()
+      )
+    ) then
+      raise exception 'record CAS create denied for %', target_id using errcode = '42501';
+    end if;
+    next_revision := greatest(coalesce((input_record_json ->> 'revision')::integer, 1), 1);
+    final_json := jsonb_set(input_record_json, '{revision}', to_jsonb(next_revision), true);
     created_at_value := coalesce((final_json ->> 'created_at')::timestamptz, now());
     updated_at_value := coalesce((final_json ->> 'updated_at')::timestamptz, created_at_value);
 
@@ -176,9 +192,12 @@ begin
   if existing_revision <> expected_revision then
     raise exception 'record CAS conflict for %: expected %, actual %', target_id, expected_revision, existing_revision using errcode = '40001';
   end if;
+  if not atlas_wiki.can_write_record(target_id) then
+    raise exception 'record CAS write denied for %', target_id using errcode = '42501';
+  end if;
 
   next_revision := expected_revision + 1;
-  final_json := jsonb_set(record_json, '{revision}', to_jsonb(next_revision), true);
+  final_json := jsonb_set(input_record_json, '{revision}', to_jsonb(next_revision), true);
   updated_at_value := coalesce((final_json ->> 'updated_at')::timestamptz, now());
 
   update atlas_wiki.records

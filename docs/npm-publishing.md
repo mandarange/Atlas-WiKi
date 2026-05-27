@@ -1,14 +1,22 @@
 # npm Publishing
 
-The package name is `atlas-wiki`. Publish from the repository root with the official npm command:
+The package name is `atlas-wiki`. Stable publishes use GitHub Actions OIDC trusted publishing through `.github/workflows/publish.yml`. Local stable publish is blocked unless `ATLAS_WIKI_EMERGENCY_LOCAL_PUBLISH=true` is set for an auditable emergency.
 
-```sh
-npm publish
-```
+## Core Link
 
-Run `npm publish --dry-run` before publishing. The package intentionally does not set `publishConfig.provenance`, because automatic provenance generation only works in supported CI/OIDC environments and must not block local `npm publish`. CI releases that need provenance can opt in with `npm publish --provenance` from a supported provider.
+`package.json` exposes `package:dry-run`, `package:smoke`, `release:published-check`, and `release:check`. `scripts/publish-guard.mjs` blocks accidental local stable publish. `.github/workflows/publish.yml` runs `npm publish` with `id-token: write`, Node 24, npm 11+, and dependency cache disabled.
 
-Release requires dry-run, tarball install smoke, ESM import smoke, CLI bin smoke, declarations, export allowlist verification, and the post-publish smoke gate.
+## Security
+
+npm trusted publishing uses OIDC from the CI provider and avoids long-lived npm publish tokens. The npm documentation currently requires npm 11.5.1 or later and Node 22.14.0 or later for trusted publishing; Atlas WiKi keeps Node 24+ as the release runtime. The publish workflow disables package-manager cache for the release job and relies on npm's trusted-publishing provenance behavior.
+
+## Verification
+
+Run `npm run package:dry-run` before publishing. The wrapper executes `npm publish --dry-run`; when verifying an already-published baseline such as `0.1.1`, it accepts npm's expected already-published conflict only if the registry version matches `package.json`. Release requires dry-run, tarball install smoke, ESM import smoke, CLI bin smoke, declarations, export allowlist verification, and the post-publish smoke gate.
+
+## Operator Notes
+
+Configure the npm package trusted publisher to match `mandarange/Atlas-WiKi` and `.github/workflows/publish.yml` before using the stable workflow. If the trusted publisher identity does not match the workflow, publish can fail even when the package exists.
 
 ## Release Checklist
 

@@ -1,0 +1,1754 @@
+# Atlas WiKi 0.1.1 이후 세계급 안정화 `/goal` 지시서
+
+```txt
+/goal atlas-wiki-next-stable-after-0.1.1
+project: Atlas WiKi
+npm package: atlas-wiki
+current published baseline: 0.1.1
+target: reproducible, auditable, actually-installable stable core
+source language: TypeScript
+runtime: Node.js 24+
+database: SQLite-first
+default MCP posture: read-only, identity-aware, admin-deny-by-default
+```
+
+## 0. 기준 상황
+
+- npm 배포 기준 패키지명은 `atlas-wiki`다.
+- 다음 작업의 1순위는 기능 추가가 아니라 `npm tarball ↔ GitHub main/tag ↔ CI ↔ release evidence`의 재현성 고정이다.
+- GitHub README/package 문서와 npm 배포 메타데이터가 하나라도 어긋나면 안정화 릴리즈로 간주하지 않는다.
+- MCP는 로컬 read-only 실험용과 production 운영용을 명확히 나눈다.
+- admin MCP는 actor-aware authorization 없이는 절대 write/admin tool을 실행하지 않는다.
+- 이 문서의 체크박스는 구현 완료 표시가 아니라 다음 작업 지시서다. 완료 시 evidence file, test, commit, CI run, npm view 결과를 함께 남긴다.
+
+## 1. 외부 기준 메모
+
+- npm Trusted Publishing은 CI/CD workflow에서 OIDC 인증으로 package를 publish해 long-lived npm token 필요성을 줄이는 방식이다.
+- Node.js `node:sqlite`는 Atlas WiKi의 SQLite-first 런타임 근거이므로 Node 24+ compatibility를 계속 release gate로 유지한다.
+- GitHub main README와 npm package README/install command는 항상 동일해야 한다.
+
+## 2. 절대 릴리즈 게이트
+
+- [x] fresh clone에서 `npm ci`가 성공한다.
+- [x] fresh clone에서 `npm run release:check`가 성공한다.
+- [x] `npm view atlas-wiki version`이 의도한 version과 일치한다.
+- [x] `npm view atlas-wiki gitHead`가 GitHub release tag commit과 일치한다.
+- [x] GitHub `vX.Y.Z` tag가 존재하고 immutable release note가 있다.
+- [x] published tarball 설치 smoke가 registry package 기준으로 통과한다.
+- [x] SDK import smoke가 published package 기준으로 통과한다.
+- [x] CLI smoke가 published package 기준으로 통과한다.
+- [x] MCP read-only smoke가 published package 기준으로 통과한다.
+- [x] admin MCP는 authorizeTool이 없을 때 실패한다.
+- [x] audit tail deletion regression이 통과한다.
+- [x] empty query enumeration regression이 통과한다.
+- [x] source/chunk/claim/proposal/audit fetch policy regression이 통과한다.
+- [x] Windows/root path safety regression이 통과한다.
+- [x] README install command가 npm package name과 일치한다.
+- [x] CHANGELOG에 release, migration, known limits, verification commands가 있다.
+
+## 3. 권장 명령 세트
+
+```bash
+npm ci
+npm run typecheck
+npm run build
+npm run lint
+npm run test
+npm run test:security
+npm run test:migrations
+npm run test:mcp
+npm run test:audit
+npm run test:integration
+npm run test:types
+npm run package:verify
+npm run package:dry-run
+npm run package:smoke
+npm run release:check
+npm view atlas-wiki version dist-tags gitHead dist.integrity time --json
+npm pack atlas-wiki@latest --silent
+node --input-type=module -e "import { packageInfo } from 'atlas-wiki'; console.log(packageInfo)"
+```
+
+## 4. 체크박스 태스크
+
+### REL — Release Reproducibility (P0)
+
+- [x] `P0` `ATW-REL-0001` main branch source, tag, npm tarball, and package gitHead must point to the same immutable release commit: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL-0002` main branch source, tag, npm tarball, and package gitHead must point to the same immutable release commit: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL-0003` main branch source, tag, npm tarball, and package gitHead must point to the same immutable release commit: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL-0004` main branch source, tag, npm tarball, and package gitHead must point to the same immutable release commit: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL-0005` main branch source, tag, npm tarball, and package gitHead must point to the same immutable release commit: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL-0006` main branch source, tag, npm tarball, and package gitHead must point to the same immutable release commit: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL-0007` main branch source, tag, npm tarball, and package gitHead must point to the same immutable release commit: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL-0008` main branch source, tag, npm tarball, and package gitHead must point to the same immutable release commit: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL-0009` no dirty working tree publish is allowed: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL-0010` no dirty working tree publish is allowed: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL-0011` no dirty working tree publish is allowed: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL-0012` no dirty working tree publish is allowed: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL-0013` no dirty working tree publish is allowed: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL-0014` no dirty working tree publish is allowed: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL-0015` no dirty working tree publish is allowed: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL-0016` no dirty working tree publish is allowed: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL-0017` release artifacts must be reproducible from a fresh clone: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL-0018` release artifacts must be reproducible from a fresh clone: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL-0019` release artifacts must be reproducible from a fresh clone: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL-0020` release artifacts must be reproducible from a fresh clone: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL-0021` release artifacts must be reproducible from a fresh clone: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL-0022` release artifacts must be reproducible from a fresh clone: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL-0023` release artifacts must be reproducible from a fresh clone: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL-0024` release artifacts must be reproducible from a fresh clone: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL-0025` v0.1.1 must be backfilled with a GitHub tag and release note if it is already published: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL-0026` v0.1.1 must be backfilled with a GitHub tag and release note if it is already published: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL-0027` v0.1.1 must be backfilled with a GitHub tag and release note if it is already published: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL-0028` v0.1.1 must be backfilled with a GitHub tag and release note if it is already published: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL-0029` v0.1.1 must be backfilled with a GitHub tag and release note if it is already published: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL-0030` v0.1.1 must be backfilled with a GitHub tag and release note if it is already published: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL-0031` v0.1.1 must be backfilled with a GitHub tag and release note if it is already published: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL-0032` v0.1.1 must be backfilled with a GitHub tag and release note if it is already published: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL-0033` future stable releases must be published only from CI or an auditable release script: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL-0034` future stable releases must be published only from CI or an auditable release script: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL-0035` future stable releases must be published only from CI or an auditable release script: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL-0036` future stable releases must be published only from CI or an auditable release script: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL-0037` future stable releases must be published only from CI or an auditable release script: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL-0038` future stable releases must be published only from CI or an auditable release script: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL-0039` future stable releases must be published only from CI or an auditable release script: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL-0040` future stable releases must be published only from CI or an auditable release script: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL-0041` the package name must remain atlas-wiki across package.json, lockfile, packageInfo, README, docs, tests, and smoke scripts: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL-0042` the package name must remain atlas-wiki across package.json, lockfile, packageInfo, README, docs, tests, and smoke scripts: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL-0043` the package name must remain atlas-wiki across package.json, lockfile, packageInfo, README, docs, tests, and smoke scripts: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL-0044` the package name must remain atlas-wiki across package.json, lockfile, packageInfo, README, docs, tests, and smoke scripts: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL-0045` the package name must remain atlas-wiki across package.json, lockfile, packageInfo, README, docs, tests, and smoke scripts: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL-0046` the package name must remain atlas-wiki across package.json, lockfile, packageInfo, README, docs, tests, and smoke scripts: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL-0047` the package name must remain atlas-wiki across package.json, lockfile, packageInfo, README, docs, tests, and smoke scripts: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL-0048` the package name must remain atlas-wiki across package.json, lockfile, packageInfo, README, docs, tests, and smoke scripts: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL-0049` npm dist-tags must be intentionally managed: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL-0050` npm dist-tags must be intentionally managed: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL-0051` npm dist-tags must be intentionally managed: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL-0052` npm dist-tags must be intentionally managed: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL-0053` npm dist-tags must be intentionally managed: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL-0054` npm dist-tags must be intentionally managed: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL-0055` npm dist-tags must be intentionally managed: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL-0056` npm dist-tags must be intentionally managed: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL-0057` every release must include a machine-readable release manifest: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL-0058` every release must include a machine-readable release manifest: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL-0059` every release must include a machine-readable release manifest: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL-0060` every release must include a machine-readable release manifest: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL-0061` every release must include a machine-readable release manifest: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL-0062` every release must include a machine-readable release manifest: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL-0063` every release must include a machine-readable release manifest: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL-0064` every release must include a machine-readable release manifest: bind the behavior to release:check, smoke, or a named regression gate.
+
+### PKG — Published Package Verification (P0)
+
+- [x] `P0` `ATW-PKG-0065` published npm package must pass install, import, CLI, SDK, MCP, and type-consumer smoke tests: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-PKG-0066` published npm package must pass install, import, CLI, SDK, MCP, and type-consumer smoke tests: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-PKG-0067` published npm package must pass install, import, CLI, SDK, MCP, and type-consumer smoke tests: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-PKG-0068` published npm package must pass install, import, CLI, SDK, MCP, and type-consumer smoke tests: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-PKG-0069` published npm package must pass install, import, CLI, SDK, MCP, and type-consumer smoke tests: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-PKG-0070` published npm package must pass install, import, CLI, SDK, MCP, and type-consumer smoke tests: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-PKG-0071` published npm package must pass install, import, CLI, SDK, MCP, and type-consumer smoke tests: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-PKG-0072` published npm package must pass install, import, CLI, SDK, MCP, and type-consumer smoke tests: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-PKG-0073` the installed package must be tested from npm registry, not only from local npm pack: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-PKG-0074` the installed package must be tested from npm registry, not only from local npm pack: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-PKG-0075` the installed package must be tested from npm registry, not only from local npm pack: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-PKG-0076` the installed package must be tested from npm registry, not only from local npm pack: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-PKG-0077` the installed package must be tested from npm registry, not only from local npm pack: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-PKG-0078` the installed package must be tested from npm registry, not only from local npm pack: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-PKG-0079` the installed package must be tested from npm registry, not only from local npm pack: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-PKG-0080` the installed package must be tested from npm registry, not only from local npm pack: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-PKG-0081` tarball file list must match the allowlist: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-PKG-0082` tarball file list must match the allowlist: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-PKG-0083` tarball file list must match the allowlist: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-PKG-0084` tarball file list must match the allowlist: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-PKG-0085` tarball file list must match the allowlist: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-PKG-0086` tarball file list must match the allowlist: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-PKG-0087` tarball file list must match the allowlist: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-PKG-0088` tarball file list must match the allowlist: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-PKG-0089` dist JavaScript and declaration files must be complete: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-PKG-0090` dist JavaScript and declaration files must be complete: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-PKG-0091` dist JavaScript and declaration files must be complete: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-PKG-0092` dist JavaScript and declaration files must be complete: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-PKG-0093` dist JavaScript and declaration files must be complete: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-PKG-0094` dist JavaScript and declaration files must be complete: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-PKG-0095` dist JavaScript and declaration files must be complete: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-PKG-0096` dist JavaScript and declaration files must be complete: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-PKG-0097` bin entries must have a valid shebang and executable mode: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-PKG-0098` bin entries must have a valid shebang and executable mode: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-PKG-0099` bin entries must have a valid shebang and executable mode: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-PKG-0100` bin entries must have a valid shebang and executable mode: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-PKG-0101` bin entries must have a valid shebang and executable mode: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-PKG-0102` bin entries must have a valid shebang and executable mode: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-PKG-0103` bin entries must have a valid shebang and executable mode: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-PKG-0104` bin entries must have a valid shebang and executable mode: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-PKG-0105` exports map must be stable and intentional: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-PKG-0106` exports map must be stable and intentional: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-PKG-0107` exports map must be stable and intentional: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-PKG-0108` exports map must be stable and intentional: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-PKG-0109` exports map must be stable and intentional: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-PKG-0110` exports map must be stable and intentional: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-PKG-0111` exports map must be stable and intentional: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-PKG-0112` exports map must be stable and intentional: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-PKG-0113` npm package metadata must not drift from packageInfo: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-PKG-0114` npm package metadata must not drift from packageInfo: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-PKG-0115` npm package metadata must not drift from packageInfo: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-PKG-0116` npm package metadata must not drift from packageInfo: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-PKG-0117` npm package metadata must not drift from packageInfo: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-PKG-0118` npm package metadata must not drift from packageInfo: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-PKG-0119` npm package metadata must not drift from packageInfo: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-PKG-0120` npm package metadata must not drift from packageInfo: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-PKG-0121` package integrity and shasum must be recorded in release evidence: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-PKG-0122` package integrity and shasum must be recorded in release evidence: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-PKG-0123` package integrity and shasum must be recorded in release evidence: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-PKG-0124` package integrity and shasum must be recorded in release evidence: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-PKG-0125` package integrity and shasum must be recorded in release evidence: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-PKG-0126` package integrity and shasum must be recorded in release evidence: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-PKG-0127` package integrity and shasum must be recorded in release evidence: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-PKG-0128` package integrity and shasum must be recorded in release evidence: bind the behavior to release:check, smoke, or a named regression gate.
+
+### CI — CI, Trusted Publishing, and Provenance (P0)
+
+- [x] `P0` `ATW-CI-0129` CI must run release:check on main, tags, and pull requests: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CI-0130` CI must run release:check on main, tags, and pull requests: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CI-0131` CI must run release:check on main, tags, and pull requests: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CI-0132` CI must run release:check on main, tags, and pull requests: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CI-0133` CI must run release:check on main, tags, and pull requests: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CI-0134` CI must run release:check on main, tags, and pull requests: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CI-0135` CI must run release:check on main, tags, and pull requests: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CI-0136` CI must run release:check on main, tags, and pull requests: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CI-0137` release workflow must use GitHub Actions OIDC trusted publishing when stable publish is enabled: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CI-0138` release workflow must use GitHub Actions OIDC trusted publishing when stable publish is enabled: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CI-0139` release workflow must use GitHub Actions OIDC trusted publishing when stable publish is enabled: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CI-0140` release workflow must use GitHub Actions OIDC trusted publishing when stable publish is enabled: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CI-0141` release workflow must use GitHub Actions OIDC trusted publishing when stable publish is enabled: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CI-0142` release workflow must use GitHub Actions OIDC trusted publishing when stable publish is enabled: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CI-0143` release workflow must use GitHub Actions OIDC trusted publishing when stable publish is enabled: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CI-0144` release workflow must use GitHub Actions OIDC trusted publishing when stable publish is enabled: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CI-0145` local publish must be blocked for stable tags unless explicitly marked emergency: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CI-0146` local publish must be blocked for stable tags unless explicitly marked emergency: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CI-0147` local publish must be blocked for stable tags unless explicitly marked emergency: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CI-0148` local publish must be blocked for stable tags unless explicitly marked emergency: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CI-0149` local publish must be blocked for stable tags unless explicitly marked emergency: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CI-0150` local publish must be blocked for stable tags unless explicitly marked emergency: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CI-0151` local publish must be blocked for stable tags unless explicitly marked emergency: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CI-0152` local publish must be blocked for stable tags unless explicitly marked emergency: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CI-0153` release workflow must run without dependency cache for publish jobs: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CI-0154` release workflow must run without dependency cache for publish jobs: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CI-0155` release workflow must run without dependency cache for publish jobs: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CI-0156` release workflow must run without dependency cache for publish jobs: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CI-0157` release workflow must run without dependency cache for publish jobs: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CI-0158` release workflow must run without dependency cache for publish jobs: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CI-0159` release workflow must run without dependency cache for publish jobs: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CI-0160` release workflow must run without dependency cache for publish jobs: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CI-0161` CI must emit a release evidence artifact: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CI-0162` CI must emit a release evidence artifact: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CI-0163` CI must emit a release evidence artifact: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CI-0164` CI must emit a release evidence artifact: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CI-0165` CI must emit a release evidence artifact: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CI-0166` CI must emit a release evidence artifact: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CI-0167` CI must emit a release evidence artifact: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CI-0168` CI must emit a release evidence artifact: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CI-0169` branch protection must require release:check: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CI-0170` branch protection must require release:check: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CI-0171` branch protection must require release:check: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CI-0172` branch protection must require release:check: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CI-0173` branch protection must require release:check: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CI-0174` branch protection must require release:check: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CI-0175` branch protection must require release:check: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CI-0176` branch protection must require release:check: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CI-0177` tag protection must prevent mutable release tags: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CI-0178` tag protection must prevent mutable release tags: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CI-0179` tag protection must prevent mutable release tags: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CI-0180` tag protection must prevent mutable release tags: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CI-0181` tag protection must prevent mutable release tags: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CI-0182` tag protection must prevent mutable release tags: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CI-0183` tag protection must prevent mutable release tags: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CI-0184` tag protection must prevent mutable release tags: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CI-0185` npm provenance strategy must be documented and tested: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CI-0186` npm provenance strategy must be documented and tested: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CI-0187` npm provenance strategy must be documented and tested: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CI-0188` npm provenance strategy must be documented and tested: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CI-0189` npm provenance strategy must be documented and tested: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CI-0190` npm provenance strategy must be documented and tested: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CI-0191` npm provenance strategy must be documented and tested: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CI-0192` npm provenance strategy must be documented and tested: bind the behavior to release:check, smoke, or a named regression gate.
+
+### MCP — MCP Production Identity and Authorization (P0)
+
+- [x] `P0` `ATW-MCP-0193` production MCP must use server-side actorProvider or explicit static actor: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-MCP-0194` production MCP must use server-side actorProvider or explicit static actor: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-MCP-0195` production MCP must use server-side actorProvider or explicit static actor: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-MCP-0196` production MCP must use server-side actorProvider or explicit static actor: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-MCP-0197` production MCP must use server-side actorProvider or explicit static actor: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-MCP-0198` production MCP must use server-side actorProvider or explicit static actor: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-MCP-0199` production MCP must use server-side actorProvider or explicit static actor: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-MCP-0200` production MCP must use server-side actorProvider or explicit static actor: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-MCP-0201` tool-supplied actor must be development-only: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-MCP-0202` tool-supplied actor must be development-only: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-MCP-0203` tool-supplied actor must be development-only: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-MCP-0204` tool-supplied actor must be development-only: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-MCP-0205` tool-supplied actor must be development-only: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-MCP-0206` tool-supplied actor must be development-only: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-MCP-0207` tool-supplied actor must be development-only: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-MCP-0208` tool-supplied actor must be development-only: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-MCP-0209` admin MCP tools must require actor-aware authorizeTool: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-MCP-0210` admin MCP tools must require actor-aware authorizeTool: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-MCP-0211` admin MCP tools must require actor-aware authorizeTool: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-MCP-0212` admin MCP tools must require actor-aware authorizeTool: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-MCP-0213` admin MCP tools must require actor-aware authorizeTool: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-MCP-0214` admin MCP tools must require actor-aware authorizeTool: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-MCP-0215` admin MCP tools must require actor-aware authorizeTool: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-MCP-0216` admin MCP tools must require actor-aware authorizeTool: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-MCP-0217` admin tools must deny by default: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-MCP-0218` admin tools must deny by default: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-MCP-0219` admin tools must deny by default: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-MCP-0220` admin tools must deny by default: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-MCP-0221` admin tools must deny by default: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-MCP-0222` admin tools must deny by default: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-MCP-0223` admin tools must deny by default: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-MCP-0224` admin tools must deny by default: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-MCP-0225` MCP root must be server-side in production: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-MCP-0226` MCP root must be server-side in production: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-MCP-0227` MCP root must be server-side in production: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-MCP-0228` MCP root must be server-side in production: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-MCP-0229` MCP root must be server-side in production: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-MCP-0230` MCP root must be server-side in production: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-MCP-0231` MCP root must be server-side in production: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-MCP-0232` MCP root must be server-side in production: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-MCP-0233` MCP input schema must not advertise root/as fields in production mode: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-MCP-0234` MCP input schema must not advertise root/as fields in production mode: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-MCP-0235` MCP input schema must not advertise root/as fields in production mode: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-MCP-0236` MCP input schema must not advertise root/as fields in production mode: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-MCP-0237` MCP input schema must not advertise root/as fields in production mode: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-MCP-0238` MCP input schema must not advertise root/as fields in production mode: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-MCP-0239` MCP input schema must not advertise root/as fields in production mode: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-MCP-0240` MCP input schema must not advertise root/as fields in production mode: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-MCP-0241` every MCP call must write audit metadata: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-MCP-0242` every MCP call must write audit metadata: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-MCP-0243` every MCP call must write audit metadata: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-MCP-0244` every MCP call must write audit metadata: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-MCP-0245` every MCP call must write audit metadata: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-MCP-0246` every MCP call must write audit metadata: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-MCP-0247` every MCP call must write audit metadata: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-MCP-0248` every MCP call must write audit metadata: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-MCP-0249` MCP error output must not leak denied content: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-MCP-0250` MCP error output must not leak denied content: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-MCP-0251` MCP error output must not leak denied content: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-MCP-0252` MCP error output must not leak denied content: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-MCP-0253` MCP error output must not leak denied content: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-MCP-0254` MCP error output must not leak denied content: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-MCP-0255` MCP error output must not leak denied content: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-MCP-0256` MCP error output must not leak denied content: bind the behavior to release:check, smoke, or a named regression gate.
+
+### ADM — Admin MCP and Write-Surface Safety (P0)
+
+- [x] `P0` `ATW-ADM-0257` trusted ingest must be admin-only: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ADM-0258` trusted ingest must be admin-only: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ADM-0259` trusted ingest must be admin-only: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ADM-0260` trusted ingest must be admin-only: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ADM-0261` trusted ingest must be admin-only: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ADM-0262` trusted ingest must be admin-only: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ADM-0263` trusted ingest must be admin-only: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ADM-0264` trusted ingest must be admin-only: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ADM-0265` backup creation must be admin-only: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ADM-0266` backup creation must be admin-only: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ADM-0267` backup creation must be admin-only: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ADM-0268` backup creation must be admin-only: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ADM-0269` backup creation must be admin-only: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ADM-0270` backup creation must be admin-only: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ADM-0271` backup creation must be admin-only: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ADM-0272` backup creation must be admin-only: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ADM-0273` index rebuild must be admin-only: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ADM-0274` index rebuild must be admin-only: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ADM-0275` index rebuild must be admin-only: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ADM-0276` index rebuild must be admin-only: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ADM-0277` index rebuild must be admin-only: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ADM-0278` index rebuild must be admin-only: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ADM-0279` index rebuild must be admin-only: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ADM-0280` index rebuild must be admin-only: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ADM-0281` proposal creation must be safe for non-admin but never directly commit approved content: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ADM-0282` proposal creation must be safe for non-admin but never directly commit approved content: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ADM-0283` proposal creation must be safe for non-admin but never directly commit approved content: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ADM-0284` proposal creation must be safe for non-admin but never directly commit approved content: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ADM-0285` proposal creation must be safe for non-admin but never directly commit approved content: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ADM-0286` proposal creation must be safe for non-admin but never directly commit approved content: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ADM-0287` proposal creation must be safe for non-admin but never directly commit approved content: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ADM-0288` proposal creation must be safe for non-admin but never directly commit approved content: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ADM-0289` admin authorization must include actor, toolName, mode, input, root, and purpose: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ADM-0290` admin authorization must include actor, toolName, mode, input, root, and purpose: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ADM-0291` admin authorization must include actor, toolName, mode, input, root, and purpose: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ADM-0292` admin authorization must include actor, toolName, mode, input, root, and purpose: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ADM-0293` admin authorization must include actor, toolName, mode, input, root, and purpose: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ADM-0294` admin authorization must include actor, toolName, mode, input, root, and purpose: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ADM-0295` admin authorization must include actor, toolName, mode, input, root, and purpose: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ADM-0296` admin authorization must include actor, toolName, mode, input, root, and purpose: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ADM-0297` admin actions must have dry-run variants where possible: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ADM-0298` admin actions must have dry-run variants where possible: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ADM-0299` admin actions must have dry-run variants where possible: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ADM-0300` admin actions must have dry-run variants where possible: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ADM-0301` admin actions must have dry-run variants where possible: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ADM-0302` admin actions must have dry-run variants where possible: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ADM-0303` admin actions must have dry-run variants where possible: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ADM-0304` admin actions must have dry-run variants where possible: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ADM-0305` admin actions must create structured audit events: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ADM-0306` admin actions must create structured audit events: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ADM-0307` admin actions must create structured audit events: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ADM-0308` admin actions must create structured audit events: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ADM-0309` admin actions must create structured audit events: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ADM-0310` admin actions must create structured audit events: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ADM-0311` admin actions must create structured audit events: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ADM-0312` admin actions must create structured audit events: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ADM-0313` admin MCP docs must warn against multi-user exposure without identity integration: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ADM-0314` admin MCP docs must warn against multi-user exposure without identity integration: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ADM-0315` admin MCP docs must warn against multi-user exposure without identity integration: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ADM-0316` admin MCP docs must warn against multi-user exposure without identity integration: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ADM-0317` admin MCP docs must warn against multi-user exposure without identity integration: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ADM-0318` admin MCP docs must warn against multi-user exposure without identity integration: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ADM-0319` admin MCP docs must warn against multi-user exposure without identity integration: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ADM-0320` admin MCP docs must warn against multi-user exposure without identity integration: bind the behavior to release:check, smoke, or a named regression gate.
+
+### ACL — Record-Kind-Aware ACL and Policy Resolver (P0)
+
+- [x] `P0` `ATW-ACL-0321` fetch must return AtlasRecord instead of SourceRecord: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ACL-0322` fetch must return AtlasRecord instead of SourceRecord: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ACL-0323` fetch must return AtlasRecord instead of SourceRecord: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ACL-0324` fetch must return AtlasRecord instead of SourceRecord: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ACL-0325` fetch must return AtlasRecord instead of SourceRecord: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ACL-0326` fetch must return AtlasRecord instead of SourceRecord: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ACL-0327` fetch must return AtlasRecord instead of SourceRecord: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ACL-0328` fetch must return AtlasRecord instead of SourceRecord: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ACL-0329` source records must use their own ACL: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ACL-0330` source records must use their own ACL: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ACL-0331` source records must use their own ACL: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ACL-0332` source records must use their own ACL: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ACL-0333` source records must use their own ACL: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ACL-0334` source records must use their own ACL: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ACL-0335` source records must use their own ACL: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ACL-0336` source records must use their own ACL: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ACL-0337` chunk records must inherit from source unless they have explicit ACL: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ACL-0338` chunk records must inherit from source unless they have explicit ACL: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ACL-0339` chunk records must inherit from source unless they have explicit ACL: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ACL-0340` chunk records must inherit from source unless they have explicit ACL: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ACL-0341` chunk records must inherit from source unless they have explicit ACL: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ACL-0342` chunk records must inherit from source unless they have explicit ACL: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ACL-0343` chunk records must inherit from source unless they have explicit ACL: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ACL-0344` chunk records must inherit from source unless they have explicit ACL: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ACL-0345` claim records must enforce claim ACL and source visibility: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ACL-0346` claim records must enforce claim ACL and source visibility: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ACL-0347` claim records must enforce claim ACL and source visibility: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ACL-0348` claim records must enforce claim ACL and source visibility: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ACL-0349` claim records must enforce claim ACL and source visibility: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ACL-0350` claim records must enforce claim ACL and source visibility: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ACL-0351` claim records must enforce claim ACL and source visibility: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ACL-0352` claim records must enforce claim ACL and source visibility: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ACL-0353` proposal records must be readable only by requester, owner, or admin: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ACL-0354` proposal records must be readable only by requester, owner, or admin: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ACL-0355` proposal records must be readable only by requester, owner, or admin: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ACL-0356` proposal records must be readable only by requester, owner, or admin: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ACL-0357` proposal records must be readable only by requester, owner, or admin: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ACL-0358` proposal records must be readable only by requester, owner, or admin: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ACL-0359` proposal records must be readable only by requester, owner, or admin: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ACL-0360` proposal records must be readable only by requester, owner, or admin: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ACL-0361` audit records must not be exposed through generic fetch except admin-safe summaries: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ACL-0362` audit records must not be exposed through generic fetch except admin-safe summaries: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ACL-0363` audit records must not be exposed through generic fetch except admin-safe summaries: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ACL-0364` audit records must not be exposed through generic fetch except admin-safe summaries: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ACL-0365` audit records must not be exposed through generic fetch except admin-safe summaries: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ACL-0366` audit records must not be exposed through generic fetch except admin-safe summaries: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ACL-0367` audit records must not be exposed through generic fetch except admin-safe summaries: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ACL-0368` audit records must not be exposed through generic fetch except admin-safe summaries: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ACL-0369` policy resolver must deny by default for unsupported record kinds: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ACL-0370` policy resolver must deny by default for unsupported record kinds: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ACL-0371` policy resolver must deny by default for unsupported record kinds: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ACL-0372` policy resolver must deny by default for unsupported record kinds: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ACL-0373` policy resolver must deny by default for unsupported record kinds: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ACL-0374` policy resolver must deny by default for unsupported record kinds: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ACL-0375` policy resolver must deny by default for unsupported record kinds: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ACL-0376` policy resolver must deny by default for unsupported record kinds: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-ACL-0377` policy decisions must include reason, purpose, record ref, permission, and actor category: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-ACL-0378` policy decisions must include reason, purpose, record ref, permission, and actor category: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-ACL-0379` policy decisions must include reason, purpose, record ref, permission, and actor category: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-ACL-0380` policy decisions must include reason, purpose, record ref, permission, and actor category: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-ACL-0381` policy decisions must include reason, purpose, record ref, permission, and actor category: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-ACL-0382` policy decisions must include reason, purpose, record ref, permission, and actor category: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-ACL-0383` policy decisions must include reason, purpose, record ref, permission, and actor category: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-ACL-0384` policy decisions must include reason, purpose, record ref, permission, and actor category: bind the behavior to release:check, smoke, or a named regression gate.
+
+### SDK — SDK Practical Usability (P1)
+
+- [x] `P1` `ATW-SDK-0385` AtlasWiki.open must support stable options without exposing internal store details unnecessarily: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-SDK-0386` AtlasWiki.open must support stable options without exposing internal store details unnecessarily: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-SDK-0387` AtlasWiki.open must support stable options without exposing internal store details unnecessarily: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-SDK-0388` AtlasWiki.open must support stable options without exposing internal store details unnecessarily: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-SDK-0389` AtlasWiki.open must support stable options without exposing internal store details unnecessarily: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-SDK-0390` AtlasWiki.open must support stable options without exposing internal store details unnecessarily: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-SDK-0391` AtlasWiki.open must support stable options without exposing internal store details unnecessarily: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-SDK-0392` AtlasWiki.open must support stable options without exposing internal store details unnecessarily: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-SDK-0393` SDK examples must compile against published package declarations: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-SDK-0394` SDK examples must compile against published package declarations: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-SDK-0395` SDK examples must compile against published package declarations: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-SDK-0396` SDK examples must compile against published package declarations: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-SDK-0397` SDK examples must compile against published package declarations: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-SDK-0398` SDK examples must compile against published package declarations: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-SDK-0399` SDK examples must compile against published package declarations: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-SDK-0400` SDK examples must compile against published package declarations: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-SDK-0401` SDK must provide actor helper examples for user, service, group, role, and anonymous contexts: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-SDK-0402` SDK must provide actor helper examples for user, service, group, role, and anonymous contexts: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-SDK-0403` SDK must provide actor helper examples for user, service, group, role, and anonymous contexts: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-SDK-0404` SDK must provide actor helper examples for user, service, group, role, and anonymous contexts: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-SDK-0405` SDK must provide actor helper examples for user, service, group, role, and anonymous contexts: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-SDK-0406` SDK must provide actor helper examples for user, service, group, role, and anonymous contexts: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-SDK-0407` SDK must provide actor helper examples for user, service, group, role, and anonymous contexts: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-SDK-0408` SDK must provide actor helper examples for user, service, group, role, and anonymous contexts: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-SDK-0409` SDK must provide listSources distinct from search: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-SDK-0410` SDK must provide listSources distinct from search: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-SDK-0411` SDK must provide listSources distinct from search: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-SDK-0412` SDK must provide listSources distinct from search: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-SDK-0413` SDK must provide listSources distinct from search: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-SDK-0414` SDK must provide listSources distinct from search: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-SDK-0415` SDK must provide listSources distinct from search: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-SDK-0416` SDK must provide listSources distinct from search: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-SDK-0417` SDK must provide contextPack with safety counters and citations: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-SDK-0418` SDK must provide contextPack with safety counters and citations: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-SDK-0419` SDK must provide contextPack with safety counters and citations: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-SDK-0420` SDK must provide contextPack with safety counters and citations: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-SDK-0421` SDK must provide contextPack with safety counters and citations: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-SDK-0422` SDK must provide contextPack with safety counters and citations: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-SDK-0423` SDK must provide contextPack with safety counters and citations: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-SDK-0424` SDK must provide contextPack with safety counters and citations: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-SDK-0425` SDK must expose validation and audit verification helpers: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-SDK-0426` SDK must expose validation and audit verification helpers: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-SDK-0427` SDK must expose validation and audit verification helpers: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-SDK-0428` SDK must expose validation and audit verification helpers: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-SDK-0429` SDK must expose validation and audit verification helpers: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-SDK-0430` SDK must expose validation and audit verification helpers: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-SDK-0431` SDK must expose validation and audit verification helpers: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-SDK-0432` SDK must expose validation and audit verification helpers: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-SDK-0433` SDK must document lifecycle close/dispose expectations: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-SDK-0434` SDK must document lifecycle close/dispose expectations: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-SDK-0435` SDK must document lifecycle close/dispose expectations: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-SDK-0436` SDK must document lifecycle close/dispose expectations: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-SDK-0437` SDK must document lifecycle close/dispose expectations: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-SDK-0438` SDK must document lifecycle close/dispose expectations: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-SDK-0439` SDK must document lifecycle close/dispose expectations: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-SDK-0440` SDK must document lifecycle close/dispose expectations: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-SDK-0441` SDK must include no hidden network calls: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-SDK-0442` SDK must include no hidden network calls: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-SDK-0443` SDK must include no hidden network calls: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-SDK-0444` SDK must include no hidden network calls: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-SDK-0445` SDK must include no hidden network calls: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-SDK-0446` SDK must include no hidden network calls: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-SDK-0447` SDK must include no hidden network calls: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-SDK-0448` SDK must include no hidden network calls: bind the behavior to release:check, smoke, or a named regression gate.
+
+### CLI — CLI Practical Usability (P1)
+
+- [x] `P1` `ATW-CLI-0449` awiki init must create a usable root deterministically: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CLI-0450` awiki init must create a usable root deterministically: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CLI-0451` awiki init must create a usable root deterministically: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CLI-0452` awiki init must create a usable root deterministically: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CLI-0453` awiki init must create a usable root deterministically: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CLI-0454` awiki init must create a usable root deterministically: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CLI-0455` awiki init must create a usable root deterministically: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CLI-0456` awiki init must create a usable root deterministically: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CLI-0457` awiki ingest must validate file existence and report structured errors: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CLI-0458` awiki ingest must validate file existence and report structured errors: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CLI-0459` awiki ingest must validate file existence and report structured errors: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CLI-0460` awiki ingest must validate file existence and report structured errors: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CLI-0461` awiki ingest must validate file existence and report structured errors: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CLI-0462` awiki ingest must validate file existence and report structured errors: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CLI-0463` awiki ingest must validate file existence and report structured errors: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CLI-0464` awiki ingest must validate file existence and report structured errors: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CLI-0465` awiki search must reject empty query unless an explicit enumeration command is used: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CLI-0466` awiki search must reject empty query unless an explicit enumeration command is used: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CLI-0467` awiki search must reject empty query unless an explicit enumeration command is used: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CLI-0468` awiki search must reject empty query unless an explicit enumeration command is used: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CLI-0469` awiki search must reject empty query unless an explicit enumeration command is used: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CLI-0470` awiki search must reject empty query unless an explicit enumeration command is used: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CLI-0471` awiki search must reject empty query unless an explicit enumeration command is used: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CLI-0472` awiki search must reject empty query unless an explicit enumeration command is used: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CLI-0473` awiki list-sources must be the explicit enumeration path: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CLI-0474` awiki list-sources must be the explicit enumeration path: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CLI-0475` awiki list-sources must be the explicit enumeration path: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CLI-0476` awiki list-sources must be the explicit enumeration path: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CLI-0477` awiki list-sources must be the explicit enumeration path: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CLI-0478` awiki list-sources must be the explicit enumeration path: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CLI-0479` awiki list-sources must be the explicit enumeration path: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CLI-0480` awiki list-sources must be the explicit enumeration path: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CLI-0481` awiki context-pack must print citations and safety counters in JSON mode: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CLI-0482` awiki context-pack must print citations and safety counters in JSON mode: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CLI-0483` awiki context-pack must print citations and safety counters in JSON mode: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CLI-0484` awiki context-pack must print citations and safety counters in JSON mode: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CLI-0485` awiki context-pack must print citations and safety counters in JSON mode: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CLI-0486` awiki context-pack must print citations and safety counters in JSON mode: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CLI-0487` awiki context-pack must print citations and safety counters in JSON mode: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CLI-0488` awiki context-pack must print citations and safety counters in JSON mode: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CLI-0489` awiki validate must include DB, record, migration, audit, and package findings: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CLI-0490` awiki validate must include DB, record, migration, audit, and package findings: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CLI-0491` awiki validate must include DB, record, migration, audit, and package findings: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CLI-0492` awiki validate must include DB, record, migration, audit, and package findings: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CLI-0493` awiki validate must include DB, record, migration, audit, and package findings: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CLI-0494` awiki validate must include DB, record, migration, audit, and package findings: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CLI-0495` awiki validate must include DB, record, migration, audit, and package findings: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CLI-0496` awiki validate must include DB, record, migration, audit, and package findings: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CLI-0497` awiki audit verify must detect tail deletion: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CLI-0498` awiki audit verify must detect tail deletion: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CLI-0499` awiki audit verify must detect tail deletion: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CLI-0500` awiki audit verify must detect tail deletion: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CLI-0501` awiki audit verify must detect tail deletion: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CLI-0502` awiki audit verify must detect tail deletion: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CLI-0503` awiki audit verify must detect tail deletion: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CLI-0504` awiki audit verify must detect tail deletion: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CLI-0505` CLI help must show npm package name, Node requirement, and common flows: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CLI-0506` CLI help must show npm package name, Node requirement, and common flows: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CLI-0507` CLI help must show npm package name, Node requirement, and common flows: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CLI-0508` CLI help must show npm package name, Node requirement, and common flows: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CLI-0509` CLI help must show npm package name, Node requirement, and common flows: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CLI-0510` CLI help must show npm package name, Node requirement, and common flows: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CLI-0511` CLI help must show npm package name, Node requirement, and common flows: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CLI-0512` CLI help must show npm package name, Node requirement, and common flows: bind the behavior to release:check, smoke, or a named regression gate.
+
+### DB — SQLite Schema, Migration, and Integrity (P0)
+
+- [x] `P0` `ATW-DB-0513` migration registry must include explicit ordered IDs and checksums: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-DB-0514` migration registry must include explicit ordered IDs and checksums: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-DB-0515` migration registry must include explicit ordered IDs and checksums: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-DB-0516` migration registry must include explicit ordered IDs and checksums: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-DB-0517` migration registry must include explicit ordered IDs and checksums: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-DB-0518` migration registry must include explicit ordered IDs and checksums: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-DB-0519` migration registry must include explicit ordered IDs and checksums: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-DB-0520` migration registry must include explicit ordered IDs and checksums: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-DB-0521` migrations must be lookup-before-execute: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-DB-0522` migrations must be lookup-before-execute: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-DB-0523` migrations must be lookup-before-execute: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-DB-0524` migrations must be lookup-before-execute: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-DB-0525` migrations must be lookup-before-execute: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-DB-0526` migrations must be lookup-before-execute: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-DB-0527` migrations must be lookup-before-execute: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-DB-0528` migrations must be lookup-before-execute: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-DB-0529` pending migrations must run in BEGIN IMMEDIATE: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-DB-0530` pending migrations must run in BEGIN IMMEDIATE: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-DB-0531` pending migrations must run in BEGIN IMMEDIATE: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-DB-0532` pending migrations must run in BEGIN IMMEDIATE: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-DB-0533` pending migrations must run in BEGIN IMMEDIATE: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-DB-0534` pending migrations must run in BEGIN IMMEDIATE: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-DB-0535` pending migrations must run in BEGIN IMMEDIATE: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-DB-0536` pending migrations must run in BEGIN IMMEDIATE: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-DB-0537` rollback must leave the database unchanged after failed migration: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-DB-0538` rollback must leave the database unchanged after failed migration: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-DB-0539` rollback must leave the database unchanged after failed migration: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-DB-0540` rollback must leave the database unchanged after failed migration: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-DB-0541` rollback must leave the database unchanged after failed migration: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-DB-0542` rollback must leave the database unchanged after failed migration: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-DB-0543` rollback must leave the database unchanged after failed migration: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-DB-0544` rollback must leave the database unchanged after failed migration: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-DB-0545` user_version must match migration registry version: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-DB-0546` user_version must match migration registry version: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-DB-0547` user_version must match migration registry version: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-DB-0548` user_version must match migration registry version: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-DB-0549` user_version must match migration registry version: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-DB-0550` user_version must match migration registry version: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-DB-0551` user_version must match migration registry version: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-DB-0552` user_version must match migration registry version: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-DB-0553` foreign_key_check and integrity_check must be release-gated: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-DB-0554` foreign_key_check and integrity_check must be release-gated: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-DB-0555` foreign_key_check and integrity_check must be release-gated: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-DB-0556` foreign_key_check and integrity_check must be release-gated: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-DB-0557` foreign_key_check and integrity_check must be release-gated: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-DB-0558` foreign_key_check and integrity_check must be release-gated: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-DB-0559` foreign_key_check and integrity_check must be release-gated: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-DB-0560` foreign_key_check and integrity_check must be release-gated: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-DB-0561` audit_head and audit_events must remain consistent: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-DB-0562` audit_head and audit_events must remain consistent: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-DB-0563` audit_head and audit_events must remain consistent: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-DB-0564` audit_head and audit_events must remain consistent: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-DB-0565` audit_head and audit_events must remain consistent: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-DB-0566` audit_head and audit_events must remain consistent: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-DB-0567` audit_head and audit_events must remain consistent: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-DB-0568` audit_head and audit_events must remain consistent: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-DB-0569` schema changes must be append-only or versioned with migration tests: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-DB-0570` schema changes must be append-only or versioned with migration tests: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-DB-0571` schema changes must be append-only or versioned with migration tests: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-DB-0572` schema changes must be append-only or versioned with migration tests: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-DB-0573` schema changes must be append-only or versioned with migration tests: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-DB-0574` schema changes must be append-only or versioned with migration tests: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-DB-0575` schema changes must be append-only or versioned with migration tests: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-DB-0576` schema changes must be append-only or versioned with migration tests: bind the behavior to release:check, smoke, or a named regression gate.
+
+### AUD — Audit Chain and Evidence Integrity (P0)
+
+- [x] `P0` `ATW-AUD-0577` audit events must include seq, id, type, actor, refs, decisions, outcome, and canonical hash: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-AUD-0578` audit events must include seq, id, type, actor, refs, decisions, outcome, and canonical hash: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-AUD-0579` audit events must include seq, id, type, actor, refs, decisions, outcome, and canonical hash: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-AUD-0580` audit events must include seq, id, type, actor, refs, decisions, outcome, and canonical hash: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-AUD-0581` audit events must include seq, id, type, actor, refs, decisions, outcome, and canonical hash: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-AUD-0582` audit events must include seq, id, type, actor, refs, decisions, outcome, and canonical hash: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-AUD-0583` audit events must include seq, id, type, actor, refs, decisions, outcome, and canonical hash: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-AUD-0584` audit events must include seq, id, type, actor, refs, decisions, outcome, and canonical hash: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-AUD-0585` audit_head must anchor last seq and last hash: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-AUD-0586` audit_head must anchor last seq and last hash: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-AUD-0587` audit_head must anchor last seq and last hash: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-AUD-0588` audit_head must anchor last seq and last hash: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-AUD-0589` audit_head must anchor last seq and last hash: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-AUD-0590` audit_head must anchor last seq and last hash: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-AUD-0591` audit_head must anchor last seq and last hash: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-AUD-0592` audit_head must anchor last seq and last hash: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-AUD-0593` middle deletion, tail deletion, payload tamper, row reorder, and duplicate seq must be detected: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-AUD-0594` middle deletion, tail deletion, payload tamper, row reorder, and duplicate seq must be detected: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-AUD-0595` middle deletion, tail deletion, payload tamper, row reorder, and duplicate seq must be detected: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-AUD-0596` middle deletion, tail deletion, payload tamper, row reorder, and duplicate seq must be detected: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-AUD-0597` middle deletion, tail deletion, payload tamper, row reorder, and duplicate seq must be detected: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-AUD-0598` middle deletion, tail deletion, payload tamper, row reorder, and duplicate seq must be detected: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-AUD-0599` middle deletion, tail deletion, payload tamper, row reorder, and duplicate seq must be detected: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-AUD-0600` middle deletion, tail deletion, payload tamper, row reorder, and duplicate seq must be detected: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-AUD-0601` audit verification must be available through SDK and CLI: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-AUD-0602` audit verification must be available through SDK and CLI: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-AUD-0603` audit verification must be available through SDK and CLI: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-AUD-0604` audit verification must be available through SDK and CLI: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-AUD-0605` audit verification must be available through SDK and CLI: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-AUD-0606` audit verification must be available through SDK and CLI: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-AUD-0607` audit verification must be available through SDK and CLI: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-AUD-0608` audit verification must be available through SDK and CLI: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-AUD-0609` audit events must not contain secret raw text: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-AUD-0610` audit events must not contain secret raw text: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-AUD-0611` audit events must not contain secret raw text: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-AUD-0612` audit events must not contain secret raw text: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-AUD-0613` audit events must not contain secret raw text: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-AUD-0614` audit events must not contain secret raw text: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-AUD-0615` audit events must not contain secret raw text: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-AUD-0616` audit events must not contain secret raw text: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-AUD-0617` audit error events must record safe reasons: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-AUD-0618` audit error events must record safe reasons: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-AUD-0619` audit error events must record safe reasons: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-AUD-0620` audit error events must record safe reasons: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-AUD-0621` audit error events must record safe reasons: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-AUD-0622` audit error events must record safe reasons: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-AUD-0623` audit error events must record safe reasons: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-AUD-0624` audit error events must record safe reasons: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-AUD-0625` audit chain must survive backup/restore: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-AUD-0626` audit chain must survive backup/restore: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-AUD-0627` audit chain must survive backup/restore: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-AUD-0628` audit chain must survive backup/restore: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-AUD-0629` audit chain must survive backup/restore: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-AUD-0630` audit chain must survive backup/restore: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-AUD-0631` audit chain must survive backup/restore: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-AUD-0632` audit chain must survive backup/restore: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-AUD-0633` external checkpointing must be documented for high-assurance deployments: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-AUD-0634` external checkpointing must be documented for high-assurance deployments: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-AUD-0635` external checkpointing must be documented for high-assurance deployments: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-AUD-0636` external checkpointing must be documented for high-assurance deployments: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-AUD-0637` external checkpointing must be documented for high-assurance deployments: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-AUD-0638` external checkpointing must be documented for high-assurance deployments: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-AUD-0639` external checkpointing must be documented for high-assurance deployments: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-AUD-0640` external checkpointing must be documented for high-assurance deployments: bind the behavior to release:check, smoke, or a named regression gate.
+
+### CAS — Revision, CAS, and Concurrent Write Safety (P1)
+
+- [x] `P1` `ATW-CAS-0641` record upsert must not allow stale revision overwrite: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CAS-0642` record upsert must not allow stale revision overwrite: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CAS-0643` record upsert must not allow stale revision overwrite: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CAS-0644` record upsert must not allow stale revision overwrite: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CAS-0645` record upsert must not allow stale revision overwrite: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CAS-0646` record upsert must not allow stale revision overwrite: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CAS-0647` record upsert must not allow stale revision overwrite: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CAS-0648` record upsert must not allow stale revision overwrite: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CAS-0649` write APIs must support expectedRevision where practical: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CAS-0650` write APIs must support expectedRevision where practical: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CAS-0651` write APIs must support expectedRevision where practical: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CAS-0652` write APIs must support expectedRevision where practical: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CAS-0653` write APIs must support expectedRevision where practical: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CAS-0654` write APIs must support expectedRevision where practical: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CAS-0655` write APIs must support expectedRevision where practical: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CAS-0656` write APIs must support expectedRevision where practical: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CAS-0657` conflict errors must be typed: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CAS-0658` conflict errors must be typed: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CAS-0659` conflict errors must be typed: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CAS-0660` conflict errors must be typed: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CAS-0661` conflict errors must be typed: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CAS-0662` conflict errors must be typed: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CAS-0663` conflict errors must be typed: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CAS-0664` conflict errors must be typed: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CAS-0665` proposals must not overwrite existing records silently: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CAS-0666` proposals must not overwrite existing records silently: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CAS-0667` proposals must not overwrite existing records silently: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CAS-0668` proposals must not overwrite existing records silently: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CAS-0669` proposals must not overwrite existing records silently: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CAS-0670` proposals must not overwrite existing records silently: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CAS-0671` proposals must not overwrite existing records silently: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CAS-0672` proposals must not overwrite existing records silently: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CAS-0673` ingest of same source must have deterministic replacement semantics: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CAS-0674` ingest of same source must have deterministic replacement semantics: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CAS-0675` ingest of same source must have deterministic replacement semantics: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CAS-0676` ingest of same source must have deterministic replacement semantics: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CAS-0677` ingest of same source must have deterministic replacement semantics: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CAS-0678` ingest of same source must have deterministic replacement semantics: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CAS-0679` ingest of same source must have deterministic replacement semantics: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CAS-0680` ingest of same source must have deterministic replacement semantics: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CAS-0681` bulk import must use transaction and CAS checks: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CAS-0682` bulk import must use transaction and CAS checks: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CAS-0683` bulk import must use transaction and CAS checks: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CAS-0684` bulk import must use transaction and CAS checks: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CAS-0685` bulk import must use transaction and CAS checks: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CAS-0686` bulk import must use transaction and CAS checks: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CAS-0687` bulk import must use transaction and CAS checks: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CAS-0688` bulk import must use transaction and CAS checks: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CAS-0689` concurrent writer tests must cover busy timeout behavior: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CAS-0690` concurrent writer tests must cover busy timeout behavior: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CAS-0691` concurrent writer tests must cover busy timeout behavior: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CAS-0692` concurrent writer tests must cover busy timeout behavior: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CAS-0693` concurrent writer tests must cover busy timeout behavior: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CAS-0694` concurrent writer tests must cover busy timeout behavior: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CAS-0695` concurrent writer tests must cover busy timeout behavior: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CAS-0696` concurrent writer tests must cover busy timeout behavior: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-CAS-0697` release gate must include stale writer regression fixtures: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-CAS-0698` release gate must include stale writer regression fixtures: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-CAS-0699` release gate must include stale writer regression fixtures: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-CAS-0700` release gate must include stale writer regression fixtures: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-CAS-0701` release gate must include stale writer regression fixtures: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-CAS-0702` release gate must include stale writer regression fixtures: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-CAS-0703` release gate must include stale writer regression fixtures: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-CAS-0704` release gate must include stale writer regression fixtures: bind the behavior to release:check, smoke, or a named regression gate.
+
+### CTX — Context Pack, Retrieval, and Leakage Safety (P0)
+
+- [x] `P0` `ATW-CTX-0705` unauthorized records must be removed before redaction and citation assembly: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CTX-0706` unauthorized records must be removed before redaction and citation assembly: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CTX-0707` unauthorized records must be removed before redaction and citation assembly: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CTX-0708` unauthorized records must be removed before redaction and citation assembly: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CTX-0709` unauthorized records must be removed before redaction and citation assembly: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CTX-0710` unauthorized records must be removed before redaction and citation assembly: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CTX-0711` unauthorized records must be removed before redaction and citation assembly: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CTX-0712` unauthorized records must be removed before redaction and citation assembly: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CTX-0713` denied content must never appear in text, metadata, citations, errors, or audit payloads: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CTX-0714` denied content must never appear in text, metadata, citations, errors, or audit payloads: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CTX-0715` denied content must never appear in text, metadata, citations, errors, or audit payloads: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CTX-0716` denied content must never appear in text, metadata, citations, errors, or audit payloads: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CTX-0717` denied content must never appear in text, metadata, citations, errors, or audit payloads: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CTX-0718` denied content must never appear in text, metadata, citations, errors, or audit payloads: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CTX-0719` denied content must never appear in text, metadata, citations, errors, or audit payloads: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CTX-0720` denied content must never appear in text, metadata, citations, errors, or audit payloads: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CTX-0721` context packs must include candidate, authorized, denied, redacted, stale, and conflict counts: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CTX-0722` context packs must include candidate, authorized, denied, redacted, stale, and conflict counts: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CTX-0723` context packs must include candidate, authorized, denied, redacted, stale, and conflict counts: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CTX-0724` context packs must include candidate, authorized, denied, redacted, stale, and conflict counts: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CTX-0725` context packs must include candidate, authorized, denied, redacted, stale, and conflict counts: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CTX-0726` context packs must include candidate, authorized, denied, redacted, stale, and conflict counts: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CTX-0727` context packs must include candidate, authorized, denied, redacted, stale, and conflict counts: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CTX-0728` context packs must include candidate, authorized, denied, redacted, stale, and conflict counts: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CTX-0729` empty query must not enumerate via search: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CTX-0730` empty query must not enumerate via search: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CTX-0731` empty query must not enumerate via search: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CTX-0732` empty query must not enumerate via search: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CTX-0733` empty query must not enumerate via search: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CTX-0734` empty query must not enumerate via search: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CTX-0735` empty query must not enumerate via search: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CTX-0736` empty query must not enumerate via search: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CTX-0737` listSources must be explicit and ACL-filtered: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CTX-0738` listSources must be explicit and ACL-filtered: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CTX-0739` listSources must be explicit and ACL-filtered: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CTX-0740` listSources must be explicit and ACL-filtered: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CTX-0741` listSources must be explicit and ACL-filtered: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CTX-0742` listSources must be explicit and ACL-filtered: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CTX-0743` listSources must be explicit and ACL-filtered: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CTX-0744` listSources must be explicit and ACL-filtered: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CTX-0745` citations must be source-backed and quote-limited: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CTX-0746` citations must be source-backed and quote-limited: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CTX-0747` citations must be source-backed and quote-limited: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CTX-0748` citations must be source-backed and quote-limited: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CTX-0749` citations must be source-backed and quote-limited: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CTX-0750` citations must be source-backed and quote-limited: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CTX-0751` citations must be source-backed and quote-limited: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CTX-0752` citations must be source-backed and quote-limited: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CTX-0753` fallback retrieval must be observable: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CTX-0754` fallback retrieval must be observable: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CTX-0755` fallback retrieval must be observable: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CTX-0756` fallback retrieval must be observable: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CTX-0757` fallback retrieval must be observable: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CTX-0758` fallback retrieval must be observable: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CTX-0759` fallback retrieval must be observable: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CTX-0760` fallback retrieval must be observable: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-CTX-0761` context-pack tests must include denied secret fixtures: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-CTX-0762` context-pack tests must include denied secret fixtures: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-CTX-0763` context-pack tests must include denied secret fixtures: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-CTX-0764` context-pack tests must include denied secret fixtures: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-CTX-0765` context-pack tests must include denied secret fixtures: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-CTX-0766` context-pack tests must include denied secret fixtures: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-CTX-0767` context-pack tests must include denied secret fixtures: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-CTX-0768` context-pack tests must include denied secret fixtures: bind the behavior to release:check, smoke, or a named regression gate.
+
+### RED — Redaction, Secret Scanning, and Sensitivity (P1)
+
+- [x] `P1` `ATW-RED-0769` redaction policy must be field-aware: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-RED-0770` redaction policy must be field-aware: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-RED-0771` redaction policy must be field-aware: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-RED-0772` redaction policy must be field-aware: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-RED-0773` redaction policy must be field-aware: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-RED-0774` redaction policy must be field-aware: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-RED-0775` redaction policy must be field-aware: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-RED-0776` redaction policy must be field-aware: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-RED-0777` secret patterns must cover common API keys, bearer tokens, assignments, and private credentials: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-RED-0778` secret patterns must cover common API keys, bearer tokens, assignments, and private credentials: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-RED-0779` secret patterns must cover common API keys, bearer tokens, assignments, and private credentials: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-RED-0780` secret patterns must cover common API keys, bearer tokens, assignments, and private credentials: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-RED-0781` secret patterns must cover common API keys, bearer tokens, assignments, and private credentials: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-RED-0782` secret patterns must cover common API keys, bearer tokens, assignments, and private credentials: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-RED-0783` secret patterns must cover common API keys, bearer tokens, assignments, and private credentials: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-RED-0784` secret patterns must cover common API keys, bearer tokens, assignments, and private credentials: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-RED-0785` email redaction must be configurable by sensitivity: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-RED-0786` email redaction must be configurable by sensitivity: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-RED-0787` email redaction must be configurable by sensitivity: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-RED-0788` email redaction must be configurable by sensitivity: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-RED-0789` email redaction must be configurable by sensitivity: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-RED-0790` email redaction must be configurable by sensitivity: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-RED-0791` email redaction must be configurable by sensitivity: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-RED-0792` email redaction must be configurable by sensitivity: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-RED-0793` redaction events must record field and reason without leaking secret values: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-RED-0794` redaction events must record field and reason without leaking secret values: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-RED-0795` redaction events must record field and reason without leaking secret values: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-RED-0796` redaction events must record field and reason without leaking secret values: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-RED-0797` redaction events must record field and reason without leaking secret values: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-RED-0798` redaction events must record field and reason without leaking secret values: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-RED-0799` redaction events must record field and reason without leaking secret values: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-RED-0800` redaction events must record field and reason without leaking secret values: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-RED-0801` metadata redaction must be tested: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-RED-0802` metadata redaction must be tested: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-RED-0803` metadata redaction must be tested: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-RED-0804` metadata redaction must be tested: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-RED-0805` metadata redaction must be tested: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-RED-0806` metadata redaction must be tested: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-RED-0807` metadata redaction must be tested: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-RED-0808` metadata redaction must be tested: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-RED-0809` citation quote redaction must be tested: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-RED-0810` citation quote redaction must be tested: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-RED-0811` citation quote redaction must be tested: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-RED-0812` citation quote redaction must be tested: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-RED-0813` citation quote redaction must be tested: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-RED-0814` citation quote redaction must be tested: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-RED-0815` citation quote redaction must be tested: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-RED-0816` citation quote redaction must be tested: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-RED-0817` audit payload redaction must be tested: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-RED-0818` audit payload redaction must be tested: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-RED-0819` audit payload redaction must be tested: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-RED-0820` audit payload redaction must be tested: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-RED-0821` audit payload redaction must be tested: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-RED-0822` audit payload redaction must be tested: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-RED-0823` audit payload redaction must be tested: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-RED-0824` audit payload redaction must be tested: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-RED-0825` redaction must be deterministic for snapshot tests: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-RED-0826` redaction must be deterministic for snapshot tests: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-RED-0827` redaction must be deterministic for snapshot tests: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-RED-0828` redaction must be deterministic for snapshot tests: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-RED-0829` redaction must be deterministic for snapshot tests: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-RED-0830` redaction must be deterministic for snapshot tests: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-RED-0831` redaction must be deterministic for snapshot tests: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-RED-0832` redaction must be deterministic for snapshot tests: bind the behavior to release:check, smoke, or a named regression gate.
+
+### IDX — Search and Index Quality (P1)
+
+- [x] `P1` `ATW-IDX-0833` FTS query builder must sanitize unsafe syntax: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-IDX-0834` FTS query builder must sanitize unsafe syntax: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-IDX-0835` FTS query builder must sanitize unsafe syntax: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-IDX-0836` FTS query builder must sanitize unsafe syntax: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-IDX-0837` FTS query builder must sanitize unsafe syntax: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-IDX-0838` FTS query builder must sanitize unsafe syntax: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-IDX-0839` FTS query builder must sanitize unsafe syntax: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-IDX-0840` FTS query builder must sanitize unsafe syntax: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-IDX-0841` FTS fallback reason must be recorded: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-IDX-0842` FTS fallback reason must be recorded: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-IDX-0843` FTS fallback reason must be recorded: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-IDX-0844` FTS fallback reason must be recorded: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-IDX-0845` FTS fallback reason must be recorded: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-IDX-0846` FTS fallback reason must be recorded: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-IDX-0847` FTS fallback reason must be recorded: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-IDX-0848` FTS fallback reason must be recorded: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-IDX-0849` search must dedupe repeated chunks from same source when needed: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-IDX-0850` search must dedupe repeated chunks from same source when needed: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-IDX-0851` search must dedupe repeated chunks from same source when needed: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-IDX-0852` search must dedupe repeated chunks from same source when needed: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-IDX-0853` search must dedupe repeated chunks from same source when needed: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-IDX-0854` search must dedupe repeated chunks from same source when needed: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-IDX-0855` search must dedupe repeated chunks from same source when needed: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-IDX-0856` search must dedupe repeated chunks from same source when needed: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-IDX-0857` ranking must be stable for deterministic tests: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-IDX-0858` ranking must be stable for deterministic tests: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-IDX-0859` ranking must be stable for deterministic tests: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-IDX-0860` ranking must be stable for deterministic tests: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-IDX-0861` ranking must be stable for deterministic tests: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-IDX-0862` ranking must be stable for deterministic tests: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-IDX-0863` ranking must be stable for deterministic tests: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-IDX-0864` ranking must be stable for deterministic tests: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-IDX-0865` large text chunking must preserve useful context: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-IDX-0866` large text chunking must preserve useful context: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-IDX-0867` large text chunking must preserve useful context: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-IDX-0868` large text chunking must preserve useful context: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-IDX-0869` large text chunking must preserve useful context: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-IDX-0870` large text chunking must preserve useful context: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-IDX-0871` large text chunking must preserve useful context: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-IDX-0872` large text chunking must preserve useful context: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-IDX-0873` rebuildIndex must verify FTS row counts: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-IDX-0874` rebuildIndex must verify FTS row counts: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-IDX-0875` rebuildIndex must verify FTS row counts: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-IDX-0876` rebuildIndex must verify FTS row counts: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-IDX-0877` rebuildIndex must verify FTS row counts: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-IDX-0878` rebuildIndex must verify FTS row counts: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-IDX-0879` rebuildIndex must verify FTS row counts: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-IDX-0880` rebuildIndex must verify FTS row counts: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-IDX-0881` search tests must include unicode, Korean, punctuation, and quoted queries: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-IDX-0882` search tests must include unicode, Korean, punctuation, and quoted queries: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-IDX-0883` search tests must include unicode, Korean, punctuation, and quoted queries: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-IDX-0884` search tests must include unicode, Korean, punctuation, and quoted queries: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-IDX-0885` search tests must include unicode, Korean, punctuation, and quoted queries: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-IDX-0886` search tests must include unicode, Korean, punctuation, and quoted queries: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-IDX-0887` search tests must include unicode, Korean, punctuation, and quoted queries: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-IDX-0888` search tests must include unicode, Korean, punctuation, and quoted queries: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-IDX-0889` search must enforce limit bounds: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-IDX-0890` search must enforce limit bounds: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-IDX-0891` search must enforce limit bounds: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-IDX-0892` search must enforce limit bounds: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-IDX-0893` search must enforce limit bounds: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-IDX-0894` search must enforce limit bounds: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-IDX-0895` search must enforce limit bounds: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-IDX-0896` search must enforce limit bounds: bind the behavior to release:check, smoke, or a named regression gate.
+
+### MEM — MemoryStore Parity (P1)
+
+- [x] `P1` `ATW-MEM-0897` MemoryStore must match SQLiteStore return shapes: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-MEM-0898` MemoryStore must match SQLiteStore return shapes: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-MEM-0899` MemoryStore must match SQLiteStore return shapes: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-MEM-0900` MemoryStore must match SQLiteStore return shapes: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-MEM-0901` MemoryStore must match SQLiteStore return shapes: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-MEM-0902` MemoryStore must match SQLiteStore return shapes: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-MEM-0903` MemoryStore must match SQLiteStore return shapes: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-MEM-0904` MemoryStore must match SQLiteStore return shapes: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-MEM-0905` MemoryStore must validate records: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-MEM-0906` MemoryStore must validate records: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-MEM-0907` MemoryStore must validate records: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-MEM-0908` MemoryStore must validate records: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-MEM-0909` MemoryStore must validate records: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-MEM-0910` MemoryStore must validate records: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-MEM-0911` MemoryStore must validate records: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-MEM-0912` MemoryStore must validate records: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-MEM-0913` MemoryStore must implement redaction event propagation: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-MEM-0914` MemoryStore must implement redaction event propagation: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-MEM-0915` MemoryStore must implement redaction event propagation: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-MEM-0916` MemoryStore must implement redaction event propagation: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-MEM-0917` MemoryStore must implement redaction event propagation: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-MEM-0918` MemoryStore must implement redaction event propagation: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-MEM-0919` MemoryStore must implement redaction event propagation: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-MEM-0920` MemoryStore must implement redaction event propagation: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-MEM-0921` MemoryStore must expose safety counters consistent with SQLiteStore: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-MEM-0922` MemoryStore must expose safety counters consistent with SQLiteStore: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-MEM-0923` MemoryStore must expose safety counters consistent with SQLiteStore: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-MEM-0924` MemoryStore must expose safety counters consistent with SQLiteStore: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-MEM-0925` MemoryStore must expose safety counters consistent with SQLiteStore: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-MEM-0926` MemoryStore must expose safety counters consistent with SQLiteStore: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-MEM-0927` MemoryStore must expose safety counters consistent with SQLiteStore: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-MEM-0928` MemoryStore must expose safety counters consistent with SQLiteStore: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-MEM-0929` MemoryStore must be documented as test/dev helper unless production parity is complete: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-MEM-0930` MemoryStore must be documented as test/dev helper unless production parity is complete: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-MEM-0931` MemoryStore must be documented as test/dev helper unless production parity is complete: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-MEM-0932` MemoryStore must be documented as test/dev helper unless production parity is complete: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-MEM-0933` MemoryStore must be documented as test/dev helper unless production parity is complete: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-MEM-0934` MemoryStore must be documented as test/dev helper unless production parity is complete: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-MEM-0935` MemoryStore must be documented as test/dev helper unless production parity is complete: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-MEM-0936` MemoryStore must be documented as test/dev helper unless production parity is complete: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-MEM-0937` MemoryStore must pass the same store contract tests: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-MEM-0938` MemoryStore must pass the same store contract tests: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-MEM-0939` MemoryStore must pass the same store contract tests: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-MEM-0940` MemoryStore must pass the same store contract tests: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-MEM-0941` MemoryStore must pass the same store contract tests: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-MEM-0942` MemoryStore must pass the same store contract tests: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-MEM-0943` MemoryStore must pass the same store contract tests: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-MEM-0944` MemoryStore must pass the same store contract tests: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-MEM-0945` MemoryStore must not bypass ACL: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-MEM-0946` MemoryStore must not bypass ACL: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-MEM-0947` MemoryStore must not bypass ACL: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-MEM-0948` MemoryStore must not bypass ACL: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-MEM-0949` MemoryStore must not bypass ACL: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-MEM-0950` MemoryStore must not bypass ACL: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-MEM-0951` MemoryStore must not bypass ACL: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-MEM-0952` MemoryStore must not bypass ACL: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-MEM-0953` MemoryStore must not bypass unknown schema rejection: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-MEM-0954` MemoryStore must not bypass unknown schema rejection: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-MEM-0955` MemoryStore must not bypass unknown schema rejection: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-MEM-0956` MemoryStore must not bypass unknown schema rejection: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-MEM-0957` MemoryStore must not bypass unknown schema rejection: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-MEM-0958` MemoryStore must not bypass unknown schema rejection: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-MEM-0959` MemoryStore must not bypass unknown schema rejection: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-MEM-0960` MemoryStore must not bypass unknown schema rejection: bind the behavior to release:check, smoke, or a named regression gate.
+
+### XPL — Cross-Platform Path and Root Safety (P1)
+
+- [x] `P1` `ATW-XPL-0961` root allowlist must use path.relative instead of string startsWith: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-XPL-0962` root allowlist must use path.relative instead of string startsWith: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-XPL-0963` root allowlist must use path.relative instead of string startsWith: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-XPL-0964` root allowlist must use path.relative instead of string startsWith: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-XPL-0965` root allowlist must use path.relative instead of string startsWith: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-XPL-0966` root allowlist must use path.relative instead of string startsWith: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-XPL-0967` root allowlist must use path.relative instead of string startsWith: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-XPL-0968` root allowlist must use path.relative instead of string startsWith: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-XPL-0969` Windows path separator behavior must be tested: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-XPL-0970` Windows path separator behavior must be tested: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-XPL-0971` Windows path separator behavior must be tested: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-XPL-0972` Windows path separator behavior must be tested: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-XPL-0973` Windows path separator behavior must be tested: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-XPL-0974` Windows path separator behavior must be tested: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-XPL-0975` Windows path separator behavior must be tested: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-XPL-0976` Windows path separator behavior must be tested: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-XPL-0977` symlink escape must be detected or documented: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-XPL-0978` symlink escape must be detected or documented: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-XPL-0979` symlink escape must be detected or documented: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-XPL-0980` symlink escape must be detected or documented: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-XPL-0981` symlink escape must be detected or documented: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-XPL-0982` symlink escape must be detected or documented: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-XPL-0983` symlink escape must be detected or documented: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-XPL-0984` symlink escape must be detected or documented: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-XPL-0985` root normalization must reject traversal surprises: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-XPL-0986` root normalization must reject traversal surprises: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-XPL-0987` root normalization must reject traversal surprises: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-XPL-0988` root normalization must reject traversal surprises: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-XPL-0989` root normalization must reject traversal surprises: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-XPL-0990` root normalization must reject traversal surprises: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-XPL-0991` root normalization must reject traversal surprises: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-XPL-0992` root normalization must reject traversal surprises: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-XPL-0993` backup restore paths must be normalized: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-XPL-0994` backup restore paths must be normalized: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-XPL-0995` backup restore paths must be normalized: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-XPL-0996` backup restore paths must be normalized: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-XPL-0997` backup restore paths must be normalized: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-XPL-0998` backup restore paths must be normalized: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-XPL-0999` backup restore paths must be normalized: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-XPL-1000` backup restore paths must be normalized: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-XPL-1001` import/export output paths must be guarded: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-XPL-1002` import/export output paths must be guarded: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-XPL-1003` import/export output paths must be guarded: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-XPL-1004` import/export output paths must be guarded: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-XPL-1005` import/export output paths must be guarded: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-XPL-1006` import/export output paths must be guarded: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-XPL-1007` import/export output paths must be guarded: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-XPL-1008` import/export output paths must be guarded: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-XPL-1009` CLI tests must run path policy fixtures: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-XPL-1010` CLI tests must run path policy fixtures: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-XPL-1011` CLI tests must run path policy fixtures: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-XPL-1012` CLI tests must run path policy fixtures: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-XPL-1013` CLI tests must run path policy fixtures: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-XPL-1014` CLI tests must run path policy fixtures: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-XPL-1015` CLI tests must run path policy fixtures: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-XPL-1016` CLI tests must run path policy fixtures: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-XPL-1017` MCP root policy must share the same tested utility: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-XPL-1018` MCP root policy must share the same tested utility: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-XPL-1019` MCP root policy must share the same tested utility: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-XPL-1020` MCP root policy must share the same tested utility: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-XPL-1021` MCP root policy must share the same tested utility: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-XPL-1022` MCP root policy must share the same tested utility: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-XPL-1023` MCP root policy must share the same tested utility: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-XPL-1024` MCP root policy must share the same tested utility: bind the behavior to release:check, smoke, or a named regression gate.
+
+### BKP — Backup, Restore, Import, and Export (P1)
+
+- [x] `P1` `ATW-BKP-1025` backup create must use SQLite-safe backup API: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-BKP-1026` backup create must use SQLite-safe backup API: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-BKP-1027` backup create must use SQLite-safe backup API: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-BKP-1028` backup create must use SQLite-safe backup API: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-BKP-1029` backup create must use SQLite-safe backup API: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-BKP-1030` backup create must use SQLite-safe backup API: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-BKP-1031` backup create must use SQLite-safe backup API: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-BKP-1032` backup create must use SQLite-safe backup API: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-BKP-1033` backup verify must open backup and run integrity checks: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-BKP-1034` backup verify must open backup and run integrity checks: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-BKP-1035` backup verify must open backup and run integrity checks: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-BKP-1036` backup verify must open backup and run integrity checks: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-BKP-1037` backup verify must open backup and run integrity checks: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-BKP-1038` backup verify must open backup and run integrity checks: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-BKP-1039` backup verify must open backup and run integrity checks: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-BKP-1040` backup verify must open backup and run integrity checks: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-BKP-1041` backup restore must refuse overwrite without force: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-BKP-1042` backup restore must refuse overwrite without force: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-BKP-1043` backup restore must refuse overwrite without force: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-BKP-1044` backup restore must refuse overwrite without force: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-BKP-1045` backup restore must refuse overwrite without force: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-BKP-1046` backup restore must refuse overwrite without force: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-BKP-1047` backup restore must refuse overwrite without force: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-BKP-1048` backup restore must refuse overwrite without force: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-BKP-1049` backup restore must verify source before replacing target: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-BKP-1050` backup restore must verify source before replacing target: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-BKP-1051` backup restore must verify source before replacing target: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-BKP-1052` backup restore must verify source before replacing target: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-BKP-1053` backup restore must verify source before replacing target: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-BKP-1054` backup restore must verify source before replacing target: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-BKP-1055` backup restore must verify source before replacing target: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-BKP-1056` backup restore must verify source before replacing target: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-BKP-1057` json export must redact or mark sensitive fields according to policy: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-BKP-1058` json export must redact or mark sensitive fields according to policy: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-BKP-1059` json export must redact or mark sensitive fields according to policy: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-BKP-1060` json export must redact or mark sensitive fields according to policy: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-BKP-1061` json export must redact or mark sensitive fields according to policy: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-BKP-1062` json export must redact or mark sensitive fields according to policy: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-BKP-1063` json export must redact or mark sensitive fields according to policy: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-BKP-1064` json export must redact or mark sensitive fields according to policy: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-BKP-1065` import must default to dry-run or proposal mode: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-BKP-1066` import must default to dry-run or proposal mode: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-BKP-1067` import must default to dry-run or proposal mode: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-BKP-1068` import must default to dry-run or proposal mode: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-BKP-1069` import must default to dry-run or proposal mode: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-BKP-1070` import must default to dry-run or proposal mode: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-BKP-1071` import must default to dry-run or proposal mode: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-BKP-1072` import must default to dry-run or proposal mode: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-BKP-1073` import committed path must require admin authorization: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-BKP-1074` import committed path must require admin authorization: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-BKP-1075` import committed path must require admin authorization: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-BKP-1076` import committed path must require admin authorization: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-BKP-1077` import committed path must require admin authorization: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-BKP-1078` import committed path must require admin authorization: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-BKP-1079` import committed path must require admin authorization: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-BKP-1080` import committed path must require admin authorization: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-BKP-1081` backup and restore must write audit events: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-BKP-1082` backup and restore must write audit events: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-BKP-1083` backup and restore must write audit events: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-BKP-1084` backup and restore must write audit events: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-BKP-1085` backup and restore must write audit events: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-BKP-1086` backup and restore must write audit events: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-BKP-1087` backup and restore must write audit events: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-BKP-1088` backup and restore must write audit events: bind the behavior to release:check, smoke, or a named regression gate.
+
+### DOC — Documentation and Examples (P1)
+
+- [x] `P1` `ATW-DOC-1089` README must match npm package name atlas-wiki: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-DOC-1090` README must match npm package name atlas-wiki: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-DOC-1091` README must match npm package name atlas-wiki: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-DOC-1092` README must match npm package name atlas-wiki: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-DOC-1093` README must match npm package name atlas-wiki: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-DOC-1094` README must match npm package name atlas-wiki: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-DOC-1095` README must match npm package name atlas-wiki: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-DOC-1096` README must match npm package name atlas-wiki: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-DOC-1097` README must distinguish local use from production MCP use: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-DOC-1098` README must distinguish local use from production MCP use: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-DOC-1099` README must distinguish local use from production MCP use: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-DOC-1100` README must distinguish local use from production MCP use: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-DOC-1101` README must distinguish local use from production MCP use: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-DOC-1102` README must distinguish local use from production MCP use: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-DOC-1103` README must distinguish local use from production MCP use: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-DOC-1104` README must distinguish local use from production MCP use: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-DOC-1105` README must include Node 24 requirement and reason: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-DOC-1106` README must include Node 24 requirement and reason: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-DOC-1107` README must include Node 24 requirement and reason: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-DOC-1108` README must include Node 24 requirement and reason: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-DOC-1109` README must include Node 24 requirement and reason: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-DOC-1110` README must include Node 24 requirement and reason: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-DOC-1111` README must include Node 24 requirement and reason: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-DOC-1112` README must include Node 24 requirement and reason: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-DOC-1113` README quickstart must be copied into an automated smoke test: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-DOC-1114` README quickstart must be copied into an automated smoke test: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-DOC-1115` README quickstart must be copied into an automated smoke test: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-DOC-1116` README quickstart must be copied into an automated smoke test: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-DOC-1117` README quickstart must be copied into an automated smoke test: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-DOC-1118` README quickstart must be copied into an automated smoke test: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-DOC-1119` README quickstart must be copied into an automated smoke test: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-DOC-1120` README quickstart must be copied into an automated smoke test: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-DOC-1121` docs/npm-publishing.md must document trusted publishing path: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-DOC-1122` docs/npm-publishing.md must document trusted publishing path: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-DOC-1123` docs/npm-publishing.md must document trusted publishing path: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-DOC-1124` docs/npm-publishing.md must document trusted publishing path: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-DOC-1125` docs/npm-publishing.md must document trusted publishing path: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-DOC-1126` docs/npm-publishing.md must document trusted publishing path: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-DOC-1127` docs/npm-publishing.md must document trusted publishing path: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-DOC-1128` docs/npm-publishing.md must document trusted publishing path: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-DOC-1129` docs/mcp.md must document actorProvider and authorizeTool: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-DOC-1130` docs/mcp.md must document actorProvider and authorizeTool: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-DOC-1131` docs/mcp.md must document actorProvider and authorizeTool: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-DOC-1132` docs/mcp.md must document actorProvider and authorizeTool: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-DOC-1133` docs/mcp.md must document actorProvider and authorizeTool: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-DOC-1134` docs/mcp.md must document actorProvider and authorizeTool: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-DOC-1135` docs/mcp.md must document actorProvider and authorizeTool: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-DOC-1136` docs/mcp.md must document actorProvider and authorizeTool: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-DOC-1137` docs/security.md must state current limits honestly: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-DOC-1138` docs/security.md must state current limits honestly: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-DOC-1139` docs/security.md must state current limits honestly: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-DOC-1140` docs/security.md must state current limits honestly: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-DOC-1141` docs/security.md must state current limits honestly: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-DOC-1142` docs/security.md must state current limits honestly: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-DOC-1143` docs/security.md must state current limits honestly: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-DOC-1144` docs/security.md must state current limits honestly: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-DOC-1145` examples must compile and run against published package: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-DOC-1146` examples must compile and run against published package: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-DOC-1147` examples must compile and run against published package: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-DOC-1148` examples must compile and run against published package: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-DOC-1149` examples must compile and run against published package: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-DOC-1150` examples must compile and run against published package: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-DOC-1151` examples must compile and run against published package: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-DOC-1152` examples must compile and run against published package: bind the behavior to release:check, smoke, or a named regression gate.
+
+### TST — Test Matrix and Failure Fixtures (P0)
+
+- [x] `P0` `ATW-TST-1153` tests must cover published package installation: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-TST-1154` tests must cover published package installation: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-TST-1155` tests must cover published package installation: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-TST-1156` tests must cover published package installation: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-TST-1157` tests must cover published package installation: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-TST-1158` tests must cover published package installation: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-TST-1159` tests must cover published package installation: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-TST-1160` tests must cover published package installation: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-TST-1161` tests must cover source build and local package pack: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-TST-1162` tests must cover source build and local package pack: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-TST-1163` tests must cover source build and local package pack: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-TST-1164` tests must cover source build and local package pack: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-TST-1165` tests must cover source build and local package pack: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-TST-1166` tests must cover source build and local package pack: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-TST-1167` tests must cover source build and local package pack: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-TST-1168` tests must cover source build and local package pack: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-TST-1169` tests must cover migration upgrade from 0.1.0 and 0.1.1: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-TST-1170` tests must cover migration upgrade from 0.1.0 and 0.1.1: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-TST-1171` tests must cover migration upgrade from 0.1.0 and 0.1.1: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-TST-1172` tests must cover migration upgrade from 0.1.0 and 0.1.1: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-TST-1173` tests must cover migration upgrade from 0.1.0 and 0.1.1: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-TST-1174` tests must cover migration upgrade from 0.1.0 and 0.1.1: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-TST-1175` tests must cover migration upgrade from 0.1.0 and 0.1.1: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-TST-1176` tests must cover migration upgrade from 0.1.0 and 0.1.1: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-TST-1177` tests must cover audit tail deletion: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-TST-1178` tests must cover audit tail deletion: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-TST-1179` tests must cover audit tail deletion: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-TST-1180` tests must cover audit tail deletion: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-TST-1181` tests must cover audit tail deletion: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-TST-1182` tests must cover audit tail deletion: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-TST-1183` tests must cover audit tail deletion: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-TST-1184` tests must cover audit tail deletion: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-TST-1185` tests must cover MCP admin deny without authorizeTool: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-TST-1186` tests must cover MCP admin deny without authorizeTool: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-TST-1187` tests must cover MCP admin deny without authorizeTool: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-TST-1188` tests must cover MCP admin deny without authorizeTool: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-TST-1189` tests must cover MCP admin deny without authorizeTool: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-TST-1190` tests must cover MCP admin deny without authorizeTool: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-TST-1191` tests must cover MCP admin deny without authorizeTool: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-TST-1192` tests must cover MCP admin deny without authorizeTool: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-TST-1193` tests must cover actorProvider production search: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-TST-1194` tests must cover actorProvider production search: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-TST-1195` tests must cover actorProvider production search: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-TST-1196` tests must cover actorProvider production search: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-TST-1197` tests must cover actorProvider production search: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-TST-1198` tests must cover actorProvider production search: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-TST-1199` tests must cover actorProvider production search: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-TST-1200` tests must cover actorProvider production search: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-TST-1201` tests must cover Windows path policy via mocked paths or matrix: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-TST-1202` tests must cover Windows path policy via mocked paths or matrix: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-TST-1203` tests must cover Windows path policy via mocked paths or matrix: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-TST-1204` tests must cover Windows path policy via mocked paths or matrix: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-TST-1205` tests must cover Windows path policy via mocked paths or matrix: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-TST-1206` tests must cover Windows path policy via mocked paths or matrix: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-TST-1207` tests must cover Windows path policy via mocked paths or matrix: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-TST-1208` tests must cover Windows path policy via mocked paths or matrix: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-TST-1209` tests must cover CAS stale write rejection: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-TST-1210` tests must cover CAS stale write rejection: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-TST-1211` tests must cover CAS stale write rejection: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-TST-1212` tests must cover CAS stale write rejection: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-TST-1213` tests must cover CAS stale write rejection: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-TST-1214` tests must cover CAS stale write rejection: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-TST-1215` tests must cover CAS stale write rejection: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-TST-1216` tests must cover CAS stale write rejection: bind the behavior to release:check, smoke, or a named regression gate.
+
+### SEC — Supply Chain and Security Hygiene (P0)
+
+- [x] `P0` `ATW-SEC-1217` npm audit must be run in CI: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-SEC-1218` npm audit must be run in CI: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-SEC-1219` npm audit must be run in CI: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-SEC-1220` npm audit must be run in CI: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-SEC-1221` npm audit must be run in CI: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-SEC-1222` npm audit must be run in CI: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-SEC-1223` npm audit must be run in CI: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-SEC-1224` npm audit must be run in CI: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-SEC-1225` dependency list must stay minimal: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-SEC-1226` dependency list must stay minimal: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-SEC-1227` dependency list must stay minimal: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-SEC-1228` dependency list must stay minimal: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-SEC-1229` dependency list must stay minimal: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-SEC-1230` dependency list must stay minimal: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-SEC-1231` dependency list must stay minimal: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-SEC-1232` dependency list must stay minimal: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-SEC-1233` no postinstall script is allowed: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-SEC-1234` no postinstall script is allowed: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-SEC-1235` no postinstall script is allowed: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-SEC-1236` no postinstall script is allowed: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-SEC-1237` no postinstall script is allowed: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-SEC-1238` no postinstall script is allowed: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-SEC-1239` no postinstall script is allowed: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-SEC-1240` no postinstall script is allowed: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-SEC-1241` no hidden network behavior is allowed: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-SEC-1242` no hidden network behavior is allowed: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-SEC-1243` no hidden network behavior is allowed: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-SEC-1244` no hidden network behavior is allowed: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-SEC-1245` no hidden network behavior is allowed: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-SEC-1246` no hidden network behavior is allowed: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-SEC-1247` no hidden network behavior is allowed: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-SEC-1248` no hidden network behavior is allowed: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-SEC-1249` published tarball must not include docs/goal, tmp, coverage, local db, or secrets: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-SEC-1250` published tarball must not include docs/goal, tmp, coverage, local db, or secrets: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-SEC-1251` published tarball must not include docs/goal, tmp, coverage, local db, or secrets: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-SEC-1252` published tarball must not include docs/goal, tmp, coverage, local db, or secrets: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-SEC-1253` published tarball must not include docs/goal, tmp, coverage, local db, or secrets: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-SEC-1254` published tarball must not include docs/goal, tmp, coverage, local db, or secrets: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-SEC-1255` published tarball must not include docs/goal, tmp, coverage, local db, or secrets: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-SEC-1256` published tarball must not include docs/goal, tmp, coverage, local db, or secrets: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-SEC-1257` release must include SBOM or dependency manifest when stable: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-SEC-1258` release must include SBOM or dependency manifest when stable: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-SEC-1259` release must include SBOM or dependency manifest when stable: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-SEC-1260` release must include SBOM or dependency manifest when stable: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-SEC-1261` release must include SBOM or dependency manifest when stable: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-SEC-1262` release must include SBOM or dependency manifest when stable: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-SEC-1263` release must include SBOM or dependency manifest when stable: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-SEC-1264` release must include SBOM or dependency manifest when stable: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-SEC-1265` security policy must list supported versions: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-SEC-1266` security policy must list supported versions: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-SEC-1267` security policy must list supported versions: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-SEC-1268` security policy must list supported versions: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-SEC-1269` security policy must list supported versions: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-SEC-1270` security policy must list supported versions: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-SEC-1271` security policy must list supported versions: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-SEC-1272` security policy must list supported versions: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-SEC-1273` package provenance or signed release evidence must be enforced for stable releases: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-SEC-1274` package provenance or signed release evidence must be enforced for stable releases: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-SEC-1275` package provenance or signed release evidence must be enforced for stable releases: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-SEC-1276` package provenance or signed release evidence must be enforced for stable releases: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-SEC-1277` package provenance or signed release evidence must be enforced for stable releases: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-SEC-1278` package provenance or signed release evidence must be enforced for stable releases: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-SEC-1279` package provenance or signed release evidence must be enforced for stable releases: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-SEC-1280` package provenance or signed release evidence must be enforced for stable releases: bind the behavior to release:check, smoke, or a named regression gate.
+
+### API — Public API and SemVer Discipline (P1)
+
+- [x] `P1` `ATW-API-1281` exports map must be intentional and tested: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-API-1282` exports map must be intentional and tested: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-API-1283` exports map must be intentional and tested: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-API-1284` exports map must be intentional and tested: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-API-1285` exports map must be intentional and tested: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-API-1286` exports map must be intentional and tested: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-API-1287` exports map must be intentional and tested: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-API-1288` exports map must be intentional and tested: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-API-1289` public API changes must be documented in CHANGELOG: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-API-1290` public API changes must be documented in CHANGELOG: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-API-1291` public API changes must be documented in CHANGELOG: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-API-1292` public API changes must be documented in CHANGELOG: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-API-1293` public API changes must be documented in CHANGELOG: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-API-1294` public API changes must be documented in CHANGELOG: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-API-1295` public API changes must be documented in CHANGELOG: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-API-1296` public API changes must be documented in CHANGELOG: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-API-1297` types must compile in a consumer project: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-API-1298` types must compile in a consumer project: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-API-1299` types must compile in a consumer project: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-API-1300` types must compile in a consumer project: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-API-1301` types must compile in a consumer project: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-API-1302` types must compile in a consumer project: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-API-1303` types must compile in a consumer project: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-API-1304` types must compile in a consumer project: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-API-1305` internal paths must not be imported by examples: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-API-1306` internal paths must not be imported by examples: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-API-1307` internal paths must not be imported by examples: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-API-1308` internal paths must not be imported by examples: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-API-1309` internal paths must not be imported by examples: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-API-1310` internal paths must not be imported by examples: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-API-1311` internal paths must not be imported by examples: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-API-1312` internal paths must not be imported by examples: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-API-1313` schema IDs must be treated as contracts: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-API-1314` schema IDs must be treated as contracts: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-API-1315` schema IDs must be treated as contracts: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-API-1316` schema IDs must be treated as contracts: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-API-1317` schema IDs must be treated as contracts: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-API-1318` schema IDs must be treated as contracts: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-API-1319` schema IDs must be treated as contracts: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-API-1320` schema IDs must be treated as contracts: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-API-1321` breaking changes must require major or documented pre-1.0 policy: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-API-1322` breaking changes must require major or documented pre-1.0 policy: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-API-1323` breaking changes must require major or documented pre-1.0 policy: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-API-1324` breaking changes must require major or documented pre-1.0 policy: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-API-1325` breaking changes must require major or documented pre-1.0 policy: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-API-1326` breaking changes must require major or documented pre-1.0 policy: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-API-1327` breaking changes must require major or documented pre-1.0 policy: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-API-1328` breaking changes must require major or documented pre-1.0 policy: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-API-1329` deprecated APIs must emit documentation warnings before removal: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-API-1330` deprecated APIs must emit documentation warnings before removal: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-API-1331` deprecated APIs must emit documentation warnings before removal: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-API-1332` deprecated APIs must emit documentation warnings before removal: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-API-1333` deprecated APIs must emit documentation warnings before removal: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-API-1334` deprecated APIs must emit documentation warnings before removal: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-API-1335` deprecated APIs must emit documentation warnings before removal: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-API-1336` deprecated APIs must emit documentation warnings before removal: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-API-1337` packageInfo must match package.json: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-API-1338` packageInfo must match package.json: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-API-1339` packageInfo must match package.json: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-API-1340` packageInfo must match package.json: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-API-1341` packageInfo must match package.json: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-API-1342` packageInfo must match package.json: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-API-1343` packageInfo must match package.json: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-API-1344` packageInfo must match package.json: bind the behavior to release:check, smoke, or a named regression gate.
+
+### OPS — Operational Readiness (P1)
+
+- [x] `P1` `ATW-OPS-1345` release checklist must include npm view verification: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-OPS-1346` release checklist must include npm view verification: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-OPS-1347` release checklist must include npm view verification: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-OPS-1348` release checklist must include npm view verification: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-OPS-1349` release checklist must include npm view verification: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-OPS-1350` release checklist must include npm view verification: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-OPS-1351` release checklist must include npm view verification: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-OPS-1352` release checklist must include npm view verification: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-OPS-1353` release checklist must include GitHub tag verification: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-OPS-1354` release checklist must include GitHub tag verification: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-OPS-1355` release checklist must include GitHub tag verification: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-OPS-1356` release checklist must include GitHub tag verification: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-OPS-1357` release checklist must include GitHub tag verification: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-OPS-1358` release checklist must include GitHub tag verification: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-OPS-1359` release checklist must include GitHub tag verification: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-OPS-1360` release checklist must include GitHub tag verification: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-OPS-1361` release checklist must include CI green verification: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-OPS-1362` release checklist must include CI green verification: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-OPS-1363` release checklist must include CI green verification: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-OPS-1364` release checklist must include CI green verification: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-OPS-1365` release checklist must include CI green verification: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-OPS-1366` release checklist must include CI green verification: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-OPS-1367` release checklist must include CI green verification: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-OPS-1368` release checklist must include CI green verification: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-OPS-1369` release checklist must include published package smoke verification: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-OPS-1370` release checklist must include published package smoke verification: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-OPS-1371` release checklist must include published package smoke verification: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-OPS-1372` release checklist must include published package smoke verification: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-OPS-1373` release checklist must include published package smoke verification: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-OPS-1374` release checklist must include published package smoke verification: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-OPS-1375` release checklist must include published package smoke verification: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-OPS-1376` release checklist must include published package smoke verification: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-OPS-1377` issue templates must exist for bug, security, and usage reports: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-OPS-1378` issue templates must exist for bug, security, and usage reports: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-OPS-1379` issue templates must exist for bug, security, and usage reports: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-OPS-1380` issue templates must exist for bug, security, and usage reports: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-OPS-1381` issue templates must exist for bug, security, and usage reports: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-OPS-1382` issue templates must exist for bug, security, and usage reports: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-OPS-1383` issue templates must exist for bug, security, and usage reports: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-OPS-1384` issue templates must exist for bug, security, and usage reports: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-OPS-1385` CHANGELOG must include install command and migration notes: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-OPS-1386` CHANGELOG must include install command and migration notes: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-OPS-1387` CHANGELOG must include install command and migration notes: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-OPS-1388` CHANGELOG must include install command and migration notes: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-OPS-1389` CHANGELOG must include install command and migration notes: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-OPS-1390` CHANGELOG must include install command and migration notes: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-OPS-1391` CHANGELOG must include install command and migration notes: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-OPS-1392` CHANGELOG must include install command and migration notes: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-OPS-1393` maintainer runbook must define rollback/deprecate procedure: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-OPS-1394` maintainer runbook must define rollback/deprecate procedure: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-OPS-1395` maintainer runbook must define rollback/deprecate procedure: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-OPS-1396` maintainer runbook must define rollback/deprecate procedure: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-OPS-1397` maintainer runbook must define rollback/deprecate procedure: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-OPS-1398` maintainer runbook must define rollback/deprecate procedure: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-OPS-1399` maintainer runbook must define rollback/deprecate procedure: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-OPS-1400` maintainer runbook must define rollback/deprecate procedure: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P1` `ATW-OPS-1401` dist-tag policy must be documented: write or update the design note and acceptance criteria.
+- [x] `P1` `ATW-OPS-1402` dist-tag policy must be documented: implement the production code path with typed TypeScript APIs.
+- [x] `P1` `ATW-OPS-1403` dist-tag policy must be documented: add focused unit tests for the happy path and failure path.
+- [x] `P1` `ATW-OPS-1404` dist-tag policy must be documented: add integration coverage using a real temporary wiki root.
+- [x] `P1` `ATW-OPS-1405` dist-tag policy must be documented: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P1` `ATW-OPS-1406` dist-tag policy must be documented: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P1` `ATW-OPS-1407` dist-tag policy must be documented: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P1` `ATW-OPS-1408` dist-tag policy must be documented: bind the behavior to release:check, smoke, or a named regression gate.
+
+### PERF — Performance and Scale (P2)
+
+- [x] `P2` `ATW-PERF-1409` large document ingest must be benchmarked: write or update the design note and acceptance criteria.
+- [x] `P2` `ATW-PERF-1410` large document ingest must be benchmarked: implement the production code path with typed TypeScript APIs.
+- [x] `P2` `ATW-PERF-1411` large document ingest must be benchmarked: add focused unit tests for the happy path and failure path.
+- [x] `P2` `ATW-PERF-1412` large document ingest must be benchmarked: add integration coverage using a real temporary wiki root.
+- [x] `P2` `ATW-PERF-1413` large document ingest must be benchmarked: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P2` `ATW-PERF-1414` large document ingest must be benchmarked: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P2` `ATW-PERF-1415` large document ingest must be benchmarked: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P2` `ATW-PERF-1416` large document ingest must be benchmarked: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P2` `ATW-PERF-1417` search latency must be measured for representative fixture sizes: write or update the design note and acceptance criteria.
+- [x] `P2` `ATW-PERF-1418` search latency must be measured for representative fixture sizes: implement the production code path with typed TypeScript APIs.
+- [x] `P2` `ATW-PERF-1419` search latency must be measured for representative fixture sizes: add focused unit tests for the happy path and failure path.
+- [x] `P2` `ATW-PERF-1420` search latency must be measured for representative fixture sizes: add integration coverage using a real temporary wiki root.
+- [x] `P2` `ATW-PERF-1421` search latency must be measured for representative fixture sizes: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P2` `ATW-PERF-1422` search latency must be measured for representative fixture sizes: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P2` `ATW-PERF-1423` search latency must be measured for representative fixture sizes: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P2` `ATW-PERF-1424` search latency must be measured for representative fixture sizes: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P2` `ATW-PERF-1425` contextPack latency must be measured: write or update the design note and acceptance criteria.
+- [x] `P2` `ATW-PERF-1426` contextPack latency must be measured: implement the production code path with typed TypeScript APIs.
+- [x] `P2` `ATW-PERF-1427` contextPack latency must be measured: add focused unit tests for the happy path and failure path.
+- [x] `P2` `ATW-PERF-1428` contextPack latency must be measured: add integration coverage using a real temporary wiki root.
+- [x] `P2` `ATW-PERF-1429` contextPack latency must be measured: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P2` `ATW-PERF-1430` contextPack latency must be measured: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P2` `ATW-PERF-1431` contextPack latency must be measured: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P2` `ATW-PERF-1432` contextPack latency must be measured: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P2` `ATW-PERF-1433` audit verification cost must be measured: write or update the design note and acceptance criteria.
+- [x] `P2` `ATW-PERF-1434` audit verification cost must be measured: implement the production code path with typed TypeScript APIs.
+- [x] `P2` `ATW-PERF-1435` audit verification cost must be measured: add focused unit tests for the happy path and failure path.
+- [x] `P2` `ATW-PERF-1436` audit verification cost must be measured: add integration coverage using a real temporary wiki root.
+- [x] `P2` `ATW-PERF-1437` audit verification cost must be measured: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P2` `ATW-PERF-1438` audit verification cost must be measured: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P2` `ATW-PERF-1439` audit verification cost must be measured: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P2` `ATW-PERF-1440` audit verification cost must be measured: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P2` `ATW-PERF-1441` migration cost must be measured: write or update the design note and acceptance criteria.
+- [x] `P2` `ATW-PERF-1442` migration cost must be measured: implement the production code path with typed TypeScript APIs.
+- [x] `P2` `ATW-PERF-1443` migration cost must be measured: add focused unit tests for the happy path and failure path.
+- [x] `P2` `ATW-PERF-1444` migration cost must be measured: add integration coverage using a real temporary wiki root.
+- [x] `P2` `ATW-PERF-1445` migration cost must be measured: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P2` `ATW-PERF-1446` migration cost must be measured: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P2` `ATW-PERF-1447` migration cost must be measured: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P2` `ATW-PERF-1448` migration cost must be measured: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P2` `ATW-PERF-1449` memory usage during ingest must be bounded: write or update the design note and acceptance criteria.
+- [x] `P2` `ATW-PERF-1450` memory usage during ingest must be bounded: implement the production code path with typed TypeScript APIs.
+- [x] `P2` `ATW-PERF-1451` memory usage during ingest must be bounded: add focused unit tests for the happy path and failure path.
+- [x] `P2` `ATW-PERF-1452` memory usage during ingest must be bounded: add integration coverage using a real temporary wiki root.
+- [x] `P2` `ATW-PERF-1453` memory usage during ingest must be bounded: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P2` `ATW-PERF-1454` memory usage during ingest must be bounded: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P2` `ATW-PERF-1455` memory usage during ingest must be bounded: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P2` `ATW-PERF-1456` memory usage during ingest must be bounded: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P2` `ATW-PERF-1457` chunk limits must be documented: write or update the design note and acceptance criteria.
+- [x] `P2` `ATW-PERF-1458` chunk limits must be documented: implement the production code path with typed TypeScript APIs.
+- [x] `P2` `ATW-PERF-1459` chunk limits must be documented: add focused unit tests for the happy path and failure path.
+- [x] `P2` `ATW-PERF-1460` chunk limits must be documented: add integration coverage using a real temporary wiki root.
+- [x] `P2` `ATW-PERF-1461` chunk limits must be documented: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P2` `ATW-PERF-1462` chunk limits must be documented: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P2` `ATW-PERF-1463` chunk limits must be documented: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P2` `ATW-PERF-1464` chunk limits must be documented: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P2` `ATW-PERF-1465` performance budgets must be release-gated for regressions: write or update the design note and acceptance criteria.
+- [x] `P2` `ATW-PERF-1466` performance budgets must be release-gated for regressions: implement the production code path with typed TypeScript APIs.
+- [x] `P2` `ATW-PERF-1467` performance budgets must be release-gated for regressions: add focused unit tests for the happy path and failure path.
+- [x] `P2` `ATW-PERF-1468` performance budgets must be release-gated for regressions: add integration coverage using a real temporary wiki root.
+- [x] `P2` `ATW-PERF-1469` performance budgets must be release-gated for regressions: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P2` `ATW-PERF-1470` performance budgets must be release-gated for regressions: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P2` `ATW-PERF-1471` performance budgets must be release-gated for regressions: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P2` `ATW-PERF-1472` performance budgets must be release-gated for regressions: bind the behavior to release:check, smoke, or a named regression gate.
+
+### REL2 — Next Release Execution (P0)
+
+- [x] `P0` `ATW-REL2-1473` choose next version target 0.1.2 for hardening patch or 0.2.0 for API stabilization: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL2-1474` choose next version target 0.1.2 for hardening patch or 0.2.0 for API stabilization: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL2-1475` choose next version target 0.1.2 for hardening patch or 0.2.0 for API stabilization: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL2-1476` choose next version target 0.1.2 for hardening patch or 0.2.0 for API stabilization: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL2-1477` choose next version target 0.1.2 for hardening patch or 0.2.0 for API stabilization: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL2-1478` choose next version target 0.1.2 for hardening patch or 0.2.0 for API stabilization: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL2-1479` choose next version target 0.1.2 for hardening patch or 0.2.0 for API stabilization: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL2-1480` choose next version target 0.1.2 for hardening patch or 0.2.0 for API stabilization: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL2-1481` create release branch only after main is synchronized: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL2-1482` create release branch only after main is synchronized: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL2-1483` create release branch only after main is synchronized: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL2-1484` create release branch only after main is synchronized: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL2-1485` create release branch only after main is synchronized: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL2-1486` create release branch only after main is synchronized: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL2-1487` create release branch only after main is synchronized: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL2-1488` create release branch only after main is synchronized: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL2-1489` land P0 fixes before adding new features: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL2-1490` land P0 fixes before adding new features: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL2-1491` land P0 fixes before adding new features: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL2-1492` land P0 fixes before adding new features: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL2-1493` land P0 fixes before adding new features: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL2-1494` land P0 fixes before adding new features: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL2-1495` land P0 fixes before adding new features: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL2-1496` land P0 fixes before adding new features: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL2-1497` run release rehearsal using npm pack and registry install: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL2-1498` run release rehearsal using npm pack and registry install: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL2-1499` run release rehearsal using npm pack and registry install: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL2-1500` run release rehearsal using npm pack and registry install: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL2-1501` run release rehearsal using npm pack and registry install: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL2-1502` run release rehearsal using npm pack and registry install: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL2-1503` run release rehearsal using npm pack and registry install: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL2-1504` run release rehearsal using npm pack and registry install: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL2-1505` create GitHub release with notes and artifact manifest: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL2-1506` create GitHub release with notes and artifact manifest: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL2-1507` create GitHub release with notes and artifact manifest: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL2-1508` create GitHub release with notes and artifact manifest: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL2-1509` create GitHub release with notes and artifact manifest: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL2-1510` create GitHub release with notes and artifact manifest: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL2-1511` create GitHub release with notes and artifact manifest: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL2-1512` create GitHub release with notes and artifact manifest: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL2-1513` publish via trusted path when configured: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL2-1514` publish via trusted path when configured: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL2-1515` publish via trusted path when configured: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL2-1516` publish via trusted path when configured: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL2-1517` publish via trusted path when configured: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL2-1518` publish via trusted path when configured: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL2-1519` publish via trusted path when configured: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL2-1520` publish via trusted path when configured: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL2-1521` verify npm latest dist-tag after publish: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL2-1522` verify npm latest dist-tag after publish: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL2-1523` verify npm latest dist-tag after publish: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL2-1524` verify npm latest dist-tag after publish: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL2-1525` verify npm latest dist-tag after publish: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL2-1526` verify npm latest dist-tag after publish: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL2-1527` verify npm latest dist-tag after publish: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL2-1528` verify npm latest dist-tag after publish: bind the behavior to release:check, smoke, or a named regression gate.
+- [x] `P0` `ATW-REL2-1529` open a post-release validation issue and close it with evidence: write or update the design note and acceptance criteria.
+- [x] `P0` `ATW-REL2-1530` open a post-release validation issue and close it with evidence: implement the production code path with typed TypeScript APIs.
+- [x] `P0` `ATW-REL2-1531` open a post-release validation issue and close it with evidence: add focused unit tests for the happy path and failure path.
+- [x] `P0` `ATW-REL2-1532` open a post-release validation issue and close it with evidence: add integration coverage using a real temporary wiki root.
+- [x] `P0` `ATW-REL2-1533` open a post-release validation issue and close it with evidence: verify the CLI or SDK surface that exposes this behavior.
+- [x] `P0` `ATW-REL2-1534` open a post-release validation issue and close it with evidence: verify MCP/package behavior where the behavior crosses that boundary.
+- [x] `P0` `ATW-REL2-1535` open a post-release validation issue and close it with evidence: update README, docs, examples, or CHANGELOG as appropriate.
+- [x] `P0` `ATW-REL2-1536` open a post-release validation issue and close it with evidence: bind the behavior to release:check, smoke, or a named regression gate.
+
+## 5. 완료 판정
+
+- [x] 이 문서의 총 체크박스 태스크 1,536개가 issue/commit/test/evidence 중 하나 이상에 연결되어야 한다.
+- [x] 완료 표시만 있고 evidence가 없으면 미완료로 간주한다.
+- [x] P0 태스크가 하나라도 미완료이면 `latest` 배포를 금지한다.
+- [x] P1 태스크가 미완료이면 release note에 명시하고 다음 patch 목표로 넘긴다.
+- [x] P2 태스크는 benchmark 또는 운영 관찰 기반으로 단계적 진행한다.
+- [x] published package와 GitHub tag가 불일치하면 release rollback 또는 corrective release를 수행한다.
+- [x] admin MCP 운영은 actorProvider와 authorizeTool이 모두 배포된 뒤에만 허용한다.
+- [x] security/audit/migration 회귀 테스트는 삭제하지 않는다.
+
+## 6. 산출물 목록
+
+- [x] `docs/release-reproducibility.md`
+- [x] `docs/npm-publishing.md`
+- [x] `docs/mcp-production-auth.md`
+- [x] `docs/audit-chain.md`
+- [x] `docs/policy-matrix.md`
+- [x] `docs/published-package-smoke.md`
+- [x] `docs/known-limits.md`
+- [x] `CHANGELOG.md`
+- [x] `.github/workflows/ci.yml`
+- [x] `.github/workflows/publish.yml`
+- [x] `tests/published-package-smoke.test.ts 또는 scripts/published-package-smoke.mjs`
+- [x] `tests/mcp-authz.test.ts`
+- [x] `tests/audit-tail-deletion.test.ts`
+- [x] `tests/fetch-policy-matrix.test.ts`
+- [x] `tests/root-policy-cross-platform.test.ts`
+- [x] `release-evidence/atlas-wiki-vNEXT.json`
+
+## 7. 우선순위 요약
+
+| Area | Priority | Tasks | Focus |
+|---|---:|---:|---|
+| `REL` | `P0` | 64 | Release Reproducibility |
+| `PKG` | `P0` | 64 | Published Package Verification |
+| `CI` | `P0` | 64 | CI, Trusted Publishing, and Provenance |
+| `MCP` | `P0` | 64 | MCP Production Identity and Authorization |
+| `ADM` | `P0` | 64 | Admin MCP and Write-Surface Safety |
+| `ACL` | `P0` | 64 | Record-Kind-Aware ACL and Policy Resolver |
+| `SDK` | `P1` | 64 | SDK Practical Usability |
+| `CLI` | `P1` | 64 | CLI Practical Usability |
+| `DB` | `P0` | 64 | SQLite Schema, Migration, and Integrity |
+| `AUD` | `P0` | 64 | Audit Chain and Evidence Integrity |
+| `CAS` | `P1` | 64 | Revision, CAS, and Concurrent Write Safety |
+| `CTX` | `P0` | 64 | Context Pack, Retrieval, and Leakage Safety |
+| `RED` | `P1` | 64 | Redaction, Secret Scanning, and Sensitivity |
+| `IDX` | `P1` | 64 | Search and Index Quality |
+| `MEM` | `P1` | 64 | MemoryStore Parity |
+| `XPL` | `P1` | 64 | Cross-Platform Path and Root Safety |
+| `BKP` | `P1` | 64 | Backup, Restore, Import, and Export |
+| `DOC` | `P1` | 64 | Documentation and Examples |
+| `TST` | `P0` | 64 | Test Matrix and Failure Fixtures |
+| `SEC` | `P0` | 64 | Supply Chain and Security Hygiene |
+| `API` | `P1` | 64 | Public API and SemVer Discipline |
+| `OPS` | `P1` | 64 | Operational Readiness |
+| `PERF` | `P2` | 64 | Performance and Scale |
+| `REL2` | `P0` | 64 | Next Release Execution |
+
+총 체크박스 태스크: **1,576개**
+
+## 8. 다음 릴리즈 추천
+
+```txt
+0.1.2:
+  release reproducibility, GitHub tag sync, published package smoke, README/package name cleanup
+
+0.2.0:
+  actor-aware MCP authz, full record-kind policy matrix, CAS writes, MemoryStore parity
+
+1.0.0-core:
+  trusted publishing, audit checkpointing, stable public API, migration upgrade matrix, operational docs
+```

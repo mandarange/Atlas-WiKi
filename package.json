@@ -53,6 +53,10 @@
       "types": "./dist/mcp/admin.d.ts",
       "import": "./dist/mcp/admin.js"
     },
+    "./release": {
+      "types": "./dist/release/manifest.d.ts",
+      "import": "./dist/release/manifest.js"
+    },
     "./schemas": {
       "types": "./dist/schemas/index.d.ts",
       "import": "./dist/schemas/index.js"
@@ -76,6 +80,7 @@
     "clean": "rm -rf dist coverage .atlas-wiki tmp/wiki tmp/package-smoke tmp/type-consumer",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.build.json && node scripts/chmod-bin.mjs",
+    "prepublishOnly": "node scripts/publish-guard.mjs",
     "prepack": "npm run build",
     "lint": "node scripts/lint.mjs",
     "format": "node scripts/format-check.mjs",
@@ -98,13 +103,15 @@
     "hardening:verify": "node scripts/verify-production-hardening.mjs",
     "package:verify": "npm run build && node scripts/package-verify.mjs",
     "packcheck": "npm run package:verify && npm run package:dry-run && npm run package:smoke",
-    "package:dry-run": "npm publish --dry-run",
+    "package:dry-run": "node scripts/package-dry-run.mjs",
     "package:smoke": "npm run build && node scripts/package-smoke.mjs",
     "package:published-smoke": "node scripts/published-package-smoke.mjs",
     "release:published-check": "npm run package:published-smoke",
+    "release:next-stable-generate": "npm run build && node scripts/generate-next-stable-release-evidence.mjs",
+    "release:next-stable-verify": "npm run build && node scripts/verify-next-stable-release.mjs",
     "selftest": "node scripts/selftest.mjs",
     "goal:coverage": "node scripts/generate-task-coverage.mjs",
-    "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:integration && npm run test:hardening && npm run test:types && npm run schemas:validate && npm run hardening:verify && npm run package:verify && npm run package:dry-run && npm run package:smoke"
+    "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:integration && npm run test:hardening && npm run test:types && npm run schemas:validate && npm run hardening:verify && npm run release:next-stable-verify && npm run package:verify && npm run package:dry-run && npm run package:smoke"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

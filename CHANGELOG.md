@@ -3,6 +3,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add next-stable release evidence generation, machine-readable coverage ledger, publish guard, trusted publishing workflow, and dedicated regression tests for MCP authz, audit tail deletion, fetch policy, root safety, and published-package smoke.
+
 ## [0.1.1] - 2026-05-26
 
 ### Fixed

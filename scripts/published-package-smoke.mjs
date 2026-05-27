@@ -21,6 +21,12 @@ try {
   ].join(" ")], { cwd: dir, encoding: "utf8" }).trim();
   const parsed = JSON.parse(imported);
   if (parsed.name !== "atlas-wiki" || parsed.sdk !== "function" || !parsed.readonly || !parsed.admin) throw new Error("Published package import smoke failed");
+  const installedPkg = JSON.parse(readFileSync(join(dir, "node_modules", "atlas-wiki", "package.json"), "utf8"));
+  let releaseExport = "not_published_in_baseline";
+  if (installedPkg.exports?.["./release"]) {
+    releaseExport = execFileSync("node", ["--input-type=module", "-e", "import { releaseEvidenceSchema } from 'atlas-wiki/release'; console.log(releaseEvidenceSchema)"], { cwd: dir, encoding: "utf8" }).trim();
+    if (releaseExport !== "atlas-wiki.release-evidence.v1") throw new Error("Published release export smoke failed");
+  }
   const root = join(dir, "wiki");
   for (const args of [
     ["awiki", "init", "--root", root, "--json"],
@@ -32,7 +38,7 @@ try {
   ]) {
     execFileSync("npx", args, { cwd: dir, stdio: "pipe" });
   }
-  console.log(JSON.stringify({ ok: true, packageSpec, imports: parsed }, null, 2));
+  console.log(JSON.stringify({ ok: true, packageSpec, imports: parsed, releaseExport }, null, 2));
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

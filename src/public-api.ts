@@ -6,6 +6,7 @@ export { createAdminAtlasWikiServer, createAtlasWikiMcpServer, createReadonlyAtl
 export { buildGovernanceReport, governanceWorkflows } from "./governance/index.js";
 export { evalHarnesses, runMockEvalSuite } from "./eval/harness.js";
 export { packageInfo } from "./package-info.js";
+export { assertReleaseEvidenceManifest, releaseEvidenceSchema, releaseEvidenceSummary } from "./release/manifest.js";
 export { recordSchemaDescriptors, recordSchemaIds, schemaById, schemas } from "./schemas/index.js";
 export { stableId } from "./core/ids/index.js";
 export { canonicalize, contentHash, sha256 } from "./core/hash/index.js";
@@ -13,4 +14,5 @@ export { canAccess, defaultAccessPolicy, policyResolver } from "./core/policy/in
 export { validateRecord } from "./core/validation/index.js";
 export { redactText } from "./security/redaction.js";
 export type * from "./core/records/index.js";
+export type * from "./release/manifest.js";
 export type * from "./store/store-contract.js";

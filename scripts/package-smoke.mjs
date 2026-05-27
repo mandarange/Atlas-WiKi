@@ -15,6 +15,8 @@ try {
   if ((statSync(bin).mode & 0o111) === 0) throw new Error("CLI bin is not executable");
   const imported = execFileSync("node", ["--input-type=module", "-e", "import { packageInfo } from 'atlas-wiki'; console.log(packageInfo.name)"], { cwd: dir, encoding: "utf8" }).trim();
   if (imported !== "atlas-wiki") throw new Error("ESM import smoke failed");
+  const releaseImported = execFileSync("node", ["--input-type=module", "-e", "import { releaseEvidenceSchema } from 'atlas-wiki/release'; console.log(releaseEvidenceSchema)"], { cwd: dir, encoding: "utf8" }).trim();
+  if (releaseImported !== "atlas-wiki.release-evidence.v1") throw new Error("Release export smoke failed");
   const cli = execFileSync("npx", ["awiki", "mcp", "smoke", "--root", join(dir, "wiki"), "--stdio", "--json"], { cwd: dir, encoding: "utf8" });
   const parsed = JSON.parse(cli);
   if (!parsed.tools.includes("atlas_wiki.search")) throw new Error("CLI smoke failed");

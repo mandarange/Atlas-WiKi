@@ -40,6 +40,13 @@ const descriptors = [
   ["FreshnessRecord", "atlas.wiki.freshness.v1", "freshness", "records,freshness_markers", ["reason"], "source"],
   ["ConflictRecord", "atlas.wiki.conflict.v1", "conflict", "records,conflicts", ["summary"], "source"],
   ["ProposalRecord", "atlas.wiki.proposal.v1", "proposal", "records,proposals", ["payload"], "policy"],
+  ["ExtractionRunRecord", "atlas.wiki.extraction-run.v1", "extraction_run", "records,extraction_runs", ["metrics", "errors"], "source"],
+  ["StructuredObjectRecord", "atlas.wiki.structured-object.v1", "structured_object", "records,structured_objects", ["data"], "own"],
+  ["SchemaContractRecord", "atlas.wiki.schema-contract.v1", "schema_contract", "records,schema_contracts", ["json_schema"], "policy"],
+  ["FieldObservationRecord", "atlas.wiki.field-observation.v1", "field_observation", "records,field_observations", ["value"], "source"],
+  ["TableExtractionRecord", "atlas.wiki.table-extraction.v1", "table_extraction", "records,table_extractions", ["rows"], "source"],
+  ["NormalizedValueRecord", "atlas.wiki.normalized-value.v1", "normalized_value", "records,normalized_values", ["raw_value", "normalized_value"], "source"],
+  ["ExtractionReviewRecord", "atlas.wiki.extraction-review.v1", "extraction_review", "records,extraction_reviews", ["notes"], "policy"],
   ["ApprovalRecord", "atlas.wiki.approval.v1", "approval", "records,approvals", ["comment"], "policy"],
   ["AuditRecord", "atlas.wiki.audit.v1", "audit", "records,audit_events", ["actor", "policy_decisions"], "policy"],
   ["ContextPackRecord", "atlas.wiki.context-pack.v1", "context_pack", "records,context_packs", ["citations", "redactions"], "policy"],
@@ -87,6 +94,13 @@ export const accessGrantRecordSchema = objectSchema("atlas.wiki.access-grant.v1"
 export const freshnessRecordSchema = objectSchema("atlas.wiki.freshness.v1", [...baseRequired, "record_ref", "policy", "stale", "checked_at"], { record_ref: { type: "object" }, policy: { type: "object" }, stale: { type: "boolean" }, checked_at: { type: "string" } });
 export const conflictRecordSchema = objectSchema("atlas.wiki.conflict.v1", [...baseRequired, "record_refs", "conflict_type", "severity", "summary", "resolution_status"], { record_refs: { type: "array" }, conflict_type: { type: "string" }, severity: { type: "string" }, summary: { type: "string" }, resolution_status: { type: "string" } });
 export const proposalRecordSchema = objectSchema("atlas.wiki.proposal.v1", [...baseRequired, "proposal_type", "payload", "requested_by", "approval_status"], { proposal_type: { type: "string" }, payload: { type: "object" }, requested_by: { type: "object" }, approval_status: { type: "string" } });
+export const extractionRunRecordSchema = objectSchema("atlas.wiki.extraction-run.v1", [...baseRequired, "source_ref", "extractor_name", "extractor_version", "run_status", "input_hash", "metrics", "errors"], { source_ref: { type: "object" }, extractor_name: { type: "string" }, extractor_version: { type: "string" }, run_status: { type: "string" }, input_hash: { type: "string" }, output_hash: { type: "string" }, metrics: { type: "object" }, errors: { type: "array" } });
+export const structuredObjectRecordSchema = objectSchema("atlas.wiki.structured-object.v1", [...baseRequired, "source_ref", "object_type", "schema_id", "data", "confidence", "evidence_refs", "acl", "sensitivity"], { source_ref: { type: "object" }, object_type: { type: "string" }, schema_id: { type: "string" }, data: { type: "object" }, confidence: { type: "number" }, evidence_refs: { type: "array" }, acl: { type: "object" }, sensitivity: { type: "string" } });
+export const schemaContractRecordSchema = objectSchema("atlas.wiki.schema-contract.v1", [...baseRequired, "name", "version", "json_schema", "required_fields", "identity_fields", "confidence_threshold", "conflict_keys"], { name: { type: "string" }, version: { type: "string" }, json_schema: { type: "object" }, required_fields: { type: "array" }, identity_fields: { type: "array" }, confidence_threshold: { type: "number" }, conflict_keys: { type: "array" } });
+export const fieldObservationRecordSchema = objectSchema("atlas.wiki.field-observation.v1", [...baseRequired, "source_ref", "field_name", "value", "confidence", "evidence_refs"], { source_ref: { type: "object" }, field_name: { type: "string" }, value: {}, confidence: { type: "number" }, evidence_refs: { type: "array" } });
+export const tableExtractionRecordSchema = objectSchema("atlas.wiki.table-extraction.v1", [...baseRequired, "source_ref", "headers", "rows", "evidence_refs"], { source_ref: { type: "object" }, headers: { type: "array" }, rows: { type: "array" }, evidence_refs: { type: "array" } });
+export const normalizedValueRecordSchema = objectSchema("atlas.wiki.normalized-value.v1", [...baseRequired, "source_ref", "raw_value", "normalized_value", "value_type", "confidence", "evidence_refs"], { source_ref: { type: "object" }, raw_value: {}, normalized_value: {}, value_type: { type: "string" }, confidence: { type: "number" }, evidence_refs: { type: "array" } });
+export const extractionReviewRecordSchema = objectSchema("atlas.wiki.extraction-review.v1", [...baseRequired, "source_ref", "review_status"], { source_ref: { type: "object" }, extraction_run_ref: { type: "object" }, reviewer: { type: "object" }, review_status: { type: "string" }, notes: { type: "string" } });
 export const approvalRecordSchema = objectSchema("atlas.wiki.approval.v1", [...baseRequired, "proposal_ref", "approver", "decision", "decided_at"], { proposal_ref: { type: "object" }, approver: { type: "object" }, decision: { type: "string" }, decided_at: { type: "string" } });
 export const auditRecordSchema = objectSchema("atlas.wiki.audit.v1", [...baseRequired, "event_type", "actor", "record_refs", "policy_decisions", "outcome", "hash_self"], { event_type: { type: "string" }, actor: { type: "object" }, record_refs: { type: "array" }, policy_decisions: { type: "array" }, outcome: { type: "string" }, hash_self: { type: "string" } });
 export const contextPackRecordSchema = objectSchema("atlas.wiki.context-pack.v1", [...baseRequired, "query", "actor", "included_refs", "citations", "redactions", "freshness_markers", "conflict_markers", "policy_decisions", "denied_count", "redacted_count", "stale_count", "conflict_count", "candidate_count", "authorized_count", "query_backend"], { query: { type: "string" }, actor: { type: "object" }, included_refs: { type: "array" }, citations: { type: "array" }, redactions: { type: "array" }, freshness_markers: { type: "array" }, conflict_markers: { type: "array" }, policy_decisions: { type: "array" }, denied_count: { type: "number" }, redacted_count: { type: "number" }, stale_count: { type: "number" }, conflict_count: { type: "number" }, candidate_count: { type: "number" }, authorized_count: { type: "number" }, query_backend: { type: "string" }, fallback_reason: { type: "string" } });
@@ -113,6 +127,13 @@ export const schemas = [
   freshnessRecordSchema,
   conflictRecordSchema,
   proposalRecordSchema,
+  extractionRunRecordSchema,
+  structuredObjectRecordSchema,
+  schemaContractRecordSchema,
+  fieldObservationRecordSchema,
+  tableExtractionRecordSchema,
+  normalizedValueRecordSchema,
+  extractionReviewRecordSchema,
   approvalRecordSchema,
   auditRecordSchema,
   contextPackRecordSchema,

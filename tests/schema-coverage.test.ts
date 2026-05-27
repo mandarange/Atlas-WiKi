@@ -45,6 +45,20 @@ function fixture(schema: string): Record<string, unknown> {
       return { ...base(schema, "conflict"), record_refs: [ref], conflict_type: "stale", severity: "low", summary: "No current conflict.", resolution_status: "open" };
     case "atlas.wiki.proposal.v1":
       return { ...base(schema, "proposal"), status: "pending_approval", proposal_type: "claim", target_ref: ref, payload: { text: "Remote work policy update" }, requested_by: actor, approval_status: "pending" };
+    case "atlas.wiki.extraction-run.v1":
+      return { ...base(schema, "extraction_run"), source_ref: sourceRef, extractor_name: "atlas.key-value", extractor_version: "1.0.0", run_status: "completed", input_hash: contentHash("input"), output_hash: contentHash("output"), metrics: { candidates: 1 }, errors: [] };
+    case "atlas.wiki.structured-object.v1":
+      return { ...base(schema, "structured_object"), source_ref: sourceRef, object_type: "customer_profile", schema_id: "customer_profile", data: { name: "Acme" }, confidence: 0.9, evidence_refs: [sourceRef], acl: defaultAccessPolicy("internal", owner.id), sensitivity: "internal" };
+    case "atlas.wiki.schema-contract.v1":
+      return { ...base(schema, "schema_contract"), name: "Customer Profile", version: "1", json_schema: { type: "object" }, required_fields: ["name"], identity_fields: ["name"], confidence_threshold: 0.8, conflict_keys: ["name"] };
+    case "atlas.wiki.field-observation.v1":
+      return { ...base(schema, "field_observation"), source_ref: sourceRef, field_name: "name", value: "Acme", confidence: 0.8, evidence_refs: [sourceRef] };
+    case "atlas.wiki.table-extraction.v1":
+      return { ...base(schema, "table_extraction"), source_ref: sourceRef, headers: ["Field", "Value"], rows: [{ field: "tier", value: "gold" }], evidence_refs: [sourceRef] };
+    case "atlas.wiki.normalized-value.v1":
+      return { ...base(schema, "normalized_value"), source_ref: sourceRef, raw_value: "two", normalized_value: 2, value_type: "number", confidence: 0.8, evidence_refs: [sourceRef] };
+    case "atlas.wiki.extraction-review.v1":
+      return { ...base(schema, "extraction_review"), source_ref: sourceRef, extraction_run_ref: { id: "run_1", schema: "atlas.wiki.extraction-run.v1", kind: "extraction_run" }, reviewer: actor, review_status: "pending", notes: "Needs human review" };
     case "atlas.wiki.approval.v1":
       return { ...base(schema, "approval"), proposal_ref: { id: "proposal_remote", schema: "atlas.wiki.proposal.v1", kind: "proposal" }, approver: actor, decision: "approved", decided_at: now };
     case "atlas.wiki.audit.v1":
@@ -78,9 +92,9 @@ function fixture(schema: string): Record<string, unknown> {
 
 describe("schema coverage", () => {
   it("defines schema descriptors for every record family in the goal checklist", () => {
-    expect(schemas).toHaveLength(24);
-    expect(recordSchemaDescriptors).toHaveLength(24);
-    expect(new Set(recordSchemaDescriptors.map((descriptor) => descriptor.schemaId)).size).toBe(24);
+    expect(schemas).toHaveLength(31);
+    expect(recordSchemaDescriptors).toHaveLength(31);
+    expect(new Set(recordSchemaDescriptors.map((descriptor) => descriptor.schemaId)).size).toBe(31);
     expect(recordSchemaDescriptors.every((descriptor) => descriptor.projection && descriptor.redactionFields && descriptor.aclSource)).toBe(true);
   });
 

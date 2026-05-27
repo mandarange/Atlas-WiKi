@@ -1,6 +1,6 @@
 {
   "name": "atlas-wiki",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "TypeScript-first, SQLite-first, source-backed, permission-aware knowledge wiki and ledger.",
   "type": "module",
   "license": "MIT",
@@ -53,6 +53,38 @@
       "types": "./dist/mcp/admin.d.ts",
       "import": "./dist/mcp/admin.js"
     },
+    "./store": {
+      "types": "./dist/store/index.d.ts",
+      "import": "./dist/store/index.js"
+    },
+    "./sqlite": {
+      "types": "./dist/store/sqlite/index.d.ts",
+      "import": "./dist/store/sqlite/index.js"
+    },
+    "./supabase": {
+      "types": "./dist/store/supabase/index.d.ts",
+      "import": "./dist/store/supabase/index.js"
+    },
+    "./structured": {
+      "types": "./dist/structured/index.d.ts",
+      "import": "./dist/structured/index.js"
+    },
+    "./extractors": {
+      "types": "./dist/extractors/index.d.ts",
+      "import": "./dist/extractors/index.js"
+    },
+    "./rag": {
+      "types": "./dist/rag/index.d.ts",
+      "import": "./dist/rag/index.js"
+    },
+    "./rag/gemini": {
+      "types": "./dist/rag/providers/gemini.d.ts",
+      "import": "./dist/rag/providers/gemini.js"
+    },
+    "./rag/testing": {
+      "types": "./dist/rag/providers/testing.d.ts",
+      "import": "./dist/rag/providers/testing.js"
+    },
     "./release": {
       "types": "./dist/release/manifest.d.ts",
       "import": "./dist/release/manifest.js"
@@ -96,6 +128,12 @@
     "test:mcp:admin": "vitest run tests/mcp-hardening.test.ts",
     "test:mcp:root-safety": "vitest run tests/mcp-hardening.test.ts",
     "test:audit": "vitest run tests/security.test.ts tests/audit-hardening.test.ts",
+    "test:structured": "vitest run tests/structured-ingestion.test.ts",
+    "test:rag": "vitest run tests/rag.test.ts",
+    "test:cli-setup": "vitest run tests/cli-setup.test.ts",
+    "test:store-contract": "vitest run tests/store-contract.test.ts",
+    "test:supabase:mock": "vitest run tests/supabase-store.test.ts",
+    "test:supabase:local": "node scripts/supabase-local-test.mjs",
     "test:hardening": "vitest run tests/production-hardening-completion.test.ts",
     "test:integration": "vitest run tests/integration.test.ts",
     "test:types": "npm run build && node scripts/type-consumer-smoke.mjs",
@@ -111,11 +149,23 @@
     "release:next-stable-verify": "npm run build && node scripts/verify-next-stable-release.mjs",
     "selftest": "node scripts/selftest.mjs",
     "goal:coverage": "node scripts/generate-task-coverage.mjs",
-    "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:integration && npm run test:hardening && npm run test:types && npm run schemas:validate && npm run hardening:verify && npm run release:next-stable-verify && npm run package:verify && npm run package:dry-run && npm run package:smoke"
+    "release:check": "npm run typecheck && npm run build && npm run lint && npm run test && npm run test:security && npm run test:context-leakage && npm run test:mcp && npm run test:audit && npm run test:structured && npm run test:rag && npm run test:cli-setup && npm run test:store-contract && npm run test:supabase:mock && npm run test:integration && npm run test:hardening && npm run test:types && npm run schemas:validate && npm run hardening:verify && npm run release:next-stable-verify && npm run package:verify && npm run package:dry-run && npm run package:smoke"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@google/genai": "^2.0.0",
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@google/genai": {
+      "optional": true
+    },
+    "@supabase/supabase-js": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

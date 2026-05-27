@@ -38,13 +38,15 @@ const requiredArtifacts = [
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const npmView = runJson("npm", ["view", "atlas-wiki", "version", "dist-tags", "gitHead", "dist.integrity", "dist.shasum", "time", "--json"]);
-const release = runJson("gh", ["release", "view", "v0.1.1", "--repo", "mandarange/Atlas-WiKi", "--json", "tagName,url,targetCommitish,publishedAt,isDraft,isPrerelease"]);
+const baselineVersion = npmView?.version ?? "0.1.2";
+const baselineTag = `v${baselineVersion}`;
+const release = runJson("gh", ["release", "view", baselineTag, "--repo", "mandarange/Atlas-WiKi", "--json", "tagName,url,targetCommitish,publishedAt,isDraft,isPrerelease"]);
 const branch = run("git", ["branch", "--show-current"]);
 const localHead = run("git", ["rev-parse", "HEAD"]);
 const remoteMainHead = run("git", ["ls-remote", "origin", "refs/heads/main"]).split(/\s+/)[0] || undefined;
-const v011TagHead =
-  run("git", ["ls-remote", "origin", "refs/tags/v0.1.1^{}"]).split(/\s+/)[0] ||
-  run("git", ["ls-remote", "origin", "refs/tags/v0.1.1"]).split(/\s+/)[0] ||
+const baselineTagHead =
+  run("git", ["ls-remote", "origin", `refs/tags/${baselineTag}^{}`]).split(/\s+/)[0] ||
+  run("git", ["ls-remote", "origin", `refs/tags/${baselineTag}`]).split(/\s+/)[0] ||
   undefined;
 
 const taskEvidence = tasks.map((task) => ({
@@ -115,7 +117,11 @@ const manifest = {
     branch,
     localHead,
     remoteMainHead,
-    v011TagHead,
+    baselineTag,
+    baselineTagHead,
+    baselineReleaseUrl: release?.url,
+    baselineRelease: release ?? null,
+    v011TagHead: baselineTagHead,
     v011ReleaseUrl: release?.url,
     v011Release: release ?? null
   },
@@ -127,7 +133,7 @@ const manifest = {
   })),
   gates: [
     { name: "release:check", command: "npm run release:check", evidence: ["package.json", "scripts/verify-next-stable-release.mjs", "scripts/package-dry-run.mjs"] },
-    { name: "published package smoke", command: "ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.1.1 npm run release:published-check", evidence: ["scripts/published-package-smoke.mjs", "docs/published-package-smoke.md"] },
+    { name: "published package smoke", command: `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@${baselineVersion} npm run release:published-check`, evidence: ["scripts/published-package-smoke.mjs", "docs/published-package-smoke.md"] },
     { name: "fresh clone", command: "npm ci && npm run release:check", evidence: ["release-evidence/atlas-wiki-vNEXT.json"] }
   ],
   publishPolicy: {
@@ -209,7 +215,7 @@ function gateFor(area, capability) {
 
 function evidenceForArtifact(path) {
   if (path.endsWith("publish.yml")) return ["trusted-publishing workflow", "npm Docs trusted publishing OIDC guidance"];
-  if (path.includes("release-evidence")) return ["npm view atlas-wiki", "gh release view v0.1.1", "coverage ledger"];
+  if (path.includes("release-evidence")) return ["npm view atlas-wiki", "gh release view current baseline tag", "coverage ledger"];
   if (path.startsWith("tests/")) return ["npm run test", "npm run release:check"];
   if (path.startsWith("docs/")) return ["tests/docs-coverage.test.ts", "docs/docs-manifest.md"];
   return ["npm run release:check"];

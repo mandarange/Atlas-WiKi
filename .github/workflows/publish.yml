@@ -35,3 +35,9 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version }}
       - run: npm publish
+      - name: Post-publish smoke
+        run: |
+          VERSION="${PACKAGE_VERSION#v}"
+          ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@${VERSION} npm run release:published-check
+        env:
+          PACKAGE_VERSION: ${{ inputs.version || github.ref_name }}

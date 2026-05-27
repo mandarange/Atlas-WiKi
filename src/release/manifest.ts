@@ -36,6 +36,10 @@ export interface ReleaseEvidenceManifest {
     branch: string;
     localHead: string;
     remoteMainHead?: string | undefined;
+    baselineTag?: string | undefined;
+    baselineTagHead?: string | undefined;
+    baselineReleaseUrl?: string | undefined;
+    baselineRelease?: unknown;
     v011TagHead?: string | undefined;
     v011ReleaseUrl?: string | undefined;
   };

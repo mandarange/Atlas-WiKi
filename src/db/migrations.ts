@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { packageInfo } from "../package-info.js";
 import { MigrationChecksumError, MigrationOrderError, MissingMigrationError } from "../core/errors/index.js";
 import { sha256 } from "../core/hash/index.js";
-import { schemaSql } from "./schema.js";
+import { initialSchemaSql } from "./schema.js";
 
 export interface Migration {
   id: string;
@@ -59,9 +59,38 @@ INSERT OR REPLACE INTO audit_head (singleton_id, last_seq, event_id, hash_self, 
   LIMIT 1;
 `;
 
+const ragEmbeddingSql = `
+CREATE TABLE IF NOT EXISTS embedding_profiles (
+  id TEXT PRIMARY KEY,
+  provider_id TEXT NOT NULL,
+  model TEXT NOT NULL,
+  dimensions INTEGER NOT NULL,
+  prompt_policy TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS chunk_embeddings (
+  id TEXT PRIMARY KEY,
+  chunk_id TEXT NOT NULL REFERENCES chunks(id) ON DELETE CASCADE,
+  profile_id TEXT NOT NULL REFERENCES embedding_profiles(id),
+  provider_id TEXT NOT NULL,
+  model TEXT NOT NULL,
+  dimensions INTEGER NOT NULL,
+  content_hash TEXT NOT NULL,
+  vector_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  stale_at TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_chunk_embeddings_profile_chunk ON chunk_embeddings(profile_id, chunk_id);
+CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_stale ON chunk_embeddings(stale_at);
+`;
+
 export const migrations: readonly Migration[] = [
-  { id: "0001_initial", sql: schemaSql },
-  { id: "0002_audit_head_checkpoint", sql: auditHeadSql }
+  { id: "0001_initial", sql: initialSchemaSql },
+  { id: "0002_audit_head_checkpoint", sql: auditHeadSql },
+  { id: "0003_rag_embedding_profiles", sql: ragEmbeddingSql }
 ];
 
 export function applyMigrations(db: DatabaseSync, options: MigrationOptions = {}): MigrationReport {

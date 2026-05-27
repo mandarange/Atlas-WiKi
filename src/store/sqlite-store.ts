@@ -7,15 +7,17 @@ import { checkDatabaseIntegrity } from "../db/integrity.js";
 import { applyMigrations, migrationDryRun } from "../db/migrations.js";
 import { buildSafeFtsQuery } from "../db/query-builder.js";
 import { transaction } from "../db/transaction.js";
+import { WriteConflictError } from "../core/errors/index.js";
 import { contentHash, canonicalize, sha256 } from "../core/hash/index.js";
 import { cryptoSafeId, stableId } from "../core/ids/index.js";
 import { defaultAccessPolicy, policyResolver } from "../core/policy/index.js";
-import type { ActorRef, AtlasRecord, ContextPackRecord, PolicyDecision, ProposalRecord, RedactionEvent, SourceRecord } from "../core/records/index.js";
+import type { ActorRef, AtlasRecord, ContextPackRecord, PolicyDecision, ProposalRecord, RedactionEvent, SourceRecord, StructuredObjectRecord } from "../core/records/index.js";
 import { isPastIso, nowIso } from "../core/time/index.js";
 import { validateRecord } from "../core/validation/index.js";
 import { chunkText } from "../ingest/chunker.js";
 import { redactText } from "../security/redaction.js";
-import type { AtlasWikiStore, IngestInput, SearchResult } from "./store-contract.js";
+import { candidateSourceRefs, extractStructured, structuredContentHash, structuredStableId } from "../structured/index.js";
+import type { AtlasWikiStore, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, SearchResult, StructuredIngestInput, StructuredIngestResult, WriteOptions, WriteResult } from "./store-contract.js";
 
 interface SourceRow {
   json: string;
@@ -102,7 +104,7 @@ export class SqliteStore implements AtlasWikiStore {
     validateRecord(source);
     const chunks = chunkText(input.text);
     transaction(db, () => {
-      this.upsertRecord(source);
+      this.writeRecord(source);
       db.prepare(
         `INSERT INTO sources (id, source_type, title, uri, owner_id, content_hash, extracted_text_ref, stale_after, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -141,6 +143,53 @@ export class SqliteStore implements AtlasWikiStore {
     return source;
   }
 
+  async ingestStructured(input: StructuredIngestInput): Promise<StructuredIngestResult> {
+    if (input.mode === "commit" && !input.trusted) throw new Error("Structured direct commit requires trusted: true");
+    const source = await this.ingestText(input);
+    const candidates = await extractStructured({ source, text: input.text, schemas: input.schemas });
+    const structuredObjects: StructuredObjectRecord[] = [];
+    const proposals: ProposalRecord[] = [];
+    const warnings = candidates.flatMap((candidate) => candidate.warnings);
+    for (const candidate of candidates) {
+      const time = nowIso();
+      const object: StructuredObjectRecord = {
+        schema: "atlas.wiki.structured-object.v1",
+        kind: "structured_object",
+        id: structuredStableId(source, candidate),
+        status: input.mode === "commit" ? "active" : "pending_approval",
+        created_at: time,
+        updated_at: time,
+        revision: 1,
+        content_hash: structuredContentHash(candidate),
+        source_ref: { id: source.id, schema: source.schema, kind: source.kind },
+        object_type: candidate.objectType,
+        schema_id: candidate.schemaId,
+        data: candidate.data,
+        confidence: candidate.confidence,
+        evidence_refs: candidateSourceRefs(candidate, source),
+        acl: source.acl,
+        sensitivity: source.sensitivity
+      };
+      validateRecord(object);
+      structuredObjects.push(object);
+      if (input.mode === "commit") {
+        await this.upsertRecord(object, { actor: input.actor });
+      } else {
+        const proposal = await this.proposeChange("update", {
+          text: "Structured extraction proposal for " + object.object_type,
+          source_id: source.id,
+          requested_by: input.actor ?? { id: "service:structured", type: "service" },
+          owner: source.owner?.id
+        });
+        proposal.payload.structured_object = object;
+        await this.upsertRecord(proposal, { expectedRevision: proposal.revision, actor: proposal.requested_by });
+        proposals.push(proposal);
+      }
+    }
+    this.logAudit("structured.ingest", input.actor ?? { id: "service:structured", type: "service" }, structuredObjects.map((object) => ({ id: object.id, schema: object.schema, kind: object.kind })), [{ allowed: true, reason: input.mode === "commit" ? "trusted_structured_commit" : "proposal_created" }], "success");
+    return { source, structuredObjects, proposals, warnings };
+  }
+
   async proposeClaim(input: { text: string; source_id?: string | undefined; requested_by: ActorRef; owner?: string | undefined }): Promise<ProposalRecord> {
     return this.propose("claim", input);
   }
@@ -169,7 +218,7 @@ export class SqliteStore implements AtlasWikiStore {
     };
     validateRecord(proposal);
     transaction(db, () => {
-      this.upsertRecord(proposal);
+      this.writeRecord(proposal);
       db.prepare(
         `INSERT INTO proposals (id, proposal_type, target_id, approval_status, requested_by_json, payload_json)
          VALUES (?, ?, ?, ?, ?, ?)
@@ -473,7 +522,25 @@ export class SqliteStore implements AtlasWikiStore {
     return [];
   }
 
-  private upsertRecord(record: AtlasRecord): void {
+  async upsertRecord(record: AtlasRecord, options: WriteOptions = {}): Promise<WriteResult> {
+    const db = this.requireDb();
+    const existing = db.prepare("SELECT revision FROM records WHERE id = ? AND deleted_at IS NULL").get(record.id) as { revision: number } | undefined;
+    if (options.expectedRevision !== undefined && existing?.revision !== options.expectedRevision) {
+      throw new WriteConflictError(record.id, options.expectedRevision, existing?.revision);
+    }
+    const finalRecord = validateRecord({
+      ...record,
+      revision: existing && options.expectedRevision !== undefined ? options.expectedRevision + 1 : record.revision,
+      updated_by: options.actor ?? record.updated_by
+    });
+    transaction(db, () => {
+      this.writeRecord(finalRecord);
+      this.logAudit("record.upsert", options.actor ?? { id: "service:store", type: "service" }, [{ id: finalRecord.id, schema: finalRecord.schema, kind: finalRecord.kind }], [{ record_ref: { id: finalRecord.id, schema: finalRecord.schema, kind: finalRecord.kind }, allowed: true, reason: "write_committed" }], "success");
+    });
+    return { record: finalRecord, created: !existing, previousRevision: existing?.revision, revision: finalRecord.revision };
+  }
+
+  private writeRecord(record: AtlasRecord): void {
     this.requireDb().prepare(
       `INSERT INTO records (id, schema, kind, status, json, content_hash, revision, created_at, updated_at, created_by, updated_by, deleted_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)

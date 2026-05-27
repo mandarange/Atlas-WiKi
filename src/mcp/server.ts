@@ -11,6 +11,11 @@ export const readonlyAtlasWikiToolNames = [
   "atlas_wiki.search",
   "atlas_wiki.fetch",
   "atlas_wiki.context_pack",
+  "atlas_wiki.rag_search",
+  "atlas_wiki.rag_context_pack",
+  "atlas_wiki.rag_explain",
+  "atlas_wiki.structured_lookup",
+  "atlas_wiki.rag_status",
   "atlas_wiki.explain_citation",
   "atlas_wiki.check_freshness",
   "atlas_wiki.find_owner",
@@ -29,6 +34,12 @@ export const adminAtlasWikiToolNames = [
   "atlas_wiki.propose_deprecate",
   "atlas_wiki.report_conflict",
   "atlas_wiki.ingest",
+  "atlas_wiki.rag_index",
+  "atlas_wiki.rag_reindex",
+  "atlas_wiki.embedding_profile_create",
+  "atlas_wiki.structure_extract",
+  "atlas_wiki.structure_commit",
+  "atlas_wiki.supabase_migrate",
   "atlas_wiki.rebuild_index",
   "atlas_wiki.backup_create"
 ] as const;
@@ -79,6 +90,14 @@ function registerReadonlyTools(server: McpServer, options: AtlasWikiMcpServerOpt
   server.registerTool("atlas_wiki.search", { title: "Atlas WiKi Search", description: "ACL-filtered lexical search.", inputSchema: commonSchema({ query: z.string(), limit: z.number().optional() }, options) }, async (input) => withWiki("search", input, options, async (wiki, actor) => wiki.search(input.query, actor, input.limit)));
   server.registerTool("atlas_wiki.fetch", { title: "Atlas WiKi Fetch", description: "Fetch an allowed record.", inputSchema: commonSchema({ id: z.string() }, options) }, async (input) => withWiki("fetch", input, options, async (wiki, actor) => wiki.fetch(input.id, actor)));
   server.registerTool("atlas_wiki.context_pack", { title: "Atlas WiKi Context Pack", description: "Build ACL-filtered citation evidence.", inputSchema: commonSchema({ query: z.string(), limit: z.number().optional() }, options) }, async (input) => withWiki("context_pack", input, options, async (wiki, actor) => wiki.contextPack(input.query, actor, input.limit)));
+  server.registerTool("atlas_wiki.rag_search", { title: "Atlas WiKi RAG Search", description: "ACL-filtered RAG search with lexical, structured, vector, or hybrid semantics.", inputSchema: commonSchema({ query: z.string(), mode: z.enum(["lexical", "structured", "vector", "hybrid"]).optional(), fallback: z.enum(["error", "degrade", "lexical_only", "structured_only", "testing_deterministic_embeddings"]).optional(), limit: z.number().optional() }, options) }, async (input) => withWiki("rag_search", input, options, async (wiki, actor) => wiki.ragSearch({ query: input.query, actor, mode: input.mode, fallbackPolicy: input.fallback, limit: input.limit })));
+  server.registerTool("atlas_wiki.rag_context_pack", { title: "Atlas WiKi RAG Context Pack", description: "Build a context pack with RAG fallback metadata.", inputSchema: commonSchema({ query: z.string(), mode: z.enum(["lexical", "structured", "vector", "hybrid"]).optional(), fallback: z.enum(["error", "degrade", "lexical_only", "structured_only", "testing_deterministic_embeddings"]).optional(), limit: z.number().optional() }, options) }, async (input) => withWiki("rag_context_pack", input, options, async (wiki, actor) => wiki.ragContextPack({ query: input.query, actor, mode: input.mode, fallbackPolicy: input.fallback, limit: input.limit })));
+  server.registerTool("atlas_wiki.rag_explain", { title: "Atlas WiKi RAG Explain", description: "Explain RAG score breakdown and fallback metadata.", inputSchema: commonSchema({ query: z.string(), mode: z.enum(["lexical", "structured", "vector", "hybrid"]).optional(), limit: z.number().optional() }, options) }, async (input) => withWiki("rag_explain", input, options, async (wiki, actor) => {
+    const result = await wiki.ragSearch({ query: input.query, actor, mode: input.mode, limit: input.limit });
+    return { metadata: result.metadata, scores: result.items.map((item) => ({ source_id: item.source_id, chunk_id: item.chunk_id, score_breakdown: item.score_breakdown })) };
+  }));
+  server.registerTool("atlas_wiki.structured_lookup", { title: "Atlas WiKi Structured Lookup", description: "Search structured evidence through the RAG structured mode.", inputSchema: commonSchema({ query: z.string(), limit: z.number().optional() }, options) }, async (input) => withWiki("structured_lookup", input, options, async (wiki, actor) => wiki.ragSearch({ query: input.query, actor, mode: "structured", limit: input.limit })));
+  server.registerTool("atlas_wiki.rag_status", { title: "Atlas WiKi RAG Status", description: "Return embedding provider and vector index status.", inputSchema: commonSchema({}, options) }, async (input) => withWiki("rag_status", input, options, async (wiki) => wiki.ragStatus()));
   server.registerTool("atlas_wiki.explain_citation", { title: "Atlas WiKi Explain Citation", description: "Return citation details from a context pack.", inputSchema: commonSchema({ query: z.string(), citation_id: z.string().optional() }, options) }, async (input) => withWiki("explain_citation", input, options, async (wiki, actor) => {
     const pack = await wiki.contextPack(input.query, actor);
     return input.citation_id ? pack.citations.filter((citation) => citation.id === input.citation_id) : pack.citations;
@@ -109,6 +128,12 @@ function registerAdminTools(server: McpServer, options: AtlasWikiMcpServerOption
   }
   server.registerTool("atlas_wiki.propose_claim", { title: "Atlas WiKi Propose Claim", description: "Create a pending claim proposal.", inputSchema: commonSchema({ text: z.string(), source_id: z.string().optional(), owner: z.string().optional() }, options) }, async (input) => withAdminWiki("propose_claim", input, options, async (wiki, actor) => wiki.proposeClaim({ text: input.text, source_id: input.source_id, requested_by: actor, owner: input.owner })));
   server.registerTool("atlas_wiki.ingest", { title: "Atlas WiKi Ingest", description: "Admin-only trusted text ingest.", inputSchema: commonSchema({ title: z.string(), text: z.string(), owner: z.string().optional(), visibility: z.enum(["public", "internal", "private"]).optional() }, options) }, async (input) => withAdminWiki("ingest", input, options, async (wiki) => wiki.ingestText({ title: input.title, text: input.text, owner: input.owner, visibility: input.visibility })));
+  server.registerTool("atlas_wiki.rag_index", { title: "Atlas WiKi RAG Index", description: "Admin-only embedding/vector index run.", inputSchema: commonSchema({ query: z.string().optional(), limit: z.number().optional() }, options) }, async (input) => withAdminWiki("rag_index", input, options, async (wiki, actor) => wiki.ragIndex({ actor, query: input.query, limit: input.limit })));
+  server.registerTool("atlas_wiki.rag_reindex", { title: "Atlas WiKi RAG Reindex", description: "Admin-only stale/missing embedding reindex run.", inputSchema: commonSchema({ query: z.string().optional(), limit: z.number().optional() }, options) }, async (input) => withAdminWiki("rag_reindex", input, options, async (wiki, actor) => wiki.ragIndex({ actor, query: input.query, limit: input.limit })));
+  server.registerTool("atlas_wiki.embedding_profile_create", { title: "Atlas WiKi Embedding Profile Create", description: "Record intended embedding profile metadata.", inputSchema: commonSchema({ provider: z.string(), model: z.string(), dimensions: z.number(), prompt_policy: z.string() }, options) }, async (input) => withAdminWiki("embedding_profile_create", input, options, async () => ({ ok: true, profile: input, note: "Profile persistence is handled by backend migrations/adapters." })));
+  server.registerTool("atlas_wiki.structure_extract", { title: "Atlas WiKi Structure Extract", description: "Admin-only deterministic structured extraction proposal.", inputSchema: commonSchema({ title: z.string(), text: z.string(), owner: z.string().optional(), visibility: z.enum(["public", "internal", "private"]).optional() }, options) }, async (input) => withAdminWiki("structure_extract", input, options, async (wiki, actor) => wiki.ingestStructured({ title: input.title, text: input.text, owner: input.owner, visibility: input.visibility, actor, mode: "proposal" })));
+  server.registerTool("atlas_wiki.structure_commit", { title: "Atlas WiKi Structure Commit", description: "Admin-only trusted deterministic structured extraction commit.", inputSchema: commonSchema({ title: z.string(), text: z.string(), owner: z.string().optional(), visibility: z.enum(["public", "internal", "private"]).optional() }, options) }, async (input) => withAdminWiki("structure_commit", input, options, async (wiki, actor) => wiki.ingestStructured({ title: input.title, text: input.text, owner: input.owner, visibility: input.visibility, actor, mode: "commit", trusted: true })));
+  server.registerTool("atlas_wiki.supabase_migrate", { title: "Atlas WiKi Supabase Migrate", description: "Report Supabase migration intent; execution stays outside MCP tool writes.", inputSchema: commonSchema({}, options) }, async (input) => withAdminWiki("supabase_migrate", input, options, async () => ({ ok: true, note: "Run committed SQL migrations with Supabase CLI in an approved local/branch environment." })));
   server.registerTool("atlas_wiki.rebuild_index", { title: "Atlas WiKi Rebuild Index", description: "Admin-only FTS projection rebuild.", inputSchema: commonSchema({}, options) }, async (input) => withAdminWiki("rebuild_index", input, options, async (wiki) => { wiki.rebuildIndex(); return { ok: true, rebuilt: "chunks_fts" }; }));
   server.registerTool("atlas_wiki.backup_create", { title: "Atlas WiKi Backup Create", description: "Admin-only WAL-safe SQLite backup.", inputSchema: commonSchema({}, options) }, async (input) => withAdminWiki("backup_create", input, options, async (wiki) => ({ ok: true, path: await wiki.backupCreate() })));
 }

@@ -11,6 +11,6 @@ const mode = isDryRun
     ? "trusted-github-actions-oidc"
     : isEmergency
       ? "emergency-local"
-      : "local";
+      : "local-authenticated-npm";
 
 console.log(`publish guard ok (${mode})`);

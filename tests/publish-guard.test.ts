@@ -2,13 +2,22 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 describe("stable publish guard", () => {
-  it("allows direct local publish when the operator is authenticated with npm", () => {
+  it("allows direct local publish and records the local npm-authenticated context", () => {
     const local = execFileSync("node", ["scripts/publish-guard.mjs"], {
       encoding: "utf8",
       env: { PATH: process.env.PATH ?? "", NODE_OPTIONS: "" },
       stdio: "pipe"
     });
-    expect(local).toContain("publish guard ok (local)");
+    expect(local).toContain("publish guard ok (local-authenticated-npm)");
+  });
+
+  it("keeps the audited emergency override context explicit", () => {
+    const emergency = execFileSync("node", ["scripts/publish-guard.mjs"], {
+      encoding: "utf8",
+      env: { PATH: process.env.PATH ?? "", ATLAS_WIKI_EMERGENCY_LOCAL_PUBLISH: "true" },
+      stdio: "pipe"
+    });
+    expect(emergency).toContain("publish guard ok (emergency-local)");
   });
 
   it("allows npm dry-run and trusted GitHub Actions OIDC contexts", () => {

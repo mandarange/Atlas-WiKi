@@ -24,6 +24,13 @@ export interface PolicyScope { kind?: string | undefined; owner_id?: string | un
 export interface PolicyRule { id: string; effect: "allow" | "deny" | "redact" | "require_approval"; condition: Record<string, unknown>; }
 export interface PolicyRecord extends BaseRecord { schema: "atlas.wiki.policy.v1"; kind: "policy"; policy_type: "access" | "redaction" | "retention" | "approval" | "freshness" | "connector"; scope: PolicyScope; rules: PolicyRule[]; enforcement: "advisory" | "blocking"; }
 export interface ProposalRecord extends BaseRecord { schema: "atlas.wiki.proposal.v1"; kind: "proposal"; proposal_type: "claim" | "update" | "deprecate" | "conflict"; target_ref?: RecordRef | undefined; payload: Record<string, unknown>; requested_by: ActorRef; approval_status: "pending" | "approved" | "rejected"; }
+export interface ExtractionRunRecord extends BaseRecord { schema: "atlas.wiki.extraction-run.v1"; kind: "extraction_run"; source_ref: SourceRef; extractor_name: string; extractor_version: string; run_status: "pending" | "completed" | "failed"; input_hash: string; output_hash?: string | undefined; metrics: Record<string, unknown>; errors: Array<Record<string, unknown>>; }
+export interface StructuredObjectRecord extends BaseRecord { schema: "atlas.wiki.structured-object.v1"; kind: "structured_object"; source_ref: SourceRef; object_type: string; schema_id: string; data: Record<string, unknown>; confidence: number; evidence_refs: SourceRef[]; extraction_run_ref?: RecordRef | undefined; acl: AccessPolicy; sensitivity: SensitivityLabel; }
+export interface SchemaContractRecord extends BaseRecord { schema: "atlas.wiki.schema-contract.v1"; kind: "schema_contract"; name: string; version: string; description?: string | undefined; json_schema: Record<string, unknown>; required_fields: string[]; identity_fields: string[]; confidence_threshold: number; conflict_keys: string[]; }
+export interface FieldObservationRecord extends BaseRecord { schema: "atlas.wiki.field-observation.v1"; kind: "field_observation"; source_ref: SourceRef; field_name: string; value: unknown; confidence: number; evidence_refs: SourceRef[]; }
+export interface TableExtractionRecord extends BaseRecord { schema: "atlas.wiki.table-extraction.v1"; kind: "table_extraction"; source_ref: SourceRef; headers: string[]; rows: Array<Record<string, unknown>>; evidence_refs: SourceRef[]; }
+export interface NormalizedValueRecord extends BaseRecord { schema: "atlas.wiki.normalized-value.v1"; kind: "normalized_value"; source_ref: SourceRef; raw_value: unknown; normalized_value: unknown; value_type: string; confidence: number; evidence_refs: SourceRef[]; }
+export interface ExtractionReviewRecord extends BaseRecord { schema: "atlas.wiki.extraction-review.v1"; kind: "extraction_review"; source_ref: SourceRef; extraction_run_ref?: RecordRef | undefined; reviewer?: ActorRef | undefined; review_status: "pending" | "approved" | "rejected"; notes?: string | undefined; }
 export interface AccessGrantRecord extends BaseRecord { schema: "atlas.wiki.access-grant.v1"; kind: "access_grant"; record_ref: RecordRef; grant: AccessGrant; inherited_from?: RecordRef | undefined; }
 export interface FreshnessRecord extends BaseRecord { schema: "atlas.wiki.freshness.v1"; kind: "freshness"; record_ref: RecordRef; policy: FreshnessPolicy; stale: boolean; checked_at: string; reason?: string | undefined; }
 export interface ConflictRecord extends BaseRecord { schema: "atlas.wiki.conflict.v1"; kind: "conflict"; record_refs: RecordRef[]; conflict_type: "contradiction" | "duplicate" | "stale" | "ownership" | "policy"; severity: "low" | "medium" | "high" | "critical"; summary: string; resolution_status: "open" | "resolved" | "accepted"; }
@@ -57,6 +64,13 @@ export type AtlasRecord =
   | FreshnessRecord
   | ConflictRecord
   | ProposalRecord
+  | ExtractionRunRecord
+  | StructuredObjectRecord
+  | SchemaContractRecord
+  | FieldObservationRecord
+  | TableExtractionRecord
+  | NormalizedValueRecord
+  | ExtractionReviewRecord
   | ApprovalRecord
   | AuditRecord
   | ContextPackRecord

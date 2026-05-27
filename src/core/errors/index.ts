@@ -2,6 +2,12 @@ export class AtlasWikiError extends Error { constructor(message: string, readonl
 export class ValidationError extends AtlasWikiError { constructor(message: string, details?: unknown) { super(message, "ATLAS_WIKI_VALIDATION", details); } }
 export class NotFoundError extends AtlasWikiError { constructor(id: string) { super("Record not found: " + id, "ATLAS_WIKI_NOT_FOUND", { id }); } }
 export class AccessDeniedError extends AtlasWikiError { constructor(id: string) { super("Access denied for record: " + id, "ATLAS_WIKI_ACCESS_DENIED", { id }); } }
+export class WriteConflictError extends AtlasWikiError {
+  constructor(id: string, expectedRevision: number | undefined, actualRevision: number | undefined) {
+    super("Write conflict for record: " + id, "ATLAS_WIKI_WRITE_CONFLICT", { id, expectedRevision, actualRevision });
+    this.name = "WriteConflictError";
+  }
+}
 
 export class UnknownRecordSchemaError extends ValidationError {
   constructor(schema: string | undefined) {

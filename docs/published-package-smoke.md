@@ -15,7 +15,7 @@ The smoke test runs outside the repository package tree so it cannot accidentall
 Run after publish:
 
 ```bash
-ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.1.1 npm run release:published-check
+ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.1.2 npm run release:published-check
 ```
 
 The same script is checked by `tests/published-package-smoke.test.ts`.
@@ -23,4 +23,3 @@ The same script is checked by `tests/published-package-smoke.test.ts`.
 ## Operator Notes
 
 If registry install, import, CLI, SDK, MCP, or audit verification fails, stop `latest` promotion and create a corrective release or rollback/deprecation plan.
-

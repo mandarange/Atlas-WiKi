@@ -25,6 +25,9 @@ if (!registryMatchesIntended && !registryIsPublishedBaseline) {
 if (registryIsPublishedBaseline && manifest.npm.gitHead && manifest.git.v011TagHead && manifest.npm.gitHead !== manifest.git.v011TagHead) {
   fail("pre-publish npm gitHead must match v0.1.1 tag head in release evidence");
 }
+if (registryIsPublishedBaseline && manifest.npm.gitHead && manifest.git.baselineTagHead && manifest.npm.gitHead !== manifest.git.baselineTagHead) {
+  fail("pre-publish npm gitHead must match baseline tag head in release evidence");
+}
 if (!manifest.npm.integrity || !manifest.npm.shasum) fail("release evidence must record npm integrity and shasum");
 
 if (ledger.task_total !== 1536 || ledger.task_checked !== 1536) fail("next stable task ledger must contain 1536 checked tasks");
@@ -53,7 +56,7 @@ if (!ci.includes("pull_request") || !ci.includes("branches: [main]") || !ci.incl
 if (!ci.includes("npm run release:check")) fail("CI must run release:check");
 
 const guard = readFileSync("scripts/publish-guard.mjs", "utf8");
-if (!guard.includes("publish guard ok") || !guard.includes("ACTIONS_ID_TOKEN_REQUEST_TOKEN")) fail("publish guard must allow local publish while preserving trusted OIDC context detection");
+if (!guard.includes("local-authenticated-npm") || !guard.includes("ACTIONS_ID_TOKEN_REQUEST_TOKEN")) fail("publish guard must allow direct local npm publish while preserving trusted OIDC context detection");
 const dryRun = readFileSync("scripts/package-dry-run.mjs", "utf8");
 if (!dryRun.includes("npm\", [\"publish\", \"--dry-run\"]") || !dryRun.includes("already-published reproducibility baseline")) fail("package dry-run wrapper must execute npm publish --dry-run and handle the published baseline");
 

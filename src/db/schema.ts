@@ -1,4 +1,4 @@
-export const schemaSql = `
+export const initialSchemaSql = `
 CREATE TABLE IF NOT EXISTS migrations (
   id TEXT PRIMARY KEY,
   checksum TEXT,
@@ -83,3 +83,5 @@ CREATE INDEX IF NOT EXISTS idx_sources_title ON sources(title);
 CREATE INDEX IF NOT EXISTS idx_chunks_source_ordinal ON chunks(source_id, ordinal);
 CREATE INDEX IF NOT EXISTS idx_audit_events_created_at ON audit_events(created_at);
 `;
+
+export const schemaSql = initialSchemaSql;

@@ -1,9 +1,9 @@
 {
   "schema": "atlas-wiki.release-evidence.v1",
-  "generated_at": "2026-05-27T03:04:42.441Z",
+  "generated_at": "2026-05-27T06:27:00.513Z",
   "package": {
     "name": "atlas-wiki",
-    "version": "0.1.2"
+    "version": "0.1.4"
   },
   "sourceGoal": {
     "path": "/Users/weklem/Desktop/atlas-wiki-0.1.1-next-stable-goal.md",
@@ -15,32 +15,28 @@
   },
   "npm": {
     "package": "atlas-wiki",
-    "version": "0.1.1",
-    "latest": "0.1.1",
-    "gitHead": "2ad7e1d36deaadb8c310bdfd517ecd5abc742827",
-    "integrity": "sha512-QVUCoBFVBw44Wt7BZ29weZFFugj24acMQ/nyVcrq28nY0PfuZSXgPXsE9nea0sLHXvglbQ/Q0sZVTiVGJP9UNw==",
-    "shasum": "7737cc835150f48b340224d930f80ea18f592dc8",
+    "version": "0.1.2",
+    "latest": "0.1.2",
+    "gitHead": "65433c6c415f6ee1084f0305a1c3f783fa48c63e",
+    "integrity": "sha512-la7hwhnkzPaACLUyOn1Lj2eNiDNvSgtjLL1VJ1aXfXM2vKU3kdx9HzulpFvptYUsHqjJfr35hnWccMsxA10cOQ==",
+    "shasum": "32116f9eb70868e2c54e1b51a630362f1b4a2f0c",
     "time": {
       "created": "2026-05-26T15:13:00.913Z",
-      "modified": "2026-05-27T01:19:13.985Z",
+      "modified": "2026-05-27T05:07:23.124Z",
       "0.1.0": "2026-05-26T15:13:01.218Z",
-      "0.1.1": "2026-05-27T01:19:13.571Z"
+      "0.1.1": "2026-05-27T01:19:13.571Z",
+      "0.1.2": "2026-05-27T05:07:22.999Z"
     }
   },
   "git": {
     "branch": "main",
-    "localHead": "a0af484aed29ceb3109842ed698533b97ce8236e",
-    "remoteMainHead": "a0af484aed29ceb3109842ed698533b97ce8236e",
-    "v011TagHead": "2ad7e1d36deaadb8c310bdfd517ecd5abc742827",
-    "v011ReleaseUrl": "https://github.com/mandarange/Atlas-WiKi/releases/tag/v0.1.1",
-    "v011Release": {
-      "isDraft": false,
-      "isPrerelease": false,
-      "publishedAt": "2026-05-27T02:06:33Z",
-      "tagName": "v0.1.1",
-      "targetCommitish": "2ad7e1d36deaadb8c310bdfd517ecd5abc742827",
-      "url": "https://github.com/mandarange/Atlas-WiKi/releases/tag/v0.1.1"
-    }
+    "localHead": "65433c6c415f6ee1084f0305a1c3f783fa48c63e",
+    "remoteMainHead": "65433c6c415f6ee1084f0305a1c3f783fa48c63e",
+    "baselineTag": "v0.1.2",
+    "baselineTagHead": "65433c6c415f6ee1084f0305a1c3f783fa48c63e",
+    "baselineRelease": null,
+    "v011TagHead": "65433c6c415f6ee1084f0305a1c3f783fa48c63e",
+    "v011Release": null
   },
   "tasks": [
     {
@@ -25607,7 +25603,7 @@
       "exists": true,
       "evidence": [
         "npm view atlas-wiki",
-        "gh release view v0.1.1",
+        "gh release view current baseline tag",
         "coverage ledger"
       ]
     }
@@ -25624,7 +25620,7 @@
     },
     {
       "name": "published package smoke",
-      "command": "ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.1.1 npm run release:published-check",
+      "command": "ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.1.2 npm run release:published-check",
       "evidence": [
         "scripts/published-package-smoke.mjs",
         "docs/published-package-smoke.md"

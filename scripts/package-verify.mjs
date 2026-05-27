@@ -16,7 +16,7 @@ for (const path of ["dist/index.js", "dist/index.d.ts", "dist/cli/awiki.js", "di
   if (!existsSync(path)) throw new Error(`Missing build output: ${path}`);
 }
 
-for (const entry of [".", "./sdk", "./cli", "./mcp", "./mcp/admin", "./release", "./schemas"]) {
+for (const entry of [".", "./sdk", "./cli", "./mcp", "./mcp/admin", "./store", "./sqlite", "./supabase", "./structured", "./extractors", "./release", "./schemas"]) {
   if (!pkg.exports?.[entry]) throw new Error(`Missing package export: ${entry}`);
 }
 

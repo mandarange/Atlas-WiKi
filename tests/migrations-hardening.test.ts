@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { checkDatabaseIntegrity } from "../src/db/integrity.js";
-import { applyMigrationSet, applyMigrations, migrationDryRun } from "../src/db/migrations.js";
+import { applyMigrationSet, applyMigrations, migrationDryRun, migrations } from "../src/db/migrations.js";
 
 let root: string;
 
@@ -26,7 +26,7 @@ describe("migration hardening", () => {
     try {
       const report = applyMigrations(handle, { clock: { nowIso: () => "2026-05-26T00:00:00.000Z" }, packageVersion: "test", nodeVersion: "v24.test" });
       expect(report.ok).toBe(true);
-      expect(report.user_version).toBe(2);
+      expect(report.user_version).toBe(migrations.length);
       const row = handle.prepare("SELECT checksum, package_version, node_version, ordinal FROM migrations WHERE id = '0001_initial'").get() as { checksum: string; package_version: string; node_version: string; ordinal: number };
       expect(row.checksum).toMatch(/^[a-f0-9]{64}$/);
       expect(row.package_version).toBe("test");

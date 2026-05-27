@@ -17,11 +17,11 @@ Run:
 ```bash
 npm run release:next-stable-generate
 npm run release:check
-ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.1.1 npm run release:published-check
+ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.1.2 npm run release:published-check
 npm view atlas-wiki version dist-tags gitHead dist.integrity dist.shasum time --json
 ```
 
-The `release-evidence/atlas-wiki-vNEXT.json` file records the registry version, integrity, shasum, npm `gitHead`, GitHub `v0.1.1` tag/release backfill state, and the 1,536-task coverage ledger.
+The `release-evidence/atlas-wiki-vNEXT.json` file records the registry version, integrity, shasum, npm `gitHead`, GitHub baseline tag/release state, and the 1,536-task coverage ledger.
 
 ## Operator Notes
 

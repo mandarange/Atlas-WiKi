@@ -7,8 +7,12 @@ const externalGoal = "/Users/weklem/Desktop/atlas-wiki-final-9plus-next-release-
 const legacyExternalGoal = "/Users/weklem/Desktop/atlas-wiki-next-9plus-total-closure-goal.md";
 const localGoal = "docs/goal/atlas-wiki-final-9plus-next-release-goal.md";
 const legacyLocalGoal = "docs/goal/atlas-wiki-next-9plus-total-closure-goal.md";
-const sourceInputPath = existsSync(externalGoal) ? externalGoal : existsSync(localGoal) ? localGoal : existsSync(legacyExternalGoal) ? legacyExternalGoal : legacyLocalGoal;
-const sourcePath = sourceInputPath === localGoal || sourceInputPath === externalGoal ? externalGoal : sourceInputPath;
+const runningInGitHubActions = process.env.GITHUB_ACTIONS === "true";
+const canUseExternalGoal = !runningInGitHubActions && existsSync(externalGoal);
+const canUseLegacyExternalGoal = !runningInGitHubActions && existsSync(legacyExternalGoal);
+const mirrorExternalGoal = canUseExternalGoal || (!runningInGitHubActions && process.env.ATLAS_WIKI_MIRROR_EXTERNAL_GOAL === "1");
+const sourceInputPath = canUseExternalGoal ? externalGoal : existsSync(localGoal) ? localGoal : canUseLegacyExternalGoal ? legacyExternalGoal : legacyLocalGoal;
+const sourcePath = canUseExternalGoal ? externalGoal : sourceInputPath === localGoal ? localGoal : sourceInputPath;
 const phase = process.argv.includes("--postpublish") ? "postpublish" : "prepublish";
 const smokeOk = process.argv.includes("--smoke-ok") || process.env.ATLAS_WIKI_POSTPUBLISH_SMOKE_OK === "1";
 const markChecklistDone = process.argv.includes("--mark-checklist-done") || process.env.ATLAS_WIKI_MARK_CHECKLIST_DONE === "1";
@@ -19,7 +23,7 @@ const checkedSha256 = sha256(checkedText);
 
 mkdirSync(dirname(localGoal), { recursive: true });
 writeFileSync(localGoal, checkedText);
-if (sourcePath === externalGoal || existsSync(externalGoal)) {
+if (mirrorExternalGoal) {
   mkdirSync(dirname(externalGoal), { recursive: true });
   writeFileSync(externalGoal, checkedText);
 }

@@ -1,13 +1,13 @@
 {
   "schema": "atlas-wiki.release-evidence.v2",
   "phase": "prepublish",
-  "generated_at": "2026-05-27T11:12:50.217Z",
+  "generated_at": "2026-05-27T11:25:53.452Z",
   "package": {
     "name": "atlas-wiki",
     "version": "0.2.1"
   },
   "sourceGoal": {
-    "path": "/Users/weklem/Desktop/atlas-wiki-final-9plus-next-release-goal.md",
+    "path": "docs/goal/atlas-wiki-final-9plus-next-release-goal.md",
     "sha256": "ebff9bb79a30e3cd0576b4dfad02913ca6c602c4c94d603f7400da3de9477279",
     "checklistTotal": 2043,
     "checklistChecked": 2043,
@@ -32,8 +32,8 @@
     }
   },
   "git": {
-    "branch": "main",
-    "localHead": "b6c261e725add00481b27b7728d4d53898c51412",
+    "branch": "codex/f9-release-readiness",
+    "localHead": "39824cc2c93deb565833f9dfbee114b9120543e8",
     "dirtyWorkspace": true,
     "remoteMainHead": "b6c261e725add00481b27b7728d4d53898c51412",
     "baselineTag": "v0.1.5",
@@ -32877,12 +32877,13 @@
   ],
   "requiredArtifacts": [
     {
-      "path": "/Users/weklem/Desktop/atlas-wiki-final-9plus-next-release-goal.md",
+      "path": "docs/goal/atlas-wiki-final-9plus-next-release-goal.md",
       "exists": true,
       "sizeBytes": 223967,
       "sha256": "ebff9bb79a30e3cd0576b4dfad02913ca6c602c4c94d603f7400da3de9477279",
       "evidence": [
-        "npm run release:check"
+        "tests/docs-coverage.test.ts",
+        "docs/docs-manifest.md"
       ]
     },
     {
@@ -33015,8 +33016,8 @@
     {
       "path": "scripts/generate-next-stable-release-evidence.mjs",
       "exists": true,
-      "sizeBytes": 20791,
-      "sha256": "407ec708be1da85262187f6d97463dc9c934d71486d97f113f10348b321cf7ee",
+      "sizeBytes": 21112,
+      "sha256": "b15ab5c240914fe12d41350ecc9c968ee3455805de653725e2ab5179cfee2364",
       "evidence": [
         "release manifest v2",
         "coverage ledger",
@@ -33166,7 +33167,7 @@
       "path": "release-evidence/package-smoke-v0.2.1.json",
       "exists": true,
       "sizeBytes": 1272,
-      "sha256": "011e6ba2d7963b9d78e71dd9c3eb490dbd6b324856f9f3462e36849ffe845404",
+      "sha256": "bcca8bc18293e12890d8ea41d371c1d7e0d20f077697c0e8b605be9d433b68eb",
       "evidence": [
         "release manifest v2",
         "coverage ledger",

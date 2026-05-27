@@ -1,6 +1,6 @@
 # Atlas WiKi v0.2.1 Final 9+ Closure Coverage Ledger
 
-Source: /Users/weklem/Desktop/atlas-wiki-final-9plus-next-release-goal.md
+Source: docs/goal/atlas-wiki-final-9plus-next-release-goal.md
 
 Source SHA-256: ebff9bb79a30e3cd0576b4dfad02913ca6c602c4c94d603f7400da3de9477279
 

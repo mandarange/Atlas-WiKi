@@ -8,7 +8,7 @@ Atlas WiKi treats a stable release as reproducible only when the release commit,
 
 ## Security
 
-Dirty working tree publish is blocked by `scripts/publish-guard.mjs`. Stable publishes are expected to run through `.github/workflows/publish.yml` with GitHub Actions OIDC trusted publishing. Local emergency publish requires `ATLAS_WIKI_EMERGENCY_LOCAL_PUBLISH=true` and must be recorded in release evidence.
+Stable publishes can run through `.github/workflows/publish.yml` with GitHub Actions OIDC trusted publishing or from an authenticated npm operator session. `scripts/publish-guard.mjs` records the publish context and lets npm enforce authentication, permissions, 2FA, and duplicate-version policy.
 
 ## Verification
 

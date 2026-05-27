@@ -2,14 +2,13 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 describe("stable publish guard", () => {
-  it("blocks local stable publish without dry-run, trusted OIDC, or emergency override", () => {
-    expect(() =>
-      execFileSync("node", ["scripts/publish-guard.mjs"], {
-        encoding: "utf8",
-        env: { PATH: process.env.PATH ?? "", NODE_OPTIONS: "" },
-        stdio: "pipe"
-      })
-    ).toThrow(/Stable npm publish is blocked/);
+  it("allows direct local publish when the operator is authenticated with npm", () => {
+    const local = execFileSync("node", ["scripts/publish-guard.mjs"], {
+      encoding: "utf8",
+      env: { PATH: process.env.PATH ?? "", NODE_OPTIONS: "" },
+      stdio: "pipe"
+    });
+    expect(local).toContain("publish guard ok (local)");
   });
 
   it("allows npm dry-run and trusted GitHub Actions OIDC contexts", () => {
@@ -17,7 +16,7 @@ describe("stable publish guard", () => {
       encoding: "utf8",
       env: { PATH: process.env.PATH ?? "", npm_config_dry_run: "true" }
     });
-    expect(dryRun).toContain("publish guard ok");
+    expect(dryRun).toContain("publish guard ok (dry-run)");
 
     const trusted = execFileSync("node", ["scripts/publish-guard.mjs"], {
       encoding: "utf8",
@@ -28,6 +27,6 @@ describe("stable publish guard", () => {
         ACTIONS_ID_TOKEN_REQUEST_TOKEN: "redacted"
       }
     });
-    expect(trusted).toContain("publish guard ok");
+    expect(trusted).toContain("publish guard ok (trusted-github-actions-oidc)");
   });
 });

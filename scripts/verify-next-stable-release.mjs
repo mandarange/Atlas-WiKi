@@ -53,7 +53,7 @@ if (!ci.includes("pull_request") || !ci.includes("branches: [main]") || !ci.incl
 if (!ci.includes("npm run release:check")) fail("CI must run release:check");
 
 const guard = readFileSync("scripts/publish-guard.mjs", "utf8");
-if (!guard.includes("ATLAS_WIKI_EMERGENCY_LOCAL_PUBLISH") || !guard.includes("ACTIONS_ID_TOKEN_REQUEST_TOKEN")) fail("publish guard must block local stable publish without trusted OIDC or emergency override");
+if (!guard.includes("publish guard ok") || !guard.includes("ACTIONS_ID_TOKEN_REQUEST_TOKEN")) fail("publish guard must allow local publish while preserving trusted OIDC context detection");
 const dryRun = readFileSync("scripts/package-dry-run.mjs", "utf8");
 if (!dryRun.includes("npm\", [\"publish\", \"--dry-run\"]") || !dryRun.includes("already-published reproducibility baseline")) fail("package dry-run wrapper must execute npm publish --dry-run and handle the published baseline");
 

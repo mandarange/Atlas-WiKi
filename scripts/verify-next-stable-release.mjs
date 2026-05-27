@@ -63,7 +63,7 @@ if (latestStable.schema !== "atlas-wiki.release-latest.v1" || latestStable.packa
 if (!latestManifest.sourceGoal.path.includes("final-9plus-next-release-goal") && !latestManifest.sourceGoal.path.includes("atlas-wiki-final-9plus-next-release-goal")) fail("release evidence must bind the F9 source goal");
 if (!existsSync(latestManifest.sourceGoal.path)) fail(`release evidence source goal is missing: ${latestManifest.sourceGoal.path}`);
 const currentCiRun = process.env.GITHUB_ACTIONS === "true" && latestManifest.ci?.runId === process.env.GITHUB_RUN_ID && latestManifest.ci?.conclusion === "current-run";
-if (!latestManifest.ci?.runUrl || (latestManifest.ci.conclusion !== "success" && !currentCiRun)) fail("release evidence must bind a successful CI run URL or the current GitHub Actions run");
+if (latestManifest.ci?.provider === "github-actions" && !latestManifest.ci?.runUrl && !currentCiRun) fail("GitHub Actions evidence must include a run URL");
 if (!Array.isArray(latestManifest.scorecard) || latestManifest.scorecard.length < 8) fail("release evidence must include scorecard evidence bindings");
 const selfScoreKeys = new Set(Object.keys(latestManifest.selfScore ?? {}));
 const scorecardKeys = new Set(latestManifest.scorecard.map((score) => score.area));
@@ -94,32 +94,10 @@ if (existsSync(postpublishPath)) {
 if (process.env.ATLAS_WIKI_REQUIRE_POSTPUBLISH_EVIDENCE === "1" && !existsSync(postpublishPath)) fail("postpublish evidence is required but missing");
 if (process.env.ATLAS_WIKI_REQUIRE_EXTERNAL_RELEASE_EVIDENCE === "1") {
   if (!latestManifest.git.targetTagHead) fail("external release evidence requires target tag head");
-  if (!latestManifest.ci?.runUrl) fail("external release evidence requires CI run URL");
   if (!existsSync(postpublishPath)) fail("external release evidence requires postpublish evidence");
 }
 
-const publishWorkflow = readFileSync(".github/workflows/publish.yml", "utf8");
-for (const required of [
-  "contents: write",
-  "id-token: write",
-  "package-manager-cache: false",
-  "npm run release:check",
-  "npm publish",
-  "ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@${VERSION} npm run release:published-check",
-  "node scripts/generate-next-stable-release-evidence.mjs --postpublish --smoke-ok",
-  "actions/upload-artifact",
-  "gh release view",
-  "gh release create",
-  "gh release upload"
-]) {
-  if (!publishWorkflow.includes(required)) fail(`publish workflow missing ${required}`);
-}
-if (/cache:\s*npm/.test(publishWorkflow)) fail("publish workflow must not use dependency cache");
-
-const ci = readFileSync(".github/workflows/ci.yml", "utf8");
-if (!ci.includes("pull_request") || !ci.includes("branches: [main]") || !ci.includes("tags:")) fail("CI must run on pull requests, main, and tags");
-if (!ci.includes("npm run release:check")) fail("CI must run release:check");
-if (!ci.includes("actions/upload-artifact") || !ci.includes("release-evidence/rag-eval") || !ci.includes("release-evidence/package-smoke") || !ci.includes("release-evidence/atlas-wiki-vNEXT.json") || !ci.includes("release-evidence/prepublish-v*.json") || !ci.includes("if-no-files-found: error")) fail("CI must upload core release manifests, RAG eval, and package smoke artifacts");
+if (existsSync(".github/workflows/ci.yml") || existsSync(".github/workflows/publish.yml")) fail("GitHub Actions CI/publish runners must remain removed; use local release gates");
 
 const guard = readFileSync("scripts/publish-guard.mjs", "utf8");
 if (!guard.includes("local-authenticated-npm") || !guard.includes("ACTIONS_ID_TOKEN_REQUEST_TOKEN")) fail("publish guard must allow direct local npm publish while preserving trusted OIDC context detection");

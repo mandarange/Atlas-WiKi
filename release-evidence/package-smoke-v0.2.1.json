@@ -4,7 +4,7 @@
     "name": "atlas-wiki",
     "version": "0.2.1"
   },
-  "generated_at": "2026-05-27T11:25:52.994Z",
+  "generated_at": "2026-05-27T11:57:37.565Z",
   "outputPath": "release-evidence/package-smoke-v0.2.1.json",
   "ok": true,
   "tarball": "atlas-wiki-0.2.1.tgz",
@@ -30,11 +30,11 @@
     "warnings": []
   },
   "citation": {
-    "id": "rag_citation_1f69296831780dc6990438a8",
-    "source_id": "source_048bee4e0446023ecd231128",
-    "chunk_id": "chunk_368924339e26c6843284cf79",
-    "title": "/var/folders/n2/cngnqhgd453fc04dl2kk6jdm0000gn/T/atlas-wiki-smoke-jYfgZY/handbook.md",
-    "uri": "/var/folders/n2/cngnqhgd453fc04dl2kk6jdm0000gn/T/atlas-wiki-smoke-jYfgZY/handbook.md",
+    "id": "rag_citation_8b20148e0151fc5a107dd74c",
+    "source_id": "source_67490b0efd61f94dad2dacee",
+    "chunk_id": "chunk_dc426e5d3f37230348d44f7f",
+    "title": "/var/folders/n2/cngnqhgd453fc04dl2kk6jdm0000gn/T/atlas-wiki-smoke-7zKDe9/handbook.md",
+    "uri": "/var/folders/n2/cngnqhgd453fc04dl2kk6jdm0000gn/T/atlas-wiki-smoke-7zKDe9/handbook.md",
     "quote": "Remote work requires manager approval."
   }
 }

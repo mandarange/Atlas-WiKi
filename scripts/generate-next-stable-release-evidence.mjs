@@ -184,7 +184,7 @@ const manifest = {
     { name: "release:check", command: "npm run release:check", evidence: ["package.json", "scripts/verify-next-stable-release.mjs", "scripts/package-dry-run.mjs"] },
     { name: "prepublish evidence", command: "npm run release:next-stable-generate", evidence: [prepublishEvidencePath, latestEvidencePath, "docs/goal/next-stable-coverage-ledger.json"] },
     { name: "published package smoke", command: `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@${releaseVersion} npm run release:published-check`, evidence: ["scripts/published-package-smoke.mjs", "docs/published-package-smoke.md"] },
-    { name: "postpublish evidence", command: "node scripts/generate-next-stable-release-evidence.mjs --postpublish --smoke-ok", evidence: [postpublishEvidencePath, ".github/workflows/publish.yml"] },
+    { name: "postpublish evidence", command: "node scripts/generate-next-stable-release-evidence.mjs --postpublish --smoke-ok", evidence: [postpublishEvidencePath, "scripts/generate-next-stable-release-evidence.mjs"] },
     { name: "fresh clone", command: "npm ci && npm run release:check", evidence: [latestEvidencePath] }
   ],
   selfScore: {
@@ -213,7 +213,7 @@ const manifest = {
   ],
   publishPolicy: {
     stableLocalPublishBlocked: true,
-    trustedPublishingWorkflow: ".github/workflows/publish.yml",
+    trustedPublishingWorkflow: "local-operator-only (no GitHub Actions workflow)",
     emergencyOverrideEnv: "ATLAS_WIKI_EMERGENCY_LOCAL_PUBLISH"
   }
 };
@@ -269,10 +269,10 @@ function evidenceFor(area, capability, id, version) {
   const byArea = {
     VERSION: ["package.json", "package-lock.json", "src/package-info.ts", "CHANGELOG.md"],
     DEFECT: ["src/rag/index.ts", "src/store/supabase/supabase-store.ts", "scripts/published-package-smoke.mjs", "scripts/verify-next-stable-release.mjs"],
-    SCORE: ["release-evidence/atlas-wiki-vNEXT.json", "package.json", ".github/workflows/publish.yml"],
+    SCORE: ["release-evidence/atlas-wiki-vNEXT.json", "package.json", "scripts/verify-next-stable-release.mjs"],
     ADR: ["docs/release-reproducibility.md", `docs/release/v${version}.md`, "README.md"],
     API: ["src/store/store-contract.ts", "src/sdk/atlas-wiki.ts", "tests/rag.test.ts", "tests/store-contract.test.ts"],
-    REL: ["docs/release-reproducibility.md", "docs/npm-publishing.md", ".github/workflows/publish.yml", "scripts/verify-next-stable-release.mjs"],
+    REL: ["docs/release-reproducibility.md", "docs/npm-publishing.md", "scripts/verify-next-stable-release.mjs"],
     GEMINI: ["src/rag/providers/gemini.ts", "tests/rag.test.ts", "README.md"],
     RAG: ["src/rag/index.ts", "tests/rag.test.ts", "src/store/store-contract.ts"],
     SQLITE: ["src/store/sqlite-store.ts", "tests/rag.test.ts", "scripts/package-smoke.mjs"],
@@ -313,8 +313,6 @@ function requiredArtifacts(version, currentPhase) {
     `docs/release/v${version}.md`,
     "CHANGELOG.md",
     "README.md",
-    ".github/workflows/ci.yml",
-    ".github/workflows/publish.yml",
     "scripts/generate-next-stable-release-evidence.mjs",
     "scripts/verify-next-stable-release.mjs",
     "scripts/published-package-smoke.mjs",
@@ -349,7 +347,6 @@ function artifactInfo(path) {
 }
 
 function evidenceForArtifact(path) {
-  if (path.endsWith("publish.yml")) return ["trusted-publishing workflow", "postpublish smoke and release asset upload"];
   if (path.includes("release-evidence")) return ["release manifest v2", "coverage ledger", "git/npm metadata"];
   if (path.startsWith("tests/")) return ["npm run test", "npm run release:check"];
   if (path.startsWith("docs/")) return ["tests/docs-coverage.test.ts", "docs/docs-manifest.md"];

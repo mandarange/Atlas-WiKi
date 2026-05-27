@@ -1,6 +1,6 @@
 {
   "schema": "atlas-wiki.next-9plus-coverage.v1",
-  "source_goal": "docs/goal/atlas-wiki-final-9plus-next-release-goal.md",
+  "source_goal": "/Users/weklem/Desktop/atlas-wiki-final-9plus-next-release-goal.md",
   "source_goal_sha256": "ebff9bb79a30e3cd0576b4dfad02913ca6c602c4c94d603f7400da3de9477279",
   "checklist_total": 2043,
   "checklist_checked": 2043,
@@ -280,7 +280,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -295,7 +295,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -310,7 +310,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -325,7 +325,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -340,7 +340,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -355,7 +355,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -370,7 +370,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -385,7 +385,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -560,7 +560,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -577,7 +576,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -594,7 +592,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -611,7 +608,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -628,7 +624,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -645,7 +640,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -662,7 +656,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -679,7 +672,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -696,7 +688,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -713,7 +704,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -730,7 +720,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -747,7 +736,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -764,7 +752,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -781,7 +768,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -798,7 +784,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -815,7 +800,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -832,7 +816,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -849,7 +832,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -866,7 +848,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -883,7 +864,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -900,7 +880,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -917,7 +896,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -934,7 +912,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -951,7 +928,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -968,7 +944,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -985,7 +960,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1002,7 +976,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1019,7 +992,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1036,7 +1008,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1053,7 +1024,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1070,7 +1040,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1087,7 +1056,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1104,7 +1072,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1121,7 +1088,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1138,7 +1104,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1155,7 +1120,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1172,7 +1136,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1189,7 +1152,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1206,7 +1168,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1223,7 +1184,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1240,7 +1200,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1257,7 +1216,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1274,7 +1232,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1291,7 +1248,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1308,7 +1264,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1325,7 +1280,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1342,7 +1296,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1359,7 +1312,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1376,7 +1328,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1393,7 +1344,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1410,7 +1360,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1427,7 +1376,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1444,7 +1392,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1461,7 +1408,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1478,7 +1424,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1495,7 +1440,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1512,7 +1456,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1529,7 +1472,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1546,7 +1488,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1563,7 +1504,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1580,7 +1520,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1597,7 +1536,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1614,7 +1552,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1631,7 +1568,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1648,7 +1584,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1665,7 +1600,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1682,7 +1616,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1699,7 +1632,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1716,7 +1648,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1733,7 +1664,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1750,7 +1680,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1767,7 +1696,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1784,7 +1712,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1801,7 +1728,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1818,7 +1744,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1835,7 +1760,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1852,7 +1776,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1869,7 +1792,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1886,7 +1808,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1903,7 +1824,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1920,7 +1840,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1937,7 +1856,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1954,7 +1872,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1971,7 +1888,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -1988,7 +1904,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2005,7 +1920,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2022,7 +1936,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2039,7 +1952,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2056,7 +1968,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2073,7 +1984,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2090,7 +2000,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2107,7 +2016,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2124,7 +2032,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2141,7 +2048,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2158,7 +2064,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2175,7 +2080,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2192,7 +2096,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2209,7 +2112,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2226,7 +2128,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2243,7 +2144,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2260,7 +2160,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2277,7 +2176,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2294,7 +2192,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2311,7 +2208,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2328,7 +2224,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2345,7 +2240,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2362,7 +2256,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2379,7 +2272,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2396,7 +2288,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2413,7 +2304,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2430,7 +2320,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2447,7 +2336,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2464,7 +2352,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2481,7 +2368,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2498,7 +2384,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2515,7 +2400,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2532,7 +2416,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2549,7 +2432,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2566,7 +2448,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2583,7 +2464,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2600,7 +2480,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2617,7 +2496,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2634,7 +2512,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2651,7 +2528,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2668,7 +2544,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2685,7 +2560,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2702,7 +2576,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2719,7 +2592,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2736,7 +2608,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2753,7 +2624,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2770,7 +2640,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2787,7 +2656,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2804,7 +2672,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2821,7 +2688,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2838,7 +2704,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2855,7 +2720,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2872,7 +2736,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2889,7 +2752,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2906,7 +2768,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2923,7 +2784,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2940,7 +2800,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2957,7 +2816,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2974,7 +2832,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -2991,7 +2848,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -3008,7 +2864,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -3025,7 +2880,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -3042,7 +2896,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -3059,7 +2912,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -3076,7 +2928,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -3093,7 +2944,6 @@
       "evidence": [
         "docs/release-reproducibility.md",
         "docs/npm-publishing.md",
-        ".github/workflows/publish.yml",
         "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/atlas-wiki-vNEXT.json",
@@ -30110,7 +29960,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30125,7 +29975,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30140,7 +29990,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30155,7 +30005,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30170,7 +30020,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30185,7 +30035,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30200,7 +30050,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30215,7 +30065,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30230,7 +30080,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30245,7 +30095,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30260,7 +30110,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30275,7 +30125,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30290,7 +30140,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30305,7 +30155,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30320,7 +30170,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30335,7 +30185,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30350,7 +30200,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30365,7 +30215,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30380,7 +30230,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30395,7 +30245,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30410,7 +30260,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30425,7 +30275,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30440,7 +30290,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30455,7 +30305,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30470,7 +30320,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30485,7 +30335,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30500,7 +30350,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30515,7 +30365,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30530,7 +30380,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30545,7 +30395,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30560,7 +30410,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30575,7 +30425,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30590,7 +30440,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30605,7 +30455,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30620,7 +30470,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30635,7 +30485,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30650,7 +30500,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30665,7 +30515,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30680,7 +30530,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30695,7 +30545,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30710,7 +30560,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30725,7 +30575,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30740,7 +30590,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30755,7 +30605,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30770,7 +30620,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30785,7 +30635,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30800,7 +30650,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30815,7 +30665,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30830,7 +30680,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30845,7 +30695,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30860,7 +30710,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30875,7 +30725,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30890,7 +30740,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30905,7 +30755,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30920,7 +30770,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30935,7 +30785,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30950,7 +30800,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30965,7 +30815,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30980,7 +30830,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -30995,7 +30845,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31010,7 +30860,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31025,7 +30875,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31040,7 +30890,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31055,7 +30905,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31070,7 +30920,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31085,7 +30935,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31100,7 +30950,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31115,7 +30965,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31130,7 +30980,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31145,7 +30995,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31160,7 +31010,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31175,7 +31025,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31190,7 +31040,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31205,7 +31055,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31220,7 +31070,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31235,7 +31085,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31250,7 +31100,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31265,7 +31115,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31280,7 +31130,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31295,7 +31145,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31310,7 +31160,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31325,7 +31175,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31340,7 +31190,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31355,7 +31205,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31370,7 +31220,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31385,7 +31235,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31400,7 +31250,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31415,7 +31265,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31430,7 +31280,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31445,7 +31295,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31460,7 +31310,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31475,7 +31325,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31490,7 +31340,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31505,7 +31355,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31520,7 +31370,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31535,7 +31385,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31550,7 +31400,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31565,7 +31415,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31580,7 +31430,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31595,7 +31445,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31610,7 +31460,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31625,7 +31475,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31640,7 +31490,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31655,7 +31505,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31670,7 +31520,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31685,7 +31535,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31700,7 +31550,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31715,7 +31565,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31730,7 +31580,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31745,7 +31595,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31760,7 +31610,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31775,7 +31625,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31790,7 +31640,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31805,7 +31655,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31820,7 +31670,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31835,7 +31685,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31850,7 +31700,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31865,7 +31715,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31880,7 +31730,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31895,7 +31745,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31910,7 +31760,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31925,7 +31775,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31940,7 +31790,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31955,7 +31805,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31970,7 +31820,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -31985,7 +31835,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -32000,7 +31850,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -32015,7 +31865,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -32030,7 +31880,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],
@@ -32045,7 +31895,7 @@
       "evidence": [
         "release-evidence/atlas-wiki-vNEXT.json",
         "package.json",
-        ".github/workflows/publish.yml",
+        "scripts/verify-next-stable-release.mjs",
         "docs/goal/next-stable-coverage-ledger.json",
         "release-evidence/prepublish-v0.2.1.json"
       ],

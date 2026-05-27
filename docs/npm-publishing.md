@@ -1,14 +1,14 @@
 # npm Publishing
 
-The package name is `atlas-wiki`. Stable publishes can run through GitHub Actions OIDC trusted publishing in `.github/workflows/publish.yml` or from an authenticated local npm operator session. `scripts/publish-guard.mjs` records the publish context and lets npm enforce login, package ownership, one-time-password challenges, duplicate-version rejection, and registry permissions.
+The package name is `atlas-wiki`. Stable publishes are operator-driven from an authenticated local npm session. `scripts/publish-guard.mjs` records the publish context and lets npm enforce login, package ownership, one-time-password challenges, duplicate-version rejection, and registry permissions.
 
 ## Core Link
 
-`package.json` exposes `package:dry-run`, `package:smoke`, `release:published-check`, and `release:check`. `scripts/publish-guard.mjs` records dry-run, trusted OIDC, emergency-local, and local npm-authenticated publish contexts. `.github/workflows/publish.yml` runs `npm publish` with `id-token: write`, Node 24, npm 11+, and dependency cache disabled.
+`package.json` exposes `package:dry-run`, `package:smoke`, `release:published-check`, and `release:check`. `scripts/publish-guard.mjs` records dry-run, emergency-local, and local npm-authenticated publish contexts. There are no GitHub Actions CI or publish runners in this repository; release gates are run locally by the operator.
 
 ## Security
 
-npm trusted publishing uses OIDC from the CI provider and avoids long-lived npm publish tokens. Local publish uses the operator's npm login and may require a one-time password when 2FA is enabled. The npm documentation currently requires npm 11.5.1 or later and Node 22.14.0 or later for trusted publishing; Atlas WiKi keeps Node 24+ as the release runtime. The publish workflow disables package-manager cache for the release job and relies on npm's trusted-publishing provenance behavior when CI is used.
+Local publish uses the operator's npm login and may require a one-time password when 2FA is enabled. Atlas WiKi keeps Node 24+ as the release runtime for local release verification.
 
 ## Verification
 
@@ -16,7 +16,7 @@ Run `npm run package:dry-run` before publishing. The wrapper executes `npm publi
 
 ## Operator Notes
 
-Configure the npm package trusted publisher to match `mandarange/Atlas-WiKi` and `.github/workflows/publish.yml` before using the stable workflow. If the trusted publisher identity does not match the workflow, publish can fail even when the package exists. For direct local publish, run `npm whoami` first, then `npm publish`; pass `--otp=<code>` when npm returns `EOTP`.
+Run `npm whoami` first, then `npm publish`; pass `--otp=<code>` when npm returns `EOTP`.
 
 ## Release Checklist
 
@@ -36,5 +36,5 @@ Configure the npm package trusted publisher to match `mandarange/Atlas-WiKi` and
 - CHANGELOG review: abort if version/date/security hardening notes are missing.
 - GitHub release notes: abort if local release notes omit behavioral or security hardening.
 - npm dist-tag verify: abort if `latest` does not point at the intended version.
-- CI badge verify: abort if the latest main CI badge/run is not green.
+- Local release gate verify: abort if `npm run release:check` is not green.
 - Package README verify: abort if the published README quick start cannot be reproduced.

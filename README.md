@@ -1,6 +1,5 @@
 # Atlas WiKi
 
-[![CI](https://github.com/mandarange/Atlas-WiKi/actions/workflows/ci.yml/badge.svg)](https://github.com/mandarange/Atlas-WiKi/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/atlas-wiki.svg)](https://www.npmjs.com/package/atlas-wiki)
 
 ## LLM Init Prompt for Agent Builders (Hermess, OpenClaw, and Similar Tools)

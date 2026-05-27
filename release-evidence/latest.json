@@ -1,12 +1,13 @@
 {
   "schema": "atlas-wiki.release-latest.v1",
   "package": "atlas-wiki",
-  "version": "0.1.5",
-  "latest": "0.1.5",
-  "gitHead": "9c209fea50ab516f869ca9f361bfaee6d01d14c9",
-  "integrity": "sha512-spggXDnSIBKY/IwLKHpaVlDW3gyDQyg+W4FhMTHJ0fYcdAvk0+sTVe9mwsQ8ondpPZtjFEfIyjN6hRwF68NTag==",
-  "shasum": "e815867c8c468d4e0a5143dbcad206c4725c0e5d",
-  "baselineTag": "v0.1.5",
-  "baselineTagHead": "9c209fea50ab516f869ca9f361bfaee6d01d14c9",
+  "version": "0.2.1",
+  "latest": "0.2.1",
+  "gitHead": "39824cc2c93deb565833f9dfbee114b9120543e8",
+  "integrity": "sha512-Xxk52/4Uo8c9/J4AmgKncK3LsvqDRKQCSExbOjANcufSaRVQzVPUIAhHk2xVtmy35CXij6q6n1b+TNf5lFm1RQ==",
+  "shasum": "f090052e230f4906fe843af284498b10497bb252",
+  "baselineTag": "v0.2.1",
+  "baselineTagHead": "42af123abb6bbedd54a1930b3551b881aff5ff20",
+  "releaseUrl": "https://github.com/mandarange/Atlas-WiKi/releases/tag/v0.2.1",
   "source": "npm registry and GitHub release baseline"
 }

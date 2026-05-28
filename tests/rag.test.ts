@@ -140,6 +140,10 @@ describe("RAG SDK", () => {
   it("wraps Gemini dimension mismatch as a provider error", async () => {
     const client = { models: { embedContent: async () => ({ values: [1, 2] }) } };
     const provider = new GeminiEmbeddingProvider({ apiKey: "test-key", model: "gemini-embedding-2", dimensions: 3, client });
-    await expect(provider.embedQuery("short vector")).rejects.toMatchObject({ code: "RAG_EMBEDDING_PROVIDER_ERROR", retryable: false });
+    await expect(provider.embedQuery("short vector")).rejects.toMatchObject({
+      code: "RAG_EMBEDDING_PROVIDER_ERROR",
+      retryable: false,
+      message: expect.stringContaining("atlas_wiki_default_1536")
+    });
   });
 });

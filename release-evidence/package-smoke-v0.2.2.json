@@ -1,0 +1,72 @@
+{
+  "schema": "atlas-wiki.package-smoke.v1",
+  "package": {
+    "name": "atlas-wiki",
+    "version": "0.2.2"
+  },
+  "generated_at": "2026-05-27T14:07:18.948Z",
+  "outputPath": "release-evidence/package-smoke-v0.2.2.json",
+  "ok": true,
+  "tarball": "atlas-wiki-0.2.2.tgz",
+  "imports": {
+    "sqlite": true,
+    "memory": true,
+    "supabase": "function",
+    "supabaseAssets": 9,
+    "supabaseWrite": "function",
+    "structured": "function",
+    "extractors": 4,
+    "rag": "function",
+    "gemini": "function",
+    "testing": "function"
+  },
+  "supabaseMigrationExport": {
+    "count": 9,
+    "filenames": [
+      "20260527000100_atlas_wiki_core.sql",
+      "20260527000200_atlas_wiki_rls.sql",
+      "20260527000300_atlas_wiki_audit.sql",
+      "20260527000400_atlas_wiki_structured_records.sql",
+      "20260527000500_atlas_wiki_vector_optional.sql",
+      "20260527000600_atlas_wiki_search_rpc.sql",
+      "20260527000700_atlas_wiki_rag_pgvector.sql",
+      "20260527000800_atlas_wiki_n9_rpc_contracts.sql",
+      "20260527000900_atlas_wiki_validation_contract.sql"
+    ],
+    "copied": [
+      "20260527000100_atlas_wiki_core.sql",
+      "20260527000200_atlas_wiki_rls.sql",
+      "20260527000300_atlas_wiki_audit.sql",
+      "20260527000400_atlas_wiki_structured_records.sql",
+      "20260527000500_atlas_wiki_vector_optional.sql",
+      "20260527000600_atlas_wiki_search_rpc.sql",
+      "20260527000700_atlas_wiki_rag_pgvector.sql",
+      "20260527000800_atlas_wiki_n9_rpc_contracts.sql",
+      "20260527000900_atlas_wiki_validation_contract.sql"
+    ]
+  },
+  "structured": {
+    "objects": 1,
+    "proposals": 1,
+    "schema": "customer_profile"
+  },
+  "rag": {
+    "mode_requested": "vector",
+    "mode_used": "vector",
+    "degraded": false,
+    "fallback_reason": null,
+    "embedding_provider": "testing_deterministic",
+    "embedding_model": "testing-deterministic-embedding-v1",
+    "embedding_prompt_policy": "testing.hash-buckets.v1",
+    "vector_index_status": "available",
+    "warnings": []
+  },
+  "citation": {
+    "id": "rag_citation_3278c326192b82fad8bd5314",
+    "source_id": "source_6e54f48f2c13f56c9f8c2d4e",
+    "chunk_id": "chunk_34fd55848679006f8769b030",
+    "title": "/var/folders/n2/cngnqhgd453fc04dl2kk6jdm0000gn/T/atlas-wiki-smoke-mK7LDw/handbook.md",
+    "uri": "/var/folders/n2/cngnqhgd453fc04dl2kk6jdm0000gn/T/atlas-wiki-smoke-mK7LDw/handbook.md",
+    "quote": "Remote work requires manager approval."
+  }
+}

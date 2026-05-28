@@ -1,0 +1,14 @@
+{
+  "schema": "atlas-wiki.supabase-local-smoke.v1",
+  "package": {
+    "name": "atlas-wiki",
+    "version": "0.2.2"
+  },
+  "generated_at": "2026-05-27T14:07:05.748Z",
+  "outputPath": "release-evidence/supabase-local-smoke-v0.2.2.json",
+  "command": "npm run test:supabase:local (skipped because SUPABASE_LOCAL_TESTS is not 1)",
+  "ok": false,
+  "status": "skipped",
+  "reason": "SUPABASE_LOCAL_TESTS is not set to 1",
+  "assertions": []
+}

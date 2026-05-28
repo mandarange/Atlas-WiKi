@@ -1,0 +1,44 @@
+{
+  "schema": "atlas-wiki.user-facing-supabase-ux.v1",
+  "package": {
+    "name": "atlas-wiki",
+    "version": "0.2.2"
+  },
+  "generated_at": "2026-05-27T13:53:26.163Z",
+  "sourceGoal": {
+    "path": "/Users/weklem/Desktop/atlas-wiki-user-facing-supabase-ux-fix-goal.md",
+    "sha256": "98917b514d4fd858e2f88a42dc519e10abbe6393a0ccfb531c18464d11a6380e",
+    "checklistTotal": 1441,
+    "checklistChecked": 1441,
+    "unchecked": 0,
+    "taskIds": 1441
+  },
+  "summary": {
+    "npmOnlySupabaseSetup": true,
+    "packagedSupabaseMigrations": 9,
+    "cliCommands": [
+      "awiki supabase init --out ./supabase --json",
+      "awiki supabase migrations export --out ./supabase/migrations --json",
+      "awiki supabase migrations list --json",
+      "awiki supabase doctor --url $SUPABASE_URL --key $SUPABASE_ANON_KEY --json",
+      "awiki supabase status --json"
+    ],
+    "dimensionPolicy": "atlas_wiki_default_1536",
+    "publishPerformed": false
+  },
+  "evidence": [
+    "src/store/supabase/assets.ts",
+    "src/cli/supabase.ts",
+    "src/cli/awiki.ts",
+    "README.md",
+    "docs/supabase-rag.md",
+    "docs/troubleshooting.md",
+    "tests/supabase-assets.test.ts",
+    "tests/cli-setup.test.ts",
+    "scripts/package-smoke.mjs",
+    "scripts/published-package-smoke.mjs",
+    "release-evidence/package-smoke-v0.2.2.json",
+    "release-evidence/local-package-install-smoke-v0.2.2.json",
+    "release-evidence/prepublish-v0.2.2.json"
+  ]
+}

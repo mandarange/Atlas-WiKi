@@ -1,0 +1,73 @@
+{
+  "schema": "atlas-wiki.published-package-smoke.v1",
+  "package": {
+    "name": "atlas-wiki",
+    "version": "0.2.2"
+  },
+  "generated_at": "2026-05-27T14:05:20.821Z",
+  "outputPath": "release-evidence/local-package-install-smoke-v0.2.2.json",
+  "ok": true,
+  "packageSpec": "/Users/weklem/Desktop/devs/Atlas-WiKi/atlas-wiki-0.2.2.tgz",
+  "sourceKind": "local_or_custom_package_spec",
+  "publishVerified": false,
+  "imports": {
+    "name": "atlas-wiki",
+    "sdk": "function",
+    "readonly": true,
+    "admin": true,
+    "supabase": "function",
+    "supabaseAssets": 9,
+    "supabaseWrite": "function",
+    "structured": "function",
+    "memory": true,
+    "sqlite": true,
+    "rag": "function",
+    "gemini": "function",
+    "testing": "function"
+  },
+  "releaseExport": "atlas-wiki.release-evidence.v2",
+  "supabaseMigrationExport": {
+    "count": 9,
+    "filenames": [
+      "20260527000100_atlas_wiki_core.sql",
+      "20260527000200_atlas_wiki_rls.sql",
+      "20260527000300_atlas_wiki_audit.sql",
+      "20260527000400_atlas_wiki_structured_records.sql",
+      "20260527000500_atlas_wiki_vector_optional.sql",
+      "20260527000600_atlas_wiki_search_rpc.sql",
+      "20260527000700_atlas_wiki_rag_pgvector.sql",
+      "20260527000800_atlas_wiki_n9_rpc_contracts.sql",
+      "20260527000900_atlas_wiki_validation_contract.sql"
+    ],
+    "copied": [
+      "20260527000100_atlas_wiki_core.sql",
+      "20260527000200_atlas_wiki_rls.sql",
+      "20260527000300_atlas_wiki_audit.sql",
+      "20260527000400_atlas_wiki_structured_records.sql",
+      "20260527000500_atlas_wiki_vector_optional.sql",
+      "20260527000600_atlas_wiki_search_rpc.sql",
+      "20260527000700_atlas_wiki_rag_pgvector.sql",
+      "20260527000800_atlas_wiki_n9_rpc_contracts.sql",
+      "20260527000900_atlas_wiki_validation_contract.sql"
+    ]
+  },
+  "rag": {
+    "mode_requested": "vector",
+    "mode_used": "vector",
+    "degraded": false,
+    "fallback_reason": null,
+    "embedding_provider": "testing_deterministic",
+    "embedding_model": "testing-deterministic-embedding-v1",
+    "embedding_prompt_policy": "testing.hash-buckets.v1",
+    "vector_index_status": "available",
+    "warnings": []
+  },
+  "citation": {
+    "id": "rag_citation_2172ed9ab0518b7391ddb3ce",
+    "source_id": "source_989873fbb42c0c09bd6cf2d8",
+    "chunk_id": "chunk_a00acf5d671963aee1903cae",
+    "title": "/var/folders/n2/cngnqhgd453fc04dl2kk6jdm0000gn/T/atlas-wiki-published-smoke-3J7C4u/handbook.md",
+    "uri": "/var/folders/n2/cngnqhgd453fc04dl2kk6jdm0000gn/T/atlas-wiki-published-smoke-3J7C4u/handbook.md",
+    "quote": "Remote work requires manager approval."
+  }
+}

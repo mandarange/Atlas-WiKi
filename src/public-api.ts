@@ -2,7 +2,17 @@ export { AtlasWiki, actorFromId } from "./sdk/atlas-wiki.js";
 export { atlasCapabilitySpecs, capabilityKey, findCapabilitySpec } from "./capabilities/coverage.js";
 export { MemoryStore } from "./store/memory-store.js";
 export { SqliteStore, ensureDataRoot } from "./store/sqlite-store.js";
-export { createSupabaseStore, SupabaseStore } from "./store/supabase/index.js";
+export {
+  createSupabaseProjectScaffold,
+  createSupabaseStore,
+  listSupabaseMigrationAssets,
+  SupabaseStore,
+  SUPABASE_DEFAULT_DIMENSION_POLICY,
+  SUPABASE_DEFAULT_VECTOR_DIMENSIONS,
+  SUPABASE_MIGRATION_FILENAMES,
+  SUPABASE_MIGRATION_VERSIONS,
+  writeSupabaseMigrations
+} from "./store/supabase/index.js";
 export { createAdminAtlasWikiServer, createAtlasWikiMcpServer, createReadonlyAtlasWikiServer, startStdioMcpServer, adminAtlasWikiToolNames, atlasWikiToolNames, readonlyAtlasWikiToolNames } from "./mcp/server.js";
 export { buildGovernanceReport, governanceWorkflows } from "./governance/index.js";
 export { defaultRagEvalDataset, evalHarnesses, runLiveRagEvalDataset, runMockEvalSuite, runRagEvalDataset } from "./eval/harness.js";

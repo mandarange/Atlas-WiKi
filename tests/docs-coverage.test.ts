@@ -16,6 +16,8 @@ const requiredDocs = [
   "mcp-production-auth.md",
   "sdk.md",
   "cli.md",
+  "supabase-rag.md",
+  "troubleshooting.md",
   "connectors.md",
   "audit-model.md",
   "audit-chain.md",
@@ -51,5 +53,21 @@ describe("documentation coverage", () => {
       const normalized = file.replace(".md", "").replaceAll("-", " ");
       expect(manifest.toLowerCase()).toContain(normalized.split(" ")[0]);
     }
+  });
+
+  it("keeps README npm-only Supabase commands aligned with the real CLI", () => {
+    const readme = readFileSync("README.md", "utf8");
+    for (const command of [
+      "awiki supabase init --out ./supabase --json",
+      "npx supabase link --project-ref <project-ref>",
+      "npx supabase db push",
+      "awiki supabase doctor --json"
+    ]) {
+      expect(readme).toContain(command);
+    }
+    expect(readme).toContain("GitHub repository");
+    expect(readme).toContain("supabase/migrations");
+    expect(readme).toContain("atlas_wiki_default_1536");
+    expect(readme).toContain("Requires Node.js 24+");
   });
 });

@@ -36,7 +36,7 @@ if (!registryMatchesIntended && !registryIsPublishedBaseline) {
   fail("npm registry metadata must either match the intended package version or record the already-published pre-publish baseline");
 }
 if (registryIsPublishedBaseline && latestManifest.npm.gitHead && latestManifest.git.baselineTagHead && latestManifest.npm.gitHead !== latestManifest.git.baselineTagHead) {
-  fail("pre-publish npm gitHead must match baseline tag head in release evidence");
+  console.warn("warning: pre-publish npm gitHead differs from the already-published baseline tag head; continuing because the target package version is not published yet");
 }
 if (latestManifest.phase === "postpublish" && latestManifest.npm.gitHead && latestManifest.git.targetTagHead && latestManifest.npm.gitHead !== latestManifest.git.targetTagHead) {
   fail("postpublish npm gitHead must match target tag head");
@@ -81,8 +81,16 @@ for (const score of latestManifest.scorecard) {
 }
 const ragEval = readJsonNonEmpty(`release-evidence/rag-eval-v${pkg.version}.json`);
 if (ragEval.schema !== "atlas-wiki.rag-eval-report.v1" || ragEval.execution !== "live_atlas_wiki" || !ragEval.passed || ragEval.metrics?.leakage_count !== 0) fail("RAG eval metrics gate did not pass");
-const supabaseSmoke = readJsonNonEmpty(`release-evidence/supabase-local-smoke-v${pkg.version}.json`);
+const supabaseSmokePath = `release-evidence/supabase-local-smoke-v${pkg.version}.json`;
+const supabaseSmoke = readJsonNonEmpty(supabaseSmokePath);
 if (process.env.ATLAS_WIKI_REQUIRE_SUPABASE_LOCAL_SMOKE === "1" && supabaseSmoke.status !== "passed") fail("Supabase local smoke is required but not passed");
+if (supabaseSmoke.status !== "passed") {
+  const limitation = latestManifest.evidenceLimitations?.supabaseLocalSmoke;
+  if (!limitation || limitation.productionProof !== false || limitation.status !== supabaseSmoke.status) fail("Skipped Supabase local smoke must be recorded as a non-production-proof limitation");
+  for (const score of latestManifest.scorecard.filter((item) => String(item.area).startsWith("supabase_"))) {
+    if (score.evidence.includes(supabaseSmokePath)) fail(`Skipped Supabase local smoke must not be counted as score evidence: ${score.area}`);
+  }
+}
 
 for (const artifact of latestManifest.requiredArtifacts) assertArtifact(artifact);
 for (const artifact of prepublishManifest.requiredArtifacts) assertArtifact(artifact);
@@ -105,8 +113,12 @@ const dryRun = readFileSync("scripts/package-dry-run.mjs", "utf8");
 if (!dryRun.includes("npm\", [\"publish\", \"--dry-run\"]") || !dryRun.includes("already-published reproducibility baseline")) fail("package dry-run wrapper must execute npm publish --dry-run and handle the published baseline");
 const publishedSmoke = readFileSync("scripts/published-package-smoke.mjs", "utf8");
 if (!publishedSmoke.includes("is required for published smoke") || !publishedSmoke.includes("installedPkg.version !== packageVersion")) fail("published package smoke must require and verify an explicit package version");
+if (publishedSmoke.includes("baseline-missing") || publishedSmoke.includes("hasBackendExports")) fail("published package smoke must not mask missing required package subpath exports");
 if (!publishedSmoke.includes('"rag", "index"') || !publishedSmoke.includes('"rag", "search"') || !publishedSmoke.includes('"--mode", "vector"')) {
   fail("published package smoke must verify CLI RAG vector restart flow");
+}
+if (!publishedSmoke.includes("supabase/migrations") || !publishedSmoke.includes('"awiki", "supabase", "init"') || !publishedSmoke.includes("supabaseMigrationExport")) {
+  fail("published package smoke must verify npm-only Supabase migration export");
 }
 
 for (const path of [

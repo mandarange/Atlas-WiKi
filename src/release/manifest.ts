@@ -45,6 +45,20 @@ export interface ReleaseEvidenceManifest {
     ciRunUrl?: string | undefined;
     githubReleaseAsset?: string | undefined;
   };
+  evidenceLimitations?: {
+    supabaseLocalSmoke?: {
+      path: string;
+      status: string;
+      ok: boolean;
+      productionProof: boolean;
+      note: string;
+    } | undefined;
+    publishedPackageSmoke?: {
+      path: string;
+      productionProof: boolean;
+      note: string;
+    } | undefined;
+  } | undefined;
   git: {
     branch: string;
     localHead: string;

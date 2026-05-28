@@ -103,6 +103,9 @@ describe("structured ingestion", () => {
   it("keeps README custom schema example bound to the registered schema", () => {
     const readme = readFileSync("README.md", "utf8");
     expect(readme).toContain("schemas: [\"customer_profile\"]");
+    expect(readme).toContain("Name: Acme Corp");
+    expect(readme).toContain("requiredFields: [\"name\", \"tier\"]");
+    expect(readme).not.toContain('text: "..."');
     expect(readme).not.toContain("schemas: [\"customer_profile\", \"support_case\"]");
   });
 

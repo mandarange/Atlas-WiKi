@@ -11,6 +11,13 @@ describe("published package smoke script", () => {
     expect(script).toContain("AtlasWiki");
     expect(script).toContain("createReadonlyAtlasWikiServer");
     expect(script).toContain("createAdminAtlasWikiServer");
+    expect(script).toContain("supabase/migrations");
+    expect(script).toContain("awiki\", \"supabase\", \"init\"");
+    expect(script).toContain("listSupabaseMigrationAssets");
+    expect(script).toContain("writeSupabaseMigrations");
+    expect(script).toContain("publishVerified");
+    expect(script).not.toContain("baseline-missing");
+    expect(script).not.toContain("hasBackendExports");
     expect(script).toContain("atlas-wiki.release-evidence.v2");
     expect(script).toContain("npx");
     expect(script).toContain("audit\", \"verify");

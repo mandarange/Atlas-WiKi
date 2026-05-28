@@ -6,6 +6,20 @@ All notable version changes should be recorded in this file before release.
 
 - Keep this section for changes that have landed but are not published yet.
 
+## [0.2.2] - 2026-05-27
+
+### Added
+
+- Add npm-only Supabase setup via `awiki supabase init`, `migrations export`, `migrations list`, `status`, and `doctor`.
+- Export typed Supabase migration asset helpers from `atlas-wiki/supabase`.
+- Verify packaged and installed `supabase/migrations` assets in package, tarball, type-consumer, and published-package smoke gates.
+
+### Fixed
+
+- Make README Supabase setup copy-pasteable without a GitHub clone.
+- Replace placeholder structured extraction sample text with an executable customer profile example.
+- Add a runtime Node.js 24+ CLI check before loading SQLite-backed command code.
+
 ## [0.2.1] - 2026-05-27
 
 ### Fixed

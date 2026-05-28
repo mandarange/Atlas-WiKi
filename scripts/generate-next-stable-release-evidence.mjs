@@ -72,6 +72,12 @@ mkdirSync("release-evidence", { recursive: true });
 run("node", ["scripts/run-rag-eval.mjs", "--output", ragEvalEvidencePath]);
 if (!artifactPassed(supabaseLocalSmokePath)) run("node", ["scripts/supabase-local-test.mjs", "--output", supabaseLocalSmokePath]);
 run("node", ["scripts/package-smoke.mjs", "--output", packageSmokePath]);
+const supabaseLocalSmoke = readJsonFile(supabaseLocalSmokePath) ?? {};
+const supabaseLocalSmokePassed = supabaseLocalSmoke.ok === true && supabaseLocalSmoke.status === "passed";
+const supabaseLocalSmokeStatus = typeof supabaseLocalSmoke.status === "string" ? supabaseLocalSmoke.status : "unknown";
+const supabaseLocalSmokeNote = supabaseLocalSmokePassed
+  ? "Local Supabase service smoke passed and is counted as pgvector/RLS/RPC operational proof."
+  : "Local Supabase service smoke is a status artifact only and is not counted as production pgvector/RLS/RPC proof.";
 writeFileSync(latestStableEvidencePath, JSON.stringify({
   schema: "atlas-wiki.release-latest.v1",
   package: "atlas-wiki",
@@ -165,6 +171,20 @@ const manifest = {
     time: npmView?.time
   },
   postpublish,
+  evidenceLimitations: {
+    supabaseLocalSmoke: {
+      path: supabaseLocalSmokePath,
+      status: supabaseLocalSmokeStatus,
+      ok: supabaseLocalSmoke.ok === true,
+      productionProof: supabaseLocalSmokePassed,
+      note: supabaseLocalSmokeNote
+    },
+    publishedPackageSmoke: {
+      path: `release-evidence/published-package-smoke-v${releaseVersion}.json`,
+      productionProof: phase === "postpublish" && smokeOk,
+      note: phase === "postpublish" && smokeOk ? "Published npm registry package smoke is recorded for this release." : "Published npm registry package smoke is post-publish only and is not required for this prepublish artifact."
+    }
+  },
   git: {
     branch,
     localHead,
@@ -191,8 +211,9 @@ const manifest = {
     release_reproducibility: 9.5,
     gemini_provider: 9.3,
     sqlite_rag: 9.4,
-    supabase_store: 9.1,
-    supabase_pgvector_rpc: 9.0,
+    supabase_store: supabaseLocalSmokePassed ? 9.2 : 9.0,
+    user_facing_supabase_setup: 9.2,
+    supabase_pgvector_rpc: supabaseLocalSmokePassed ? 9.1 : 9.0,
     structured_extraction: 9.1,
     mcp_authorization: 9.3,
     security: 9.2,
@@ -203,8 +224,9 @@ const manifest = {
     { area: "release_reproducibility", score: 9.5, evidence: [latestEvidencePath, prepublishEvidencePath, latestStableEvidencePath, "docs/release-reproducibility.md"], gate: "npm run release:next-stable-verify" },
     { area: "gemini_provider", score: 9.3, evidence: ["src/rag/providers/gemini.ts", "tests/rag.test.ts", "README.md"], gate: "npm run test:rag" },
     { area: "sqlite_rag", score: 9.4, evidence: [ragEvalEvidencePath, "src/rag/index.ts", "tests/rag.test.ts", "tests/eval-governance.test.ts"], gate: "npm run rag:eval && npm run test:rag" },
-    { area: "supabase_store", score: 9.2, evidence: ["src/store/supabase/supabase-store.ts", "tests/supabase-store.test.ts", supabaseLocalSmokePath, "supabase/migrations/20260527000900_atlas_wiki_validation_contract.sql"], gate: "npm run test:supabase:mock && SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local" },
-    { area: "supabase_pgvector_rpc", score: 9.1, evidence: ["src/store/supabase/supabase-store.ts", "supabase/migrations/20260527000800_atlas_wiki_n9_rpc_contracts.sql", supabaseLocalSmokePath], gate: "npm run test:supabase:mock" },
+    { area: "supabase_store", score: supabaseLocalSmokePassed ? 9.2 : 9.0, evidence: ["src/store/supabase/supabase-store.ts", "tests/supabase-store.test.ts", "supabase/migrations/20260527000900_atlas_wiki_validation_contract.sql", ...(supabaseLocalSmokePassed ? [supabaseLocalSmokePath] : [])], gate: supabaseLocalSmokePassed ? "npm run test:supabase:mock && SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local" : "npm run test:supabase:mock; local service smoke is opt-in and not counted as production proof unless SUPABASE_LOCAL_TESTS=1 passes" },
+    { area: "user_facing_supabase_setup", score: 9.2, evidence: ["src/cli/supabase.ts", "src/store/supabase/assets.ts", "tests/supabase-assets.test.ts", "tests/cli-setup.test.ts", packageSmokePath, "README.md"], gate: "npm run test:cli-setup && npm run package:smoke" },
+    { area: "supabase_pgvector_rpc", score: supabaseLocalSmokePassed ? 9.1 : 9.0, evidence: ["src/store/supabase/supabase-store.ts", "tests/supabase-store.test.ts", "supabase/migrations/20260527000800_atlas_wiki_n9_rpc_contracts.sql", ...(supabaseLocalSmokePassed ? [supabaseLocalSmokePath] : [])], gate: supabaseLocalSmokePassed ? "npm run test:supabase:mock && SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local" : "npm run test:supabase:mock; skipped local service smoke remains unverified for live pgvector/RLS/RPC" },
     { area: "structured_extraction", score: 9.1, evidence: ["src/structured/index.ts", "tests/structured-ingestion.test.ts", "docs/schema.md"], gate: "npm run test:structured" },
     { area: "mcp_authorization", score: 9.3, evidence: ["src/mcp/server.ts", "tests/mcp-hardening.test.ts", "tests/mcp-authz.test.ts", "docs/mcp-production-auth.md"], gate: "npm run test:mcp" },
     { area: "security", score: 9.2, evidence: ["tests/security.test.ts", "tests/context-hardening.test.ts", "tests/supabase-store.test.ts"], gate: "npm run test:security && npm run test:context-leakage" },
@@ -290,7 +312,7 @@ function evidenceFor(area, capability, id, version) {
 }
 
 function gateFor(area) {
-  if (area === "PKG" || area === "TESTING") return "npm run package:smoke && npm run release:published-check";
+  if (area === "PKG" || area === "TESTING") return "npm run package:smoke; after publish run npm run release:published-check";
   if (area === "GEMINI" || area === "RAG" || area === "SQLITE") return "npm run test:rag";
   if (area === "SUPABASE") return "npm run test:supabase:mock";
   if (area === "STRUCTURED") return "npm run test:structured";
@@ -400,6 +422,15 @@ function artifactPassed(path) {
     return parsed?.ok === true && parsed?.status === "passed";
   } catch {
     return false;
+  }
+}
+
+function readJsonFile(path) {
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
   }
 }
 

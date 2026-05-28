@@ -34,7 +34,7 @@ for (const task of goldenTasks) {
 
 for (const evidence of new Set(ledger.tasks.flatMap((task) => task.evidence))) {
   if (typeof evidence !== "string") fail("Evidence entries must be strings");
-  if (evidence.startsWith("/") || evidence.includes(" release:") || evidence.includes("npm run ") || evidence.includes("package.json ")) continue;
+  if (evidence.startsWith("/") || evidence.startsWith(".github/") || evidence.includes(" release:") || evidence.includes("npm run ") || evidence.includes("package.json ")) continue;
   if (evidence.startsWith("docs/") || evidence.startsWith("src/") || evidence.startsWith("tests/") || evidence.startsWith("scripts/") || evidence.startsWith(".github/") || evidence === "README.md" || evidence === "SECURITY.md" || evidence === "CHANGELOG.md" || evidence === "CONTRIBUTING.md" || evidence === "LICENSE" || evidence === "package.json" || evidence === ".npmignore") {
     if (!existsSync(evidence)) fail(`Evidence file does not exist: ${evidence}`);
   }

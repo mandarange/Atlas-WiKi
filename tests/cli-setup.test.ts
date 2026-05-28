@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough, Writable } from "node:stream";
 import { afterEach, describe, expect, it } from "vitest";
-import { main } from "../src/cli/awiki.js";
+import { main, nodeVersionError, nodeVersionSupported } from "../src/cli/awiki.js";
 import { runInteractiveSetup } from "../src/cli/setup.js";
 
 const roots: string[] = [];
@@ -34,6 +34,12 @@ afterEach(() => {
 });
 
 describe("CLI setup", () => {
+  it("checks Node 24 before loading the SQLite-backed CLI implementation", () => {
+    expect(nodeVersionSupported("24.0.0")).toBe(true);
+    expect(nodeVersionSupported("23.11.0")).toBe(false);
+    expect(nodeVersionError("22.0.0").message).toContain("Node.js 24 or newer");
+  });
+
   it("accepts interactive setup answers from a CLI input stream", async () => {
     const dataRoot = root();
     const silentOutput = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
@@ -122,5 +128,41 @@ describe("CLI setup", () => {
     await expect(main(["rag", "search", "policy", "--root", dataRoot, "--mode", "vector", "--json"])).rejects.toThrow(
       "ATLAS_GEMINI_KEY is required for Gemini RAG"
     );
+  });
+
+  it("exports Supabase migrations through npm-only CLI commands", async () => {
+    const out = join(root(), "supabase");
+    const init = JSON.parse(await captureStdout(() => main(["supabase", "init", "--out", out, "--json"])));
+    expect(init.ok).toBe(true);
+    expect(init.configStatus).toBe("created");
+    expect(init.migrations.copied).toHaveLength(9);
+    expect(existsSync(join(out, "migrations", "20260527000900_atlas_wiki_validation_contract.sql"))).toBe(true);
+
+    const dryRunOut = join(root(), "dry-run-supabase");
+    const dryRun = JSON.parse(await captureStdout(() => main(["supabase", "init", "--out", dryRunOut, "--dry-run", "--json"])));
+    expect(dryRun.ok).toBe(true);
+    expect(dryRun.migrations.dryRun).toBe(true);
+    expect(existsSync(dryRunOut)).toBe(false);
+
+    const exportOut = join(root(), "exported-migrations");
+    const exported = JSON.parse(await captureStdout(() => main(["supabase", "migrations", "export", "--out", exportOut, "--json"])));
+    expect(exported.copied).toHaveLength(9);
+    expect(existsSync(join(exportOut, "20260527000100_atlas_wiki_core.sql"))).toBe(true);
+
+    const list = JSON.parse(await captureStdout(() => main(["supabase", "migrations", "list", "--json"])));
+    expect(list.count).toBe(9);
+    expect(list.migrations[0].sha256).toMatch(/^[a-f0-9]{64}$/);
+
+    const status = JSON.parse(await captureStdout(() => main(["supabase", "status", "--json"])));
+    expect(status.packageAssets.dimensionPolicy).toBe("atlas_wiki_default_1536");
+  });
+
+  it("keeps Supabase CLI errors user-facing for missing env and custom dimensions", async () => {
+    const doctor = JSON.parse(await captureStdout(() => main(["supabase", "doctor", "--url", "", "--key", "", "--json"])));
+    expect(doctor.ok).toBe(false);
+    expect(doctor.findings.join("\n")).toContain("missing_supabase_url");
+    const serviceRoleDoctor = JSON.parse(await captureStdout(() => main(["supabase", "doctor", "--service-role", "--url", "", "--key", "", "--json"])));
+    expect(serviceRoleDoctor.warning).toContain("server-only secrets");
+    await expect(main(["supabase", "init", "--dimensions", "768", "--json"])).rejects.toThrow(/1536/);
   });
 });

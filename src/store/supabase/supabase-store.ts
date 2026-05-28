@@ -9,6 +9,7 @@ import { redactText } from "../../security/redaction.js";
 import { builtInSchemaContracts, candidateSourceRefs, extractStructured, normalizeSchemaContract, structuredContentHash, structuredStableId } from "../../structured/index.js";
 import type { StructuredSchemaContract } from "../../structured/index.js";
 import type { AtlasWikiStore, CasWriteOptions, ChunkSearchInput, ChunkSearchResult, IngestInput, ProposeChangeInput, ProposeClaimInput, ProposalType, RagChunkEmbedding, RagEmbeddingProfile, RagIndexChunk, RagStoredEmbedding, RagVectorStats, SearchResult, StructuredIngestInput, StructuredIngestResult, ValidationReport, VectorSearchInput, VectorSearchResult, WriteOptions, WriteResult } from "../store-contract.js";
+import { SUPABASE_DEFAULT_DIMENSION_POLICY, SUPABASE_DEFAULT_VECTOR_DIMENSIONS, SUPABASE_MIGRATION_VERSIONS } from "./assets.js";
 import { createSupabaseClient } from "./client.js";
 import { SupabaseStoreError } from "./errors.js";
 import { recordToRow, rowToRecord } from "./mappers.js";
@@ -16,18 +17,6 @@ import { sourceAclRows } from "./policy.js";
 import { callRpc } from "./rpc.js";
 import type { SupabaseLikeClient, SupabaseStoreOptions } from "./types.js";
 
-const SUPABASE_DEFAULT_VECTOR_DIMENSIONS = 1536;
-const SUPABASE_EXPECTED_MIGRATIONS = [
-  "20260527000100_atlas_wiki_core",
-  "20260527000200_atlas_wiki_rls",
-  "20260527000300_atlas_wiki_audit",
-  "20260527000400_atlas_wiki_structured_records",
-  "20260527000500_atlas_wiki_vector_optional",
-  "20260527000600_atlas_wiki_search_rpc",
-  "20260527000700_atlas_wiki_rag_pgvector",
-  "20260527000800_atlas_wiki_n9_rpc_contracts",
-  "20260527000900_atlas_wiki_validation_contract"
-] as const;
 const SUPABASE_REQUIRED_TABLES = ["records", "sources", "chunks", "record_acl", "proposals", "audit_events", "structured_objects", "extraction_runs", "embedding_profiles", "embeddings"] as const;
 const SUPABASE_REQUIRED_RPCS = ["chunk_search", "rag_search"] as const;
 
@@ -302,7 +291,7 @@ export class SupabaseStore implements AtlasWikiStore {
 
   async migrationReport(): Promise<{ ok: boolean; backend: "supabase"; applied_count: number; pending_count: number; entries: unknown[] }> {
     const client = this.requireClient();
-    const expected = [...SUPABASE_EXPECTED_MIGRATIONS];
+    const expected = [...SUPABASE_MIGRATION_VERSIONS];
     const report = await rpcMaybe(client, "migration_report", { expected_versions: expected });
     if (!report.ok) {
       return {
@@ -567,7 +556,7 @@ function normalizeVector(value: unknown): number[] | undefined {
 
 function assertSupabaseVectorDimensions(dimensions: number, vector?: readonly number[]): void {
   if (dimensions !== SUPABASE_DEFAULT_VECTOR_DIMENSIONS || (vector && vector.length !== SUPABASE_DEFAULT_VECTOR_DIMENSIONS)) {
-    throw new SupabaseStoreError("Supabase pgvector RPC supports 1536 dimensions by default; custom dimensions require an explicit project migration", {
+    throw new SupabaseStoreError("Supabase pgvector RPC supports only the atlas_wiki_default_1536 policy by default; use 1536 dimensions or create an explicit custom dimension project migration. See docs/supabase-rag.md.", {
       expected: SUPABASE_DEFAULT_VECTOR_DIMENSIONS,
       dimensions,
       vectorDimensions: vector?.length
@@ -578,10 +567,10 @@ function assertSupabaseVectorDimensions(dimensions: number, vector?: readonly nu
 function assertSupabaseStoreOptions(options: SupabaseStoreOptions): void {
   if (!options.vector?.enabled) return;
   if (options.vector.dimensions !== SUPABASE_DEFAULT_VECTOR_DIMENSIONS) {
-    throw new SupabaseStoreError("Supabase pgvector RPC supports 1536 dimensions by default; custom dimensions require an explicit project migration", {
+    throw new SupabaseStoreError("Supabase pgvector RPC supports only the atlas_wiki_default_1536 policy by default; use 1536 dimensions or create an explicit custom dimension project migration. See docs/supabase-rag.md.", {
       expected: SUPABASE_DEFAULT_VECTOR_DIMENSIONS,
       dimensions: options.vector.dimensions,
-      dimensionPolicy: options.vector.dimensionPolicy ?? "atlas_wiki_default_1536"
+      dimensionPolicy: options.vector.dimensionPolicy ?? SUPABASE_DEFAULT_DIMENSION_POLICY
     });
   }
 }

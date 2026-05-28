@@ -66,7 +66,10 @@ export class GeminiEmbeddingProvider implements RagEmbeddingProvider {
       const vector = extractVector(response);
       if (!vector) throw new Error("Gemini embedding response did not contain a numeric vector");
       if (vector.length !== this.dimensions) {
-        throw new RagEmbeddingProviderError(`Gemini embedding dimension mismatch: expected ${this.dimensions}, received ${vector.length}`, { retryable: false });
+        throw new RagEmbeddingProviderError(
+          `Gemini embedding dimension mismatch: expected ${this.dimensions}, received ${vector.length}. Check the configured Gemini model/outputDimensionality; Supabase RAG uses atlas_wiki_default_1536 unless you maintain a custom migration.`,
+          { retryable: false }
+        );
       }
       return vector;
     } catch (error) {

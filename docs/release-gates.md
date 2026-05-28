@@ -13,7 +13,6 @@ npm run test:audit
 npm run package:verify
 npm run packcheck
 npm run release:next-stable-verify
-npm run release:published-check
 ```
 
-Publishing `latest` is blocked unless the local gates and `npm run release:check` pass. After publish, run `npm run release:published-check` against the published package spec, for example `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.2.0 npm run release:published-check`.
+Publishing `latest` is blocked unless the local gates and `npm run release:check` pass. After publish, run `npm run release:published-check` against the published package spec, for example `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.2.2 npm run release:published-check`.

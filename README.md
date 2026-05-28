@@ -2,6 +2,8 @@
 
 [![npm version](https://img.shields.io/npm/v/atlas-wiki.svg)](https://www.npmjs.com/package/atlas-wiki)
 
+Requires Node.js 24+.
+
 ## LLM Init Prompt for Agent Builders (Hermess, OpenClaw, and Similar Tools)
 
 ```text
@@ -18,6 +20,7 @@ SQLite local mode:
 
 ```bash
 npm install atlas-wiki
+npx awiki init --root ./.atlas-wiki --json
 ```
 
 Hermess or OpenCalw agent/tooling mode:
@@ -39,7 +42,10 @@ Supabase hosted mode:
 
 ```bash
 npm install atlas-wiki @supabase/supabase-js
-supabase migration up
+npx awiki supabase init --out ./supabase --json
+npx supabase link --project-ref <project-ref>
+npx supabase db push
+npx awiki supabase doctor --json
 ```
 
 Node.js 24 or newer is required because the default SQLite driver uses `node:sqlite`.
@@ -49,7 +55,7 @@ Node.js 24 or newer is required because the default SQLite driver uses `node:sql
 | Backend | Best for | Notes |
 | --- | --- | --- |
 | SQLite | local first, zero cloud setup, CLI/dev/agent local memory, single-user or small team file sync | Default path and deterministic test baseline. |
-| Supabase | hosted Postgres, RLS, multi-user/team deployment, optional vector search, migration workflow | Requires `@supabase/supabase-js` and committed SQL migrations. |
+| Supabase | hosted Postgres, RLS, multi-user/team deployment, optional vector search, migration workflow | The npm package includes `supabase/migrations`; `awiki supabase init` exports them without requiring a GitHub clone. |
 | Memory | tests and contract parity | Not intended for durable data. |
 
 ## SQLite Quick Start
@@ -90,7 +96,25 @@ Use anon/publishable keys with RLS for client reads. Service role keys are serve
 
 ## Supabase Setup
 
-The committed migrations live under `supabase/migrations`:
+### npm-only setup
+
+You do not need to clone the GitHub repository to start a Supabase backend. The npm package includes the SQL files under `supabase/migrations`, and the CLI exports them into your project:
+
+```bash
+npm i -g atlas-wiki
+awiki supabase init --out ./supabase --json
+npx supabase link --project-ref <project-ref>
+npx supabase db push
+awiki supabase doctor --json
+```
+
+Use `npx supabase` so the Supabase CLI can run through npm without a separate global install. `awiki supabase init` creates a minimal `supabase/config.toml`, creates `supabase/migrations`, and copies all bundled Atlas WiKi migrations. Existing migration files are skipped by default; pass `--dry-run` to preview changes and pass `--force` or `--overwrite` only when you intentionally want to replace them. `awiki supabase migrations export --out ./supabase/migrations --json` exports only the migration files, and `awiki supabase migrations list --json` prints filename, version, package path, and sha256 metadata.
+
+`awiki supabase doctor --json` uses `SUPABASE_URL` and `SUPABASE_ANON_KEY`/publishable key by default. It does not require a service role key; `--service-role` is available only for server-side operational checks and prints a server-only warning.
+
+### repo clone setup
+
+If you are working from this repository, the same committed migrations already live under `supabase/migrations`:
 
 ```txt
 20260527000100_atlas_wiki_core.sql
@@ -113,19 +137,24 @@ await wiki.schema.register({
   id: "customer_profile",
   name: "Customer Profile",
   version: "1",
-  jsonSchema: { type: "object", required: ["name"] },
-  requiredFields: ["name"],
+  jsonSchema: { type: "object", required: ["name", "tier"] },
+  requiredFields: ["name", "tier"],
   identityFields: ["name"],
   confidenceThreshold: 0.8,
   conflictKeys: ["name"]
 });
 
 const result = await wiki.ingestStructured({
-	  title: "Customer notes",
-	  text: "...",
-	  schemas: ["customer_profile"],
-	  mode: "proposal"
-	});
+  title: "Customer notes",
+  text: [
+    "Name: Acme Corp",
+    "Tier: Enterprise",
+    "Owner: Maya Chen",
+    "Renewal Date: 2026-09-30"
+  ].join("\n"),
+  schemas: ["customer_profile"],
+  mode: "proposal"
+});
 
 console.log(result.structuredObjects);
 console.log(result.proposals);
@@ -207,10 +236,13 @@ MCP read-only tools include `atlas_wiki.rag_search`, `atlas_wiki.rag_context_pac
 Supabase RAG uses committed SQL migrations under `supabase/migrations`, including pgvector setup, `atlas_wiki.embedding_profiles`, `atlas_wiki.embeddings`, RLS policies, and RPC-style `atlas_wiki.chunk_search(...)` / `atlas_wiki.rag_search(...)` functions. The default production profile is 1536 dimensions; custom dimensions require an explicit project migration. Typical setup is:
 
 ```bash
-supabase link --project-ref <project-ref>
-supabase db push
-supabase db reset
+awiki supabase init --out ./supabase --json
+npx supabase link --project-ref <project-ref>
+npx supabase db push
+awiki supabase doctor --json
 ```
+
+Supabase RAG uses the official `atlas_wiki_default_1536` policy. `gemini-embedding-2` should be configured with `dimensions: 1536` for Supabase-backed vector search. SQLite can use smaller test dimensions, but bundled Supabase migrations and RPCs reject non-1536 vectors unless you create and maintain a project-specific custom migration.
 
 Service-role key retrieval is server-only and must re-check Atlas policy after RPC results. Client-side anon/publishable-key retrieval is only appropriate when RLS policies are active. Never expose `GEMINI_API_KEY` or Supabase service-role keys in browser code.
 
@@ -219,10 +251,14 @@ Troubleshooting:
 | Symptom | Fix |
 | --- | --- |
 | missing `GEMINI_API_KEY` | Use `hybrid` with degrade, or configure `GeminiEmbeddingProvider` server-side. |
+| missing `validate_contract` RPC | Run `awiki supabase init --out ./supabase --json`, then `npx supabase db push`. |
+| missing `rag_search` RPC | Apply `20260527000700_atlas_wiki_rag_pgvector.sql` and later migrations with `npx supabase db push`. |
+| Supabase dimension mismatch | Use `gemini-embedding-2` with 1536 dimensions or create an advanced custom pgvector migration. |
 | vector mode fails | Run `awiki rag index` with a provider; vector mode intentionally does not fallback. |
 | model/dimension mismatch | Create a new embedding profile and reindex. |
 | stale embeddings | Run `awiki rag reindex --only stale --json`. |
 | Supabase RLS returns no rows | Verify actor id/groups claims and Atlas ACL rows. |
+| Node.js version error | Install Node.js 24+; npm engine warnings alone are not enough because `awiki` checks at runtime. |
 
 Evaluation should track recall@k, MRR, citation precision, and leakage count. For tests, use `DeterministicEmbeddingProvider` from `atlas-wiki/rag/testing`; do not use it as production vector quality evidence.
 
@@ -256,11 +292,33 @@ await wiki.ingestText({
 awiki claim create --text "Remote work needs manager approval" --owner team:ops --as user:alice@example.com --root ./.atlas-wiki --json
 awiki migrate report --root ./.atlas-wiki --json
 awiki backup create --root ./.atlas-wiki --json
+awiki supabase init --out ./supabase --json
+awiki supabase doctor --url $SUPABASE_URL --key $SUPABASE_ANON_KEY --json
 ```
 
 ## MCP
 
-Readonly MCP is the default. Admin tools require server-side actor resolution and an actor-aware `authorizeTool` callback. Production tool schemas do not expose local `root` or impersonation arguments.
+Readonly MCP is the default:
+
+```ts
+import { createReadonlyAtlasWikiServer } from "atlas-wiki/mcp";
+
+export const server = createReadonlyAtlasWikiServer({ root: ".atlas-wiki" });
+```
+
+Admin tools require server-side actor resolution and an actor-aware `authorizeTool` callback. Production tool schemas do not expose local `root` or impersonation arguments.
+
+```ts
+import { createAdminAtlasWikiServer } from "atlas-wiki/mcp/admin";
+
+export const server = createAdminAtlasWikiServer({
+  root: ".atlas-wiki",
+  actorProvider: async () => ({ id: "service:mcp-admin", type: "service", groups: ["authenticated"] }),
+  authorizeTool: async ({ toolName, actor }) => actor.id === "service:mcp-admin" && toolName.startsWith("atlas_wiki.")
+});
+```
+
+When MCP runs against Supabase, keep Supabase URL/key configuration in server environment variables or server-side store construction. Never accept a service role key as a public MCP tool input.
 
 ## Security Model
 
@@ -293,3 +351,5 @@ SUPABASE_LOCAL_TESTS=1 npm run test:supabase:local
 npm run package:smoke
 npm run release:check
 ```
+
+After publishing 0.2.2 to npm, run `ATLAS_WIKI_PUBLISHED_SPEC=atlas-wiki@0.2.2 npm run release:published-check` from the repository to verify the registry artifact.
